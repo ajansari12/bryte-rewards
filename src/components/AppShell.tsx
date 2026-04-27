@@ -1,29 +1,27 @@
-'use client';
-
+import React, { Suspense } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Sidebar, Topbar, ToastRack, NotifPanel, Confetti } from './Shell';
 import { FeedPage } from './Feed';
 import { GiveRecognitionModal } from './GiveModal';
 import { BRYTE_DATA } from '@/lib/data';
-import dynamic from 'next/dynamic';
 
 // Lazy-load less-critical page components
-const LeaderboardPage = dynamic(() => import('./Pages').then(m => ({ default: m.LeaderboardPage })));
-const BadgesPage = dynamic(() => import('./Pages').then(m => ({ default: m.BadgesPage })));
-const RewardsPage = dynamic(() => import('./Pages').then(m => ({ default: m.RewardsPage })));
-const ManagerPage = dynamic(() => import('./Pages').then(m => ({ default: m.ManagerPage })));
-const AnalyticsPage = dynamic(() => import('./Pages').then(m => ({ default: m.AnalyticsPage })));
-const AdminPage = dynamic(() => import('./Pages').then(m => ({ default: m.AdminPage })));
-const ProfilePage = dynamic(() => import('./Additions').then(m => ({ default: m.ProfilePage })));
-const NotificationsPage = dynamic(() => import('./Extras').then(m => ({ default: m.NotificationsPage })));
-const SearchPalette = dynamic(() => import('./Additions').then(m => ({ default: m.SearchPalette })));
-const RecognitionDetail = dynamic(() => import('./Additions').then(m => ({ default: m.RecognitionDetail })));
-const DigestPreview = dynamic(() => import('./Additions').then(m => ({ default: m.DigestPreview })));
-const CoachmarksTour = dynamic(() => import('./Extras').then(m => ({ default: m.CoachmarksTour })));
-const KudosPrintView = dynamic(() => import('./Extras2').then(m => ({ default: m.KudosPrintView })));
-const BadgeNominationModal = dynamic(() => import('./Extras').then(m => ({ default: m.BadgeNominationModal })));
-const DarkModeStyles = dynamic(() => import('./Extras2').then(m => ({ default: m.DarkModeStyles })));
-const ManagerNudgeModal = dynamic(() => import('./Additions').then(m => ({ default: m.ManagerNudgeModal })));
+const LeaderboardPage = React.lazy(() => import('./Pages').then(m => ({ default: m.LeaderboardPage })));
+const BadgesPage = React.lazy(() => import('./Pages').then(m => ({ default: m.BadgesPage })));
+const RewardsPage = React.lazy(() => import('./Pages').then(m => ({ default: m.RewardsPage })));
+const ManagerPage = React.lazy(() => import('./Pages').then(m => ({ default: m.ManagerPage })));
+const AnalyticsPage = React.lazy(() => import('./Pages').then(m => ({ default: m.AnalyticsPage })));
+const AdminPage = React.lazy(() => import('./Pages').then(m => ({ default: m.AdminPage })));
+const ProfilePage = React.lazy(() => import('./Additions').then(m => ({ default: m.ProfilePage })));
+const NotificationsPage = React.lazy(() => import('./Extras').then(m => ({ default: m.NotificationsPage })));
+const SearchPalette = React.lazy(() => import('./Additions').then(m => ({ default: m.SearchPalette })));
+const RecognitionDetail = React.lazy(() => import('./Additions').then(m => ({ default: m.RecognitionDetail })));
+const DigestPreview = React.lazy(() => import('./Additions').then(m => ({ default: m.DigestPreview })));
+const CoachmarksTour = React.lazy(() => import('./Extras').then(m => ({ default: m.CoachmarksTour })));
+const KudosPrintView = React.lazy(() => import('./Extras2').then(m => ({ default: m.KudosPrintView })));
+const BadgeNominationModal = React.lazy(() => import('./Extras').then(m => ({ default: m.BadgeNominationModal })));
+const DarkModeStyles = React.lazy(() => import('./Extras2').then(m => ({ default: m.DarkModeStyles })));
+const ManagerNudgeModal = React.lazy(() => import('./Additions').then(m => ({ default: m.ManagerNudgeModal })));
 
 const titleFor: Record<string, string> = {
   feed: 'Feed', profile: 'My profile', notifications: 'Notifications',
@@ -35,6 +33,7 @@ export function AppShell() {
   const app = useApp();
 
   return (
+    <Suspense fallback={null}>
     <div className="app">
       <Sidebar route={app.route} setRoute={app.setRoute} industry={app.industry} />
 
@@ -173,6 +172,7 @@ export function AppShell() {
         />
       )}
     </div>
+    </Suspense>
   );
 }
 

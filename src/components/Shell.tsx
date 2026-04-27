@@ -1,5 +1,3 @@
-'use client';
-
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Icon } from './Icon';
 import { SAMPLE_NOTIFS, BRYTE_DATA } from '@/lib/data';

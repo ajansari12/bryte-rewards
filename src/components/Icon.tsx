@@ -1,5 +1,3 @@
-'use client';
-
 import { SVGProps } from 'react';
 
 interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'stroke'> {

@@ -1,5 +1,3 @@
-'use client';
-
 // Auth.tsx — split-panel login/signup + 4-step onboarding wizard
 
 import { useState, useEffect } from 'react';

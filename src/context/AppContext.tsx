@@ -1,5 +1,3 @@
-'use client';
-
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { BRYTE_DATA, SAMPLE_NOTIFS } from '@/lib/data';
 import type { Recognition, Notification, Toast, Route, Screen, Theme, Industry } from '@/lib/types';

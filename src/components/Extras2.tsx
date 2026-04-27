@@ -1,5 +1,3 @@
-'use client';
-
 // Extras2.tsx — Dark mode, Templates library, CSV export, Kudos print view, Mobile parity screens
 
 import React, { useState, useEffect, useRef } from 'react';

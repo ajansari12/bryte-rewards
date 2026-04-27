@@ -1,5 +1,3 @@
-'use client';
-
 // Mobile.tsx — phone frame preview of the feed
 
 import React from 'react';
