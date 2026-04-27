@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Journal — Bryte Rewards</title>
+<meta name="description" content="Essays, playbooks, and field notes on employee recognition, culture, and the craft of saying thank you out loud.">
+<link rel="stylesheet" href="site.css?v=6">
+<style>
+  /* BLOG / JOURNAL INDEX */
+  .b-hero { padding: 64px 0 48px; border-bottom: 1px solid var(--b-border); }
+  .b-hero .container { max-width: 960px; }
+  .b-hero-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; flex-wrap: wrap; }
+  .b-hero h1 { margin: 20px 0 0; }
+  .b-hero .sub { max-width: 520px; margin-top: 16px; color: var(--b-ink-2); font-size: var(--t-lead); }
+  .b-hero-meta {
+    font-family: var(--font-mono); font-size: var(--t-xs);
+    color: var(--b-ink-3); text-align: right; line-height: 1.8;
+  }
+  .b-hero-meta .n { font-family: var(--font-display); font-size: 2.5rem; color: var(--b-maple); display: block; font-variation-settings: "opsz" 144; line-height: 1; margin-bottom: 4px; }
+
+  /* Category chips */
+  .cat-strip {
+    padding: 20px 0; border-bottom: 1px solid var(--b-border);
+    background: var(--b-canvas);
+    position: sticky; top: 64px; z-index: 5;
+  }
+  .cat-strip-inner { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .cat-strip .label { font-size: var(--t-xs); color: var(--b-ink-3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; margin-right: 12px; }
+  .cat-pill {
+    padding: 6px 14px; border-radius: var(--r-pill);
+    background: var(--b-surface); border: 1px solid var(--b-border);
+    font-size: var(--t-small); font-weight: 500; color: var(--b-ink-2);
+    transition: all var(--dur) var(--ease);
+  }
+  .cat-pill:hover { background: var(--b-card); border-color: var(--b-border-heavy); }
+  .cat-pill.active { background: var(--b-ink); color: var(--b-ink-inverse); border-color: var(--b-ink); }
+
+  /* FEATURED */
+  .featured-sec { padding: 64px 0 48px; }
+  .featured {
+    display: grid; grid-template-columns: 1.4fr 1fr; gap: 56px;
+    align-items: center;
+  }
+  @media (max-width: 900px) { .featured { grid-template-columns: 1fr; gap: 32px; } }
+  .featured-img {
+    aspect-ratio: 5 / 4; border-radius: var(--r-lg);
+    background: linear-gradient(135deg, #FAEDE8 0%, #F5D4C4 40%, #FAF0E0 100%);
+    position: relative; overflow: hidden;
+    border: 1px solid var(--b-border);
+  }
+  .featured-img .glyph {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    font-family: var(--font-display); font-style: italic;
+    font-size: clamp(8rem, 16vw, 14rem); color: var(--b-maple);
+    font-variation-settings: "opsz" 144, "wght" 400;
+    line-height: 1; letter-spacing: -0.04em;
+  }
+  .featured-img::after {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4) 0%, transparent 50%);
+  }
+  .featured-meta {
+    display: flex; gap: 12px; align-items: center;
+    font-size: var(--t-xs); color: var(--b-ink-3);
+    text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;
+    margin-bottom: 16px;
+  }
+  .featured-meta .tag {
+    padding: 4px 10px; background: var(--b-gold-pale); color: var(--b-gold-deep);
+    border-radius: var(--r-pill); letter-spacing: 0.06em;
+  }
+  .featured h2 {
+    font-family: var(--font-display); font-weight: 400;
+    font-size: clamp(2rem, 4vw, 3.25rem); line-height: 1.1; letter-spacing: -0.025em;
+    color: var(--b-ink); margin: 0 0 20px;
+    font-variation-settings: "opsz" 144, "wght" 400;
+  }
+  .featured h2 a { color: inherit; transition: color var(--dur) var(--ease); }
+  .featured h2 a:hover { color: var(--b-maple); }
+  .featured h2 em { font-style: italic; color: var(--b-maple); }
+  .featured p { font-size: var(--t-lead); color: var(--b-ink-2); line-height: 1.6; margin: 0 0 28px; }
+  .featured-byline { display: flex; align-items: center; gap: 12px; font-size: var(--t-small); color: var(--b-ink-3); }
+  .featured-byline .avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, #FAEDE8, #F5D4C4); color: var(--b-maple);
+    display: grid; place-items: center;
+    font-family: var(--font-display); font-weight: 600;
+  }
+  .featured-byline strong { color: var(--b-ink); font-weight: 600; }
+
+  /* ARTICLE GRID */
+  .articles { padding: 48px 0 96px; }
+  .articles .container { max-width: var(--max-w); }
+  .articles-row { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; margin-bottom: 32px; }
+  .articles-row h3 { margin: 0; font-family: var(--font-display); font-weight: 500; font-size: 1.5rem; color: var(--b-ink); }
+  .articles-count { font-size: var(--t-xs); color: var(--b-ink-3); font-family: var(--font-mono); }
+  .art-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px; }
+  @media (max-width: 900px) { .art-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .art-grid { grid-template-columns: 1fr; } }
+
+  .art-card { display: flex; flex-direction: column; gap: 18px; }
+  .art-card a { color: inherit; transition: color var(--dur) var(--ease); }
+  .art-thumb {
+    aspect-ratio: 4 / 3; border-radius: var(--r-md);
+    position: relative; overflow: hidden; border: 1px solid var(--b-border);
+    display: grid; place-items: center;
+  }
+  .art-thumb .glyph {
+    font-family: var(--font-display); font-style: italic;
+    font-size: 5.5rem; color: currentColor;
+    font-variation-settings: "opsz" 144, "wght" 400;
+    opacity: .85;
+  }
+  .art-thumb.t1 { background: var(--b-gold-pale); color: var(--b-gold-deep); }
+  .art-thumb.t2 { background: var(--b-forest-pale); color: var(--b-forest); }
+  .art-thumb.t3 { background: var(--b-terra-pale); color: var(--b-maple); }
+  .art-thumb.t4 { background: var(--b-surface); color: var(--b-ink); }
+  .art-thumb.t5 { background: #E6E9F4; color: #4B53BC; }
+  .art-thumb.t6 { background: #F3E8FA; color: #6B2A8E; }
+
+  .art-meta { display: flex; gap: 12px; align-items: center; font-size: var(--t-xs); color: var(--b-ink-3); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .art-meta .tag { padding: 3px 10px; background: var(--b-surface); border: 1px solid var(--b-border); border-radius: var(--r-pill); letter-spacing: 0.04em; }
+  .art-card h3 {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 1.375rem; line-height: 1.25; letter-spacing: -0.015em;
+    color: var(--b-ink); margin: 0;
+    font-variation-settings: "opsz" 96;
+  }
+  .art-card h3 a:hover { color: var(--b-maple); }
+  .art-card .dek { font-size: var(--t-small); color: var(--b-ink-2); line-height: 1.6; margin: 0; }
+  .art-byline { display: flex; align-items: center; gap: 8px; font-size: var(--t-xs); color: var(--b-ink-3); margin-top: auto; padding-top: 8px; }
+  .art-byline strong { color: var(--b-ink); font-weight: 600; }
+
+  /* SUBSCRIBE band */
+  .subscribe-band {
+    padding: 80px 0; background: var(--b-ink); color: var(--b-ink-inverse);
+    position: relative; overflow: hidden;
+  }
+  .subscribe-band::before {
+    content: '✉'; position: absolute; right: -40px; top: -40px;
+    font-size: 24rem; color: rgba(194,136,45,0.08); line-height: 1;
+  }
+  .subscribe-layout { display: grid; grid-template-columns: 1.2fr 1fr; gap: 48px; align-items: center; position: relative; z-index: 1; }
+  @media (max-width: 820px) { .subscribe-layout { grid-template-columns: 1fr; gap: 32px; } }
+  .subscribe-band h2 { color: var(--b-ink-inverse); margin: 0 0 16px; }
+  .subscribe-band h2 em { color: var(--b-gold-light); font-style: italic; }
+  .subscribe-band p { color: rgba(250,246,239,0.7); font-size: var(--t-lead); line-height: 1.6; margin: 0; }
+  .subscribe-form { display: flex; gap: 12px; flex-wrap: wrap; }
+  .subscribe-form input {
+    flex: 1; min-width: 200px;
+    padding: 14px 18px; border-radius: var(--r-md);
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    color: var(--b-canvas); font-family: inherit; font-size: var(--t-body);
+  }
+  .subscribe-form input::placeholder { color: rgba(250,246,239,0.4); }
+  .subscribe-form input:focus { outline: 2px solid var(--b-gold); outline-offset: 2px; }
+
+  .subscribe-tiny { margin-top: 16px; font-size: var(--t-xs); color: rgba(250,246,239,0.5); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="logo" href="Home.html"><span class="logo-mark">B</span>Bryte Rewards</a>
+    <div class="nav-links">
+      <a href="Product.html">Product</a>
+      <a href="Customers.html">Customers</a>
+      <a href="Pricing.html">Pricing</a>
+      <a href="Blog.html" class="active">Journal</a>
+      <a href="../index.html">Open app ↗</a>
+    </div>
+    <div class="nav-actions">
+      <button class="theme-toggle" aria-label="Toggle theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button>
+      <div class="lang-toggle"><button data-lang="en">EN</button><button data-lang="fr">FR</button></div>
+      <a class="btn btn-ghost btn-sm" href="Demo.html">Sign in</a>
+      <a class="btn btn-primary btn-sm" href="Demo.html">Book a demo</a>
+      <button class="nav-burger" aria-label="Menu"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+  <div class="nav-drawer">
+    <a href="Product.html">Product</a>
+    <a href="Customers.html">Customers</a>
+    <a href="Pricing.html">Pricing</a>
+    <a href="Integrations.html">Integrations</a>
+    <a href="Security.html">Security</a>
+    <a href="About.html">About</a>
+    <a href="Blog.html">Journal</a>
+    <a href="ROI.html">ROI calculator</a>
+    <a href="../index.html">Open the app</a>
+    <div class="drawer-cta">
+      <a class="btn btn-ghost btn-sm" href="Demo.html">Sign in</a>
+      <a class="btn btn-primary btn-sm" href="Demo.html">Book a demo</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="b-hero">
+  <div class="container">
+    <div class="b-hero-row">
+      <div>
+        <div class="eyebrow">The journal</div>
+        <h1 class="h-display" style="max-width: 720px;">Field notes on <em class="italic ink-maple">saying thank you</em> out loud.</h1>
+        <p class="sub">Essays, playbooks, and occasional rants from People leaders, designers, and the Bryte Rewards team. Published when we have something worth saying — never on a content calendar.</p>
+      </div>
+      <div class="b-hero-meta">
+        <span class="n">47</span>
+        Articles published<br>
+        Since March 2023<br>
+        <span style="color: var(--b-gold);">— new one ~monthly</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CATEGORY STRIP -->
+<div class="cat-strip">
+  <div class="container cat-strip-inner">
+    <span class="label">Filter</span>
+    <a class="cat-pill active">All · 47</a>
+    <a class="cat-pill">Essays · 14</a>
+    <a class="cat-pill">Playbooks · 11</a>
+    <a class="cat-pill">Research &amp; data · 8</a>
+    <a class="cat-pill">Customer stories · 9</a>
+    <a class="cat-pill">Behind Bryte Rewards · 5</a>
+  </div>
+</div>
+
+<!-- FEATURED -->
+<section class="featured-sec">
+  <div class="container">
+    <div class="eyebrow" style="margin-bottom: 32px;">Featured</div>
+    <div class="featured">
+      <div class="featured-img">
+        <span class="glyph">points?</span>
+      </div>
+      <div>
+        <div class="featured-meta">
+          <span class="tag">Essay</span>
+          <span>·</span>
+          <span>12 min read</span>
+          <span>·</span>
+          <span>Feb 14, 2025</span>
+        </div>
+        <h2><a href="Blog-post-1.html">Recognition is <em>not</em> a points problem. It's a language problem.</a></h2>
+        <p>The industry spent fifteen years gamifying gratitude and we ended up with leaderboards for who said "nice work" the most. Here's what our research on 82,000 kudos suggests we should do instead — and what the "say something real, out loud" pattern actually looks like in practice.</p>
+        <div class="featured-byline">
+          <div class="avatar">N</div>
+          <div>
+            <strong>Nadia Okonkwo</strong><br>
+            <span style="color: var(--b-ink-3);">CEO &amp; co-founder</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ARTICLES GRID -->
+<section class="articles">
+  <div class="container">
+    <div class="articles-row">
+      <h3>Latest</h3>
+      <span class="articles-count">Showing 6 of 47</span>
+    </div>
+
+    <div class="art-grid">
+      <article class="art-card">
+        <a href="Blog-post-2.html"><div class="art-thumb t2"><span class="glyph">QC</span></div></a>
+        <div class="art-meta"><span class="tag">Playbook</span><span>8 min</span></div>
+        <h3><a href="Blog-post-2.html">Running a values refresh without making everyone hate values.</a></h3>
+        <p class="dek">The six-week playbook we've seen work at Figment, Dialogue, and fourteen other Canadian teams. With the exact Monday-morning agenda we recommend.</p>
+        <div class="art-byline"><strong>Jordan Tremblay</strong> · Jan 28, 2025</div>
+      </article>
+
+      <article class="art-card">
+        <a href="Blog-post-1.html"><div class="art-thumb t3"><span class="glyph">82k</span></div></a>
+        <div class="art-meta"><span class="tag">Research</span><span>6 min</span></div>
+        <h3><a href="Blog-post-1.html">We read 82,000 kudos. The good ones had one thing in common.</a></h3>
+        <p class="dek">Spoiler: it wasn't length. Or emoji count. Or how many people reacted. Here's what "high-quality recognition" actually measures out to — and why it matters.</p>
+        <div class="art-byline"><strong>Research team</strong> · Jan 14, 2025</div>
+      </article>
+
+      <article class="art-card">
+        <a><div class="art-thumb t1"><span class="glyph">FR</span></div></a>
+        <div class="art-meta"><span class="tag">Behind BR</span><span>5 min</span></div>
+        <h3><a>Shipping bilingual software, the Québec way.</a></h3>
+        <p class="dek">Loi 25, Charter of the French Language, and why "translation" is not the same as "bilingual product." What we learned rolling out EN/FR across our customers in QC.</p>
+        <div class="art-byline"><strong>Émilie Bouchard</strong> · Dec 18, 2024</div>
+      </article>
+
+      <article class="art-card">
+        <a><div class="art-thumb t5"><span class="glyph">mgr</span></div></a>
+        <div class="art-meta"><span class="tag">Playbook</span><span>11 min</span></div>
+        <h3><a>A manager's guide to writing recognition that doesn't sound like a performance review.</a></h3>
+        <p class="dek">The four-sentence structure we teach at every onboarding. With before/after examples from real teams (anonymized, obviously).</p>
+        <div class="art-byline"><strong>Nadia Okonkwo</strong> · Dec 3, 2024</div>
+      </article>
+
+      <article class="art-card">
+        <a><div class="art-thumb t4"><span class="glyph">why?</span></div></a>
+        <div class="art-meta"><span class="tag">Essay</span><span>7 min</span></div>
+        <h3><a>Why we'll never charge extra for SSO.</a></h3>
+        <p class="dek">The HR-tech SSO tax is one of the quieter rackets in B2B software. Here's how it got that way, and why we drew a line.</p>
+        <div class="art-byline"><strong>Jordan Tremblay</strong> · Nov 21, 2024</div>
+      </article>
+
+      <article class="art-card">
+        <a><div class="art-thumb t6"><span class="glyph">EOM</span></div></a>
+        <div class="art-meta"><span class="tag">Customer</span><span>9 min</span></div>
+        <h3><a>How Figment's "employee of the month" became something people actually cared about.</a></h3>
+        <p class="dek">The mechanic almost everyone gets wrong — and the one unusual thing Figment did that made their EOM feel real instead of rigged.</p>
+        <div class="art-byline"><strong>Priya Shah</strong> · Nov 5, 2024</div>
+      </article>
+    </div>
+
+    <div style="text-align: center; margin-top: 56px;">
+      <a class="btn btn-ghost" href="#">Load older articles →</a>
+    </div>
+  </div>
+</section>
+
+<!-- SUBSCRIBE -->
+<section class="subscribe-band">
+  <div class="container">
+    <div class="subscribe-layout">
+      <div>
+        <div class="eyebrow" style="color: var(--b-gold-light);">The mailing list</div>
+        <h2 class="h-display" style="margin-top:16px;">One email a month. <em>Nothing else.</em></h2>
+        <p>Our best essay of the month, plus one thing we've been thinking about. No product updates, no "learn how Bryte Rewards can help you achieve…" anything. Unsubscribe takes one click.</p>
+      </div>
+      <div>
+        <form class="subscribe-form" onsubmit="event.preventDefault(); this.querySelector('button').textContent='Thanks. ✓'; this.querySelector('input').value='';">
+          <input type="email" placeholder="your@email.com" required>
+          <button class="btn btn-primary" type="submit">Subscribe</button>
+        </form>
+        <p class="subscribe-tiny">6,400+ subscribers · We sent 11 emails last year · Hosted on Buttondown, not Mailchimp</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="footer-grid">
+    <div>
+      <a class="logo" href="Home.html"><span class="logo-mark">B</span>Bryte Rewards</a>
+      <p style="margin: 20px 0 0; font-size: var(--t-small); color: var(--b-ink-3); max-width: 280px;">Recognition software for Canadian teams. Say the things that matter, out loud.</p>
+      <div style="margin-top: 20px; font-size: var(--t-xs); color: var(--b-ink-3); display: inline-flex; align-items: center; gap: 8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#B8452E"><path d="M12 2l1.5 4.5L18 4l-1.5 5L21 8l-3 4 3 4-4.5-1L18 20l-4.5-2.5L12 22l-1.5-4.5L6 20l1.5-5L3 16l3-4-3-4 4.5 1L6 4l4.5 2.5z"/></svg>
+        Made in Toronto
+      </div>
+    </div>
+    <div><h4>Product</h4><ul><li><a href="Product.html">Features</a></li><li><a href="Pricing.html">Pricing</a></li><li><a href="Integrations.html">Integrations</a></li><li><a href="Security.html">Security</a></li></ul></div>
+    <div><h4>Company</h4><ul><li><a href="Customers.html">Customers</a></li><li><a href="About.html">About</a></li><li><a href="Demo.html">Book a demo</a></li><li><a href="#">Careers</a></li></ul></div>
+    <div><h4>Resources</h4><ul><li><a href="Blog.html">Journal</a></li><li><a href="ROI.html">ROI calculator</a></li><li><a href="Compare.html">Compare</a></li><li><a href="#">Help centre</a></li></ul></div>
+    <div><h4>Legal</h4><ul><li><a href="#">Privacy</a></li><li><a href="#">Terms</a></li><li><a href="#">PIPEDA notice</a></li><li><a href="#">Accessibility</a></li></ul></div>
+  </div>
+  <div class="footer-bottom"><span>© 2025 Bryte Rewards Inc. · Toronto, ON</span><span>EN · <a href="#" style="color: var(--b-ink-3);">FR</a></span></div>
+</footer>
+
+<script src="site.js?v=6"></script>
+</body>
+</html>

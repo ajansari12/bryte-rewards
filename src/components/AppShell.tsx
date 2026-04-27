@@ -1,0 +1,268 @@
+'use client';
+
+import { useApp } from '@/context/AppContext';
+import { Sidebar, Topbar, ToastRack, NotifPanel, Confetti } from './Shell';
+import { FeedPage } from './Feed';
+import { GiveRecognitionModal } from './GiveModal';
+import { BRYTE_DATA } from '@/lib/data';
+import dynamic from 'next/dynamic';
+
+// Lazy-load less-critical page components
+const LeaderboardPage = dynamic(() => import('./Pages').then(m => ({ default: m.LeaderboardPage })));
+const BadgesPage = dynamic(() => import('./Pages').then(m => ({ default: m.BadgesPage })));
+const RewardsPage = dynamic(() => import('./Pages').then(m => ({ default: m.RewardsPage })));
+const ManagerPage = dynamic(() => import('./Pages').then(m => ({ default: m.ManagerPage })));
+const AnalyticsPage = dynamic(() => import('./Pages').then(m => ({ default: m.AnalyticsPage })));
+const AdminPage = dynamic(() => import('./Pages').then(m => ({ default: m.AdminPage })));
+const ProfilePage = dynamic(() => import('./Additions').then(m => ({ default: m.ProfilePage })));
+const NotificationsPage = dynamic(() => import('./Extras').then(m => ({ default: m.NotificationsPage })));
+const SearchPalette = dynamic(() => import('./Additions').then(m => ({ default: m.SearchPalette })));
+const RecognitionDetail = dynamic(() => import('./Additions').then(m => ({ default: m.RecognitionDetail })));
+const DigestPreview = dynamic(() => import('./Additions').then(m => ({ default: m.DigestPreview })));
+const CoachmarksTour = dynamic(() => import('./Extras').then(m => ({ default: m.CoachmarksTour })));
+const KudosPrintView = dynamic(() => import('./Extras2').then(m => ({ default: m.KudosPrintView })));
+const BadgeNominationModal = dynamic(() => import('./Extras').then(m => ({ default: m.BadgeNominationModal })));
+const DarkModeStyles = dynamic(() => import('./Extras2').then(m => ({ default: m.DarkModeStyles })));
+const ManagerNudgeModal = dynamic(() => import('./Additions').then(m => ({ default: m.ManagerNudgeModal })));
+
+const titleFor: Record<string, string> = {
+  feed: 'Feed', profile: 'My profile', notifications: 'Notifications',
+  leaderboard: 'Leaderboard', badges: 'Badges', rewards: 'Rewards',
+  manager: 'Team pulse', analytics: 'Analytics', admin: 'Admin', mobile: 'Mobile preview',
+};
+
+export function AppShell() {
+  const app = useApp();
+
+  return (
+    <div className="app">
+      <Sidebar route={app.route} setRoute={app.setRoute} industry={app.industry} />
+
+      <div className="main">
+        <Topbar
+          title={titleFor[app.route] || 'Bryte'}
+          onRecognize={() => app.setShowModal(true)}
+          onToggleTheme={app.toggleTheme}
+          theme={app.theme}
+          notifications={app.notifs.filter(n => !n.read).length}
+          onBell={() => app.setShowNotifPanel(!app.showNotifPanel)}
+          showNotifPanel={app.showNotifPanel}
+          onSearch={() => app.setShowSearch(true)}
+        />
+
+        <div className="content" key={app.route}>
+          {app.route === 'feed' && (
+            <FeedPage
+              industry={app.industry}
+              recs={app.recs}
+              newIds={app.newIds}
+              onRecognize={() => app.setShowModal(true)}
+              onOpenRec={app.setDetailRec}
+              onCelebrate={(a: any) => app.pushToast({ kind: 'success', msg: `Celebrating ${a.name}'s ${a.years}-year ✦` })}
+              onVote={(n: string) => app.pushToast({ kind: 'success', msg: `Voted for ${n.split(' ')[0]} ✦` })}
+            />
+          )}
+          {app.route === 'profile' && (
+            <ProfilePage onRecognize={() => app.setShowModal(true)} onOpenRec={app.setDetailRec} />
+          )}
+          {app.route === 'notifications' && (
+            <NotificationsPage onOpenRec={app.setDetailRec} />
+          )}
+          {app.route === 'leaderboard' && <LeaderboardPage />}
+          {app.route === 'badges' && <BadgesPage onNominate={app.setNominateBadge} />}
+          {app.route === 'rewards' && (
+            <RewardsPage onToast={app.pushToast} onConfetti={app.fireConfetti} />
+          )}
+          {app.route === 'manager' && (
+            <ManagerPage onRecognize={() => app.setShowModal(true)} />
+          )}
+          {app.route === 'analytics' && <AnalyticsPage />}
+          {app.route === 'admin' && (
+            <AdminPage onToast={app.pushToast} onOpenKudos={() => app.setShowKudos(true)} />
+          )}
+          {app.route === 'mobile' && <MobileGalleryPage industry={app.industry} />}
+
+          {/* Footer nav */}
+          <div style={{
+            marginTop: 60, paddingTop: 20,
+            borderTop: '1px solid var(--b-border-soft)',
+            display: 'flex', gap: 24, justifyContent: 'center', flexWrap: 'wrap',
+          }}>
+            <button className="btn-text" onClick={() => app.setRoute('mobile')}>
+              See mobile story →
+            </button>
+            <button className="btn-text" onClick={() => app.setScreen('login')}>
+              ← Auth &amp; onboarding
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Notification panel */}
+      {app.showNotifPanel && (
+        <>
+          <div className="notif-backdrop" onClick={() => app.setShowNotifPanel(false)} />
+          <NotifPanel
+            notifs={app.notifs}
+            onClose={() => app.setShowNotifPanel(false)}
+            onMarkAll={app.markAllRead}
+            onSeeAll={() => { app.setShowNotifPanel(false); app.setRoute('notifications'); }}
+          />
+        </>
+      )}
+
+      {app.showModal && (
+        <GiveRecognitionModal
+          industry={app.industry}
+          onClose={() => app.setShowModal(false)}
+          onSubmit={app.handleSubmitRec}
+        />
+      )}
+
+      {app.showSearch && (
+        <SearchPalette
+          onClose={() => app.setShowSearch(false)}
+          onJump={(r: string) => {
+            if (r === '__recognize') app.setShowModal(true);
+            else app.setRoute(r as any);
+          }}
+        />
+      )}
+      {app.detailRec && (
+        <RecognitionDetail
+          rec={app.detailRec}
+          onClose={() => app.setDetailRec(null)}
+          onRecognize={() => app.setShowModal(true)}
+        />
+      )}
+      {app.showDigest && <DigestPreview onClose={() => app.setShowDigest(false)} />}
+      {app.showTour && <CoachmarksTour onDone={() => app.setShowTour(false)} />}
+      {app.showKudos && <KudosPrintView onClose={() => app.setShowKudos(false)} />}
+      {app.nominateBadge && (
+        <BadgeNominationModal
+          badge={app.nominateBadge}
+          onClose={() => app.setNominateBadge(null)}
+          onSend={(p: string) => app.pushToast({ kind: 'success', msg: `Nomination sent for ${p.split(' ')[0]} ✦` })}
+        />
+      )}
+      <DarkModeStyles />
+      {app.nudgePerson && (
+        <ManagerNudgeModal
+          person={app.nudgePerson}
+          onClose={() => app.setNudgePerson(null)}
+          onSend={(p: string) => {
+            app.setNudgePerson(null);
+            app.pushToast({ kind: 'success', msg: `Note sent to ${p.split(' ')[0]} ✦` });
+            app.fireConfetti();
+          }}
+        />
+      )}
+
+      <ToastRack toasts={app.toasts} />
+      <Confetti burst={app.confetti} />
+
+      {app.showTweaks && (
+        <TweaksPanel
+          industry={app.industry}
+          onIndustry={app.setIndustry}
+          theme={app.theme}
+          onTheme={app.toggleTheme}
+          onClose={() => app.setShowTweaks(false)}
+          onGoAuth={() => app.setScreen('login')}
+          onGoOnboarding={() => app.setScreen('onboarding')}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── TweaksPanel ─────────────────────────────────────────
+import { Icon } from './Icon';
+import type { Industry, Theme } from '@/lib/types';
+
+interface TweaksPanelProps {
+  industry: Industry;
+  onIndustry: (i: Industry) => void;
+  theme: Theme;
+  onTheme: () => void;
+  onClose: () => void;
+  onGoAuth: () => void;
+  onGoOnboarding: () => void;
+}
+
+function TweaksPanel({ industry, onIndustry, theme, onTheme, onClose, onGoAuth, onGoOnboarding }: TweaksPanelProps) {
+  const inds = Object.entries(BRYTE_DATA.INDUSTRIES);
+  return (
+    <div className="tweaks-panel">
+      <div className="tweaks-head">
+        <div className="title">Tweaks</div>
+        <button className="icon-btn" onClick={onClose} style={{ width: 28, height: 28 }}>
+          <Icon name="close" size={14} />
+        </button>
+      </div>
+      <div className="tweaks-body">
+        <div className="group">
+          <label className="group-label">Industry pack</label>
+          <div className="tweak-grid">
+            {inds.map(([k, v]: [string, any]) => (
+              <button key={k} className={'tweak-chip' + (industry === k ? ' active' : '')} onClick={() => onIndustry(k as Industry)}>
+                <span>{v.icon}</span>
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="group">
+          <label className="group-label">Theme</label>
+          <div className="tweak-grid">
+            <button className={'tweak-chip' + (theme === 'light' ? ' active' : '')} onClick={theme === 'dark' ? onTheme : undefined}>
+              <Icon name="sun" size={14} /> Warm cream
+            </button>
+            <button className={'tweak-chip' + (theme === 'dark' ? ' active' : '')} onClick={theme === 'light' ? onTheme : undefined}>
+              <Icon name="moon" size={14} /> Espresso
+            </button>
+          </div>
+        </div>
+        <div className="group">
+          <label className="group-label">Preview screens</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <button className="tweak-chip" onClick={onGoAuth}>
+              <Icon name="arrow" size={13} /> Auth &amp; onboarding
+            </button>
+          </div>
+        </div>
+        <div style={{ fontSize: 'var(--t-xs)', color: 'var(--b-ink-4)', marginTop: 12, lineHeight: 1.5 }}>
+          Switching industry reseeds the wall, values, org name, and empty state.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Mobile Gallery page ─────────────────────────────────
+import { MobilePreview, MobileGiveSheet } from './Mobile';
+
+function MobileGalleryPage({ industry }: { industry: Industry }) {
+  return (
+    <div>
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">On the phone</h1>
+          <div className="sub">Bottom tab bar, FAB, bottom-sheet recognition flow.</div>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 48, justifyItems: 'center', paddingTop: 20 }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="label" style={{ marginBottom: 16 }}>Feed · bottom tab navigation</div>
+          <MobilePreview industry={industry} />
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div className="label" style={{ marginBottom: 16 }}>Give recognition · bottom sheet</div>
+          <MobileGiveSheet industry={industry} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default MobileGalleryPage;

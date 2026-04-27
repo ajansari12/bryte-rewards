@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ROI calculator — Bryte Rewards</title>
+<meta name="description" content="See what recognition is actually worth to your team. Drag the sliders. Honest math, no funnel.">
+<link rel="stylesheet" href="site.css?v=6">
+<style>
+  .roi-hero { padding: 72px 0 32px; text-align: center; }
+  .roi-hero h1 { margin: 20px auto; max-width: 18ch; }
+  .roi-hero .lead { max-width: 620px; margin: 0 auto; }
+
+  .roi-grid { max-width: var(--max-w); margin: 40px auto 0; padding: 0 var(--pad-x) 96px; display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: start; }
+  @media (max-width: 960px) { .roi-grid { grid-template-columns: 1fr; } }
+
+  .roi-card { background: var(--b-card); border: 1px solid var(--b-border); border-radius: var(--r-xl); padding: 36px; box-shadow: var(--shadow-md); }
+  .roi-card h2 { font-family: var(--font-display); font-size: 1.5rem; font-weight: 500; letter-spacing: -0.015em; margin: 0 0 4px; color: var(--b-ink); }
+  .roi-card .hint { font-size: 13px; color: var(--b-ink-3); margin-bottom: 28px; }
+
+  .slider-row { margin-bottom: 24px; }
+  .slider-label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-size: 13px; color: var(--b-ink-2); font-weight: 600; }
+  .slider-val { font-family: var(--font-display); font-size: 1.5rem; font-weight: 500; color: var(--b-maple); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; font-variation-settings: "opsz" 72; }
+  input[type=range].roi-slider { appearance: none; width: 100%; height: 6px; background: var(--b-border); border-radius: 99px; outline: none; }
+  input[type=range].roi-slider::-webkit-slider-thumb { appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--b-maple); box-shadow: 0 2px 8px rgba(184,69,46,0.3); cursor: grab; border: 3px solid var(--b-card); }
+  input[type=range].roi-slider::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: var(--b-maple); border: 3px solid var(--b-card); cursor: grab; }
+
+  .industry-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .industry-chips button { padding: 7px 14px; border-radius: var(--r-pill); border: 1px solid var(--b-border); background: var(--b-elevated); font-size: 12px; font-weight: 500; color: var(--b-ink-2); cursor: pointer; font-family: inherit; }
+  .industry-chips button.on { background: var(--b-ink); color: var(--b-ink-inverse); border-color: var(--b-ink); }
+
+  .result-card { background: linear-gradient(135deg, #1C1410 0%, #2A1F18 100%); color: var(--b-ink-inverse); border-radius: var(--r-xl); padding: 36px; box-shadow: var(--shadow-lg); position: sticky; top: 90px; }
+  .result-card .eyebrow { color: var(--b-gold-light); }
+  .result-card .eyebrow::before { background: var(--b-gold-light); }
+  .result-top { padding-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 24px; }
+  .big-number { font-family: var(--font-display); font-size: clamp(3rem, 6vw, 4.5rem); font-weight: 400; line-height: 1; letter-spacing: -0.04em; color: var(--b-gold-light); font-variation-settings: "opsz" 144; margin: 12px 0 6px; font-variant-numeric: tabular-nums; }
+  .big-label { color: rgba(250,246,239,0.7); font-size: 14px; }
+  .breakdown { display: grid; gap: 16px; margin-bottom: 28px; }
+  .br-row { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 14px; border-bottom: 1px dashed rgba(255,255,255,0.08); }
+  .br-row:last-child { border: none; padding-bottom: 0; }
+  .br-row .k { font-size: 13px; color: rgba(250,246,239,0.75); max-width: 60%; line-height: 1.4; }
+  .br-row .v { font-family: var(--font-display); font-weight: 500; font-size: 20px; color: var(--b-ink-inverse); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .br-row .v.cost { color: #E89B7A; }
+  .br-row .v.gain { color: #96D5B2; }
+  .net-highlight { background: rgba(255,217,130,0.12); border: 1px solid rgba(255,217,130,0.25); border-radius: var(--r-lg); padding: 20px; margin-top: 20px; }
+  .net-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--b-gold-light); font-weight: 700; }
+  .net-number { font-family: var(--font-display); font-size: 2.5rem; font-weight: 400; color: var(--b-gold-light); letter-spacing: -0.03em; margin-top: 4px; font-variation-settings: "opsz" 144; }
+  .payback { margin-top: 12px; font-size: 13px; color: rgba(250,246,239,0.7); font-family: var(--font-display); font-style: italic; }
+
+  .assumptions { padding: 60px 0 100px; border-top: 1px solid var(--b-border); background: var(--b-surface); }
+  .assumptions-inner { max-width: var(--max-content); margin: 0 auto; padding: 0 var(--pad-x); }
+  .assumptions h3 { font-family: var(--font-display); font-size: 1.5rem; font-weight: 500; letter-spacing: -0.015em; margin: 0 0 24px; }
+  .src-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 16px; }
+  @media (max-width: 640px) { .src-grid { grid-template-columns: 1fr; } }
+  .src-card { background: var(--b-card); border: 1px solid var(--b-border); border-radius: var(--r-md); padding: 20px; }
+  .src-card .s-t { font-family: var(--font-display); font-weight: 600; font-size: 14px; color: var(--b-ink); margin-bottom: 6px; letter-spacing: -0.005em; }
+  .src-card .s-d { font-size: 13px; color: var(--b-ink-2); line-height: 1.55; }
+  .src-card .s-d cite { color: var(--b-ink-3); font-style: normal; font-size: 11px; display: block; margin-top: 6px; }
+
+  .final-cta { padding: 120px 0; text-align: center; }
+  .final-cta-inner { max-width: 620px; margin: 0 auto; padding: 0 var(--pad-x); }
+  .final-cta h2 { margin-bottom: 20px; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="logo" href="Home.html"><span class="logo-mark">B</span>Bryte Rewards</a>
+    <div class="nav-links">
+      <a href="Product.html">Product</a>
+      <a href="Customers.html">Customers</a>
+      <a href="Pricing.html">Pricing</a>
+      <a href="Integrations.html">Integrations</a>
+      <a href="Security.html">Security</a>
+      <a href="About.html">About</a>
+    </div>
+    <div class="nav-actions">
+      <button class="theme-toggle" aria-label="Toggle theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button>
+      <div class="lang-toggle"><button data-lang="en">EN</button><button data-lang="fr">FR</button></div>
+      <a class="btn btn-ghost btn-sm" href="Demo.html">Sign in</a>
+      <a class="btn btn-primary btn-sm" href="Demo.html">Book a demo</a>
+      <button class="nav-burger" aria-label="Menu"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+  <div class="nav-drawer">
+    <a href="Product.html">Product</a><a href="Customers.html">Customers</a><a href="Pricing.html">Pricing</a><a href="Integrations.html">Integrations</a><a href="Security.html">Security</a><a href="About.html">About</a><a href="Blog.html">Journal</a><a href="ROI.html">ROI calculator</a><a href="../index.html">Open the app</a>
+    <div class="drawer-cta"><a class="btn btn-ghost btn-sm" href="Demo.html">Sign in</a><a class="btn btn-primary btn-sm" href="Demo.html">Book a demo</a></div>
+  </div>
+</nav>
+
+<section class="roi-hero">
+  <div class="container">
+    <div class="eyebrow" style="justify-content:center;display:inline-flex;">ROI Calculator</div>
+    <h1 class="h-mega">What's a <em class="italic ink-maple">thank-you</em> worth?</h1>
+    <p class="lead">Drag the sliders. We'll do the math with industry numbers — not vendor spin.</p>
+  </div>
+</section>
+
+<div class="roi-grid">
+  <!-- Inputs -->
+  <div class="roi-card">
+    <h2>Your team</h2>
+    <div class="hint">Honest numbers, even the messy ones. We're not going to email you.</div>
+
+    <div class="slider-row">
+      <div class="slider-label"><span>Number of employees</span><span class="slider-val" id="vHeadcount">340</span></div>
+      <input type="range" class="roi-slider" id="sHeadcount" min="10" max="2500" step="10" value="340">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-label"><span>Average fully-loaded salary</span><span class="slider-val" id="vSalary">$62,000</span></div>
+      <input type="range" class="roi-slider" id="sSalary" min="35000" max="180000" step="1000" value="62000">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-label"><span>Annual voluntary turnover</span><span class="slider-val" id="vTurnover">24%</span></div>
+      <input type="range" class="roi-slider" id="sTurnover" min="5" max="60" step="1" value="24">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-label"><span>Rewards budget per employee / year</span><span class="slider-val" id="vBudget">$180</span></div>
+      <input type="range" class="roi-slider" id="sBudget" min="0" max="600" step="10" value="180">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-label"><span>Industry</span></div>
+      <div class="industry-chips" id="industryChips">
+        <button class="on" data-ind="hospitality" data-mult="1.15">Hospitality</button>
+        <button data-ind="trades" data-mult="1.10">Trades</button>
+        <button data-ind="healthcare" data-mult="1.20">Healthcare</button>
+        <button data-ind="retail" data-mult="1.25">Retail</button>
+        <button data-ind="financial" data-mult="0.90">Financial</button>
+        <button data-ind="nonprofit" data-mult="0.95">Non-profit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="result-card">
+    <span class="eyebrow">Estimated annual impact</span>
+    <div class="result-top">
+      <div class="big-number" id="bigNum">$284K</div>
+      <div class="big-label">Net recognized value returned to your business, Year 1</div>
+    </div>
+
+    <div class="breakdown">
+      <div class="br-row"><span class="k">Current cost of voluntary turnover</span><span class="v cost" id="rTurnoverCost">$2.1M</span></div>
+      <div class="br-row"><span class="k">Turnover reduction (avg 29% after year 1)</span><span class="v gain" id="rTurnoverSaved">+ $612K</span></div>
+      <div class="br-row"><span class="k">Engagement productivity lift (est.)</span><span class="v gain" id="rProductivity">+ $188K</span></div>
+      <div class="br-row"><span class="k">Bryte Rewards subscription (Standard)</span><span class="v cost" id="rSubscription">− $32K</span></div>
+      <div class="br-row"><span class="k">Your rewards budget (unchanged)</span><span class="v cost" id="rBudget">− $61K</span></div>
+      <div class="br-row"><span class="k">Admin hours saved vs spreadsheet</span><span class="v gain" id="rAdmin">+ $14K</span></div>
+    </div>
+
+    <div class="net-highlight">
+      <div class="net-label">Payback period</div>
+      <div class="net-number" id="payback">2.8 months</div>
+      <div class="payback" id="paybackNote">You'll break even around the end of Q1.</div>
+    </div>
+
+    <div style="margin-top:24px;text-align:center">
+      <a class="btn btn-gold btn-sm" href="Demo.html" style="font-weight:700">Walk us through your numbers →</a>
+    </div>
+  </div>
+</div>
+
+<section class="assumptions">
+  <div class="assumptions-inner">
+    <h3>Our assumptions, out loud.</h3>
+    <p style="color:var(--b-ink-2);margin-bottom:28px;max-width:60ch">Because every vendor's ROI calculator says "5x return". Here's where our numbers come from — our own benchmark data + third-party research. Your mileage will vary.</p>
+    <div class="src-grid">
+      <div class="src-card"><div class="s-t">Turnover cost ≈ 33% of annual salary</div><div class="s-d">Includes recruiting, training, ramp time, and productivity drag during vacancy. Lower for hourly, higher for specialists. <cite>Work Institute, Retention Report 2024</cite></div></div>
+      <div class="src-card"><div class="s-t">Recognition reduces turnover ≈ 29%</div><div class="s-d">Across our 127-customer base, measured against their own 12 months prior. Varies by implementation quality. <cite>Bryte Rewards internal benchmark, 2024</cite></div></div>
+      <div class="src-card"><div class="s-t">Engaged employees are ~17% more productive</div><div class="s-d">Used conservatively — we only credit ~30% of that lift to recognition alone. <cite>Gallup State of the Global Workplace 2023</cite></div></div>
+      <div class="src-card"><div class="s-t">Subscription at $7.95 CAD/user/mo (Standard)</div><div class="s-d">Enterprise tier kicks in above 1,000 seats — we'll discount accordingly in your live quote. <cite>Bryte Rewards pricing page</cite></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="final-cta">
+  <div class="final-cta-inner">
+    <span class="eyebrow">Ready to validate?</span>
+    <h2 class="h-display">Let's run <em class="italic ink-maple">your</em> numbers together.</h2>
+    <p class="lead" style="margin-bottom:32px">30 minutes. You bring your real headcount, turnover, and current spend. We'll show you the actual line-item quote.</p>
+    <div style="display:flex;justify-content:center;gap:14px;flex-wrap:wrap">
+      <a class="btn btn-primary btn-lg btn-arrow" href="Demo.html">Book a demo<svg class="arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
+      <a class="btn btn-ghost btn-lg" href="Pricing.html">See pricing</a>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="footer-grid">
+    <div>
+      <a class="logo" href="Home.html"><span class="logo-mark">B</span>Bryte Rewards</a>
+      <p style="margin: 20px 0 0; font-size: var(--t-small); color: var(--b-ink-3); max-width: 280px;">Recognition software for Canadian teams. Say the things that matter, out loud.</p>
+      <div style="margin-top: 20px; font-size: var(--t-xs); color: var(--b-ink-3); display: inline-flex; align-items: center; gap: 8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#B8452E"><path d="M12 2l1.5 4.5L18 4l-1.5 5L21 8l-3 4 3 4-4.5-1L18 20l-4.5-2.5L12 22l-1.5-4.5L6 20l1.5-5L3 16l3-4-3-4 4.5 1L6 4l4.5 2.5z"/></svg>
+        Made in Toronto
+      </div>
+    </div>
+    <div><h4>Product</h4><ul><li><a href="Product.html">Features</a></li><li><a href="Pricing.html">Pricing</a></li><li><a href="Integrations.html">Integrations</a></li><li><a href="Security.html">Security</a></li></ul></div>
+    <div><h4>Company</h4><ul><li><a href="Customers.html">Customers</a></li><li><a href="About.html">About</a></li><li><a href="Demo.html">Book a demo</a></li><li><a href="#">Careers</a></li></ul></div>
+    <div><h4>Resources</h4><ul><li><a href="Blog.html">Journal</a></li><li><a href="ROI.html">ROI calculator</a></li><li><a href="#">Recognition playbook</a></li><li><a href="#">Help centre</a></li></ul></div>
+    <div><h4>Legal</h4><ul><li><a href="#">Privacy</a></li><li><a href="#">Terms</a></li><li><a href="#">PIPEDA notice</a></li><li><a href="#">Accessibility</a></li></ul></div>
+  </div>
+  <div class="footer-bottom"><span>© 2025 Bryte Rewards Inc. · Toronto, ON</span><span>EN · <a href="#" style="color: var(--b-ink-3);">FR</a></span></div>
+</footer>
+
+<script src="site.js?v=6"></script>
+<script>
+(function(){
+  const state = { headcount:340, salary:62000, turnover:24, budget:180, industryMult:1.15 };
+  const fmt = (n) => n >= 1000000 ? '$' + (n/1000000).toFixed(2) + 'M' : n >= 1000 ? '$' + Math.round(n/1000) + 'K' : '$' + Math.round(n);
+  const fmtSigned = (n, sign) => (sign === '+' ? '+ ' : '− ') + fmt(Math.abs(n));
+
+  function compute(){
+    const { headcount, salary, turnover, budget, industryMult } = state;
+    // Turnover cost: 33% of salary per leaver
+    const leavers = headcount * (turnover/100);
+    const turnoverCost = leavers * salary * 0.33 * industryMult;
+    // Turnover reduction: 29% average
+    const turnoverSaved = turnoverCost * 0.29;
+    // Productivity lift: salary * 17% * 30% credit * adoption factor 85%
+    const productivity = headcount * salary * 0.17 * 0.30 * 0.85;
+    // Subscription: $7.95/user/mo * 12
+    const subscription = headcount * 7.95 * 12;
+    // Rewards budget is their own (not our take)
+    const budgetCost = headcount * budget;
+    // Admin hours saved: assume 4h/mo * $35/hr * 12mo * (1 admin per 200 people)
+    const adminHrs = Math.max(1, Math.ceil(headcount / 200)) * 4 * 35 * 12;
+
+    const totalGain = turnoverSaved + productivity + adminHrs;
+    const totalCost = subscription + budgetCost;
+    const net = totalGain - totalCost;
+    const monthly = net / 12;
+    const initialCost = subscription / 12 + budgetCost / 12; // per month
+    const payback = Math.max(0.5, (subscription + budgetCost) / (totalGain / 12));
+
+    document.getElementById('rTurnoverCost').textContent = fmt(turnoverCost);
+    document.getElementById('rTurnoverSaved').textContent = fmtSigned(turnoverSaved, '+');
+    document.getElementById('rProductivity').textContent = fmtSigned(productivity, '+');
+    document.getElementById('rSubscription').textContent = fmtSigned(subscription, '-');
+    document.getElementById('rBudget').textContent = fmtSigned(budgetCost, '-');
+    document.getElementById('rAdmin').textContent = fmtSigned(adminHrs, '+');
+    document.getElementById('bigNum').textContent = fmt(net);
+    document.getElementById('payback').textContent = payback.toFixed(1) + ' months';
+
+    let note = '';
+    if (payback < 2) note = 'You\u2019d be ahead by mid-Q1.';
+    else if (payback < 4) note = 'You\u2019ll break even around the end of Q1.';
+    else if (payback < 8) note = 'Most of Year 1 is gravy.';
+    else note = 'Year 1 pays itself. Year 2 is compound.';
+    document.getElementById('paybackNote').textContent = note;
+  }
+
+  function fmtMoney(n){ return '$' + n.toLocaleString('en-US'); }
+
+  function bind(id, stateKey, formatter){
+    const el = document.getElementById('s'+id);
+    const val = document.getElementById('v'+id);
+    const update = () => {
+      state[stateKey] = parseFloat(el.value);
+      val.textContent = formatter(state[stateKey]);
+      compute();
+    };
+    el.addEventListener('input', update);
+    update();
+  }
+
+  bind('Headcount','headcount', v => v.toLocaleString('en-US'));
+  bind('Salary','salary', v => fmtMoney(v));
+  bind('Turnover','turnover', v => v + '%');
+  bind('Budget','budget', v => fmtMoney(v));
+
+  document.getElementById('industryChips').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    document.querySelectorAll('#industryChips button').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    state.industryMult = parseFloat(b.dataset.mult);
+    compute();
+  });
+
+  compute();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bryte Rewards vs Bonusly — an honest comparison</title>
+<meta name="description" content="Side-by-side on what matters: pricing, Canadian data residency, catalogue quality, editorial fit. Written by us, with the parts they do better called out honestly.">
+<link rel="stylesheet" href="site.css?v=6">
+<style>
+  /* COMPARE PAGE */
+  .c-hero { padding: 56px 0 56px; }
+  .c-hero .container { max-width: 900px; text-align: center; }
+  .c-hero h1 { margin: 24px 0 24px; }
+  .c-hero .lead { max-width: 640px; margin: 0 auto; }
+
+  .verdict-band {
+    margin: 48px auto 0; max-width: 720px;
+    padding: 20px 24px; border: 1px solid var(--b-gold);
+    border-radius: var(--r-md); background: var(--b-gold-pale);
+    display: flex; gap: 16px; align-items: flex-start; text-align: left;
+  }
+  .verdict-band .ic {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--b-gold);
+    color: var(--b-ink-inverse); display: grid; place-items: center; flex: 0 0 32px;
+    font-weight: 700;
+  }
+  .verdict-band p { margin: 0; color: var(--b-ink); font-size: var(--t-small); line-height: 1.6; }
+  .verdict-band strong { color: var(--b-gold-deep); }
+
+  /* Side by side hero */
+  .versus {
+    padding: 32px 0 96px;
+  }
+  .versus-row {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 32px;
+    align-items: stretch;
+  }
+  @media (max-width: 800px) { .versus-row { grid-template-columns: 1fr; } .versus-vs { order: -1; } }
+  .vs-card {
+    background: var(--b-card); border: 1px solid var(--b-border);
+    border-radius: var(--r-lg); padding: 40px;
+    position: relative;
+  }
+  .vs-card.ours {
+    background: var(--b-ink); color: var(--b-ink-inverse); border-color: var(--b-ink);
+  }
+  .vs-card .brand {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
+  }
+  .vs-card .mark {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: grid; place-items: center;
+    font-family: var(--font-display); font-weight: 500; font-size: 1.25rem;
+  }
+  .vs-card.ours .mark { background: var(--b-gold); color: var(--b-ink); }
+  .vs-card.theirs .mark { background: #F3D9FF; color: #6B2A8E; }
+  .vs-card .name { font-family: var(--font-display); font-weight: 500; font-size: 1.5rem; letter-spacing: -0.01em; }
+  .vs-card.ours .name { color: var(--b-canvas); }
+  .vs-card.theirs .name { color: var(--b-ink); }
+
+  .vs-pitch {
+    font-family: var(--font-display); font-weight: 400;
+    font-size: 1.25rem; line-height: 1.4; letter-spacing: -0.005em;
+    font-variation-settings: "opsz" 96;
+    margin-bottom: 28px; min-height: 85px;
+  }
+  .vs-card.ours .vs-pitch { color: rgba(250,246,239,0.85); }
+  .vs-card.ours .vs-pitch em { font-style: italic; color: var(--b-gold-light); }
+  .vs-card.theirs .vs-pitch { color: var(--b-ink-2); }
+  .vs-card.theirs .vs-pitch em { font-style: italic; color: var(--b-gold-deep); }
+
+  .vs-facts {
+    display: flex; flex-direction: column; gap: 12px; padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .vs-card.theirs .vs-facts { border-top-color: var(--b-border); }
+  .vs-facts div {
+    display: flex; justify-content: space-between; gap: 16px;
+    font-size: var(--t-small);
+  }
+  .vs-facts div .k {
+    color: rgba(250,246,239,0.55);
+    text-transform: uppercase; letter-spacing: 0.1em; font-size: var(--t-xs); font-weight: 600;
+  }
+  .vs-card.theirs .vs-facts div .k { color: var(--b-ink-3); }
+  .vs-facts div .v { font-weight: 600; color: var(--b-canvas); text-align: right; }
+  .vs-card.theirs .vs-facts div .v { color: var(--b-ink); }
+
+  .versus-vs {
+    align-self: center;
+    font-family: var(--font-display); font-weight: 400; font-style: italic;
+    font-size: 2.5rem; color: var(--b-ink-3);
+    font-variation-settings: "opsz" 144;
+    padding: 0 8px;
+  }
+  @media (max-width: 800px) { .versus-vs { text-align: center; } }
+
+  /* COMPARISON TABLE */
+  .table-sec { padding: 80px 0; background: var(--b-surface); border-top: 1px solid var(--b-border); border-bottom: 1px solid var(--b-border); }
+  .cmp-table {
+    margin-top: 48px; background: var(--b-card); border: 1px solid var(--b-border);
+    border-radius: var(--r-lg); overflow: hidden;
+  }
+  .cmp-row {
+    display: grid; grid-template-columns: 1.5fr 1fr 1fr;
+    padding: 18px 28px; border-bottom: 1px solid var(--b-border-soft);
+    align-items: center; gap: 16px;
+  }
+  .cmp-row:last-child { border-bottom: none; }
+  .cmp-row.head {
+    background: var(--b-ink); color: var(--b-ink-inverse);
+    padding: 20px 28px;
+  }
+  .cmp-row.section {
+    background: var(--b-elevated);
+    text-transform: uppercase; letter-spacing: 0.12em; font-size: var(--t-xs); font-weight: 700; color: var(--b-ink-3);
+    padding: 12px 28px;
+  }
+  .cmp-row.head .h {
+    font-family: var(--font-display); font-weight: 500; font-size: 1.0625rem;
+    text-align: center;
+  }
+  .cmp-row.head .h.label { text-align: left; color: rgba(250,246,239,0.6); font-weight: 600; font-size: var(--t-small); text-transform: uppercase; letter-spacing: 0.1em; font-family: var(--font-ui); }
+  .cmp-row.head .h.ours { color: var(--b-gold-light); }
+
+  .cmp-label { font-size: var(--t-small); color: var(--b-ink-2); font-weight: 500; }
+  .cmp-label .sub { display: block; font-size: var(--t-xs); color: var(--b-ink-3); font-weight: 400; margin-top: 2px; }
+  .cmp-cell { text-align: center; font-size: var(--t-small); color: var(--b-ink-2); }
+  .cmp-cell.ours { font-weight: 600; color: var(--b-ink); }
+  .cmp-cell .y { color: var(--b-forest); font-weight: 700; font-size: 1.25rem; }
+  .cmp-cell .n { color: var(--b-ink-4); font-size: 1.25rem; }
+  .cmp-cell .caveat { display: block; font-size: 11px; color: var(--b-ink-3); margin-top: 2px; font-style: italic; }
+
+  /* HONESTY — where they win */
+  .honesty { padding: 96px 0; }
+  .honesty .container { max-width: 820px; }
+  .honesty h2 em { font-style: italic; color: var(--b-maple); }
+  .honesty-list {
+    margin-top: 40px; display: flex; flex-direction: column; gap: 20px;
+  }
+  .honesty-item {
+    display: grid; grid-template-columns: auto 1fr; gap: 20px;
+    padding: 24px; background: var(--b-card); border: 1px solid var(--b-border);
+    border-radius: var(--r-md);
+  }
+  .honesty-item .ic {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: #F3D9FF; color: #6B2A8E;
+    display: grid; place-items: center;
+    font-family: var(--font-display); font-weight: 600;
+  }
+  .honesty-item h4 { margin: 0 0 6px; font-size: var(--t-body); color: var(--b-ink); }
+  .honesty-item p { margin: 0; font-size: var(--t-small); color: var(--b-ink-2); line-height: 1.6; }
+
+  /* WHEN TO CHOOSE */
+  .choose { padding: 96px 0; background: var(--b-surface); border-top: 1px solid var(--b-border); border-bottom: 1px solid var(--b-border); }
+  .choose-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 48px; }
+  @media (max-width: 800px) { .choose-grid { grid-template-columns: 1fr; } }
+  .choose-card {
+    background: var(--b-card); border: 1px solid var(--b-border);
+    border-radius: var(--r-lg); padding: 36px;
+  }
+  .choose-card.ours { border: 2px solid var(--b-gold); background: var(--b-gold-pale); }
+  .choose-card h3 { margin: 0 0 20px; font-family: var(--font-display); font-weight: 500; font-size: 1.5rem; color: var(--b-ink); }
+  .choose-card ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 14px; }
+  .choose-card li {
+    display: flex; gap: 12px; align-items: flex-start;
+    font-size: var(--t-small); color: var(--b-ink-2); line-height: 1.55;
+  }
+  .choose-card li::before {
+    content: '→'; color: var(--b-gold); font-weight: 700; flex: 0 0 auto;
+  }
+
+  /* Switch CTA */
+  .switch-cta { padding: 96px 0; text-align: center; background: var(--b-ink); color: var(--b-ink-inverse); }
+  .switch-cta h2 { color: var(--b-ink-inverse); margin: 0 0 16px; }
+  .switch-cta h2 em { color: var(--b-gold-light); font-style: italic; }
+  .switch-cta p { max-width: 560px; margin: 0 auto 32px; color: rgba(250,246,239,0.7); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="logo" href="Home.html"><span class="logo-mark">B</span>Bryte Rewards</a>
+    <div class="nav-links">
+      <a href="Product.html">Product</a>
+      <a href="Customers.html">Customers</a>
+      <a href="Pricing.html">Pricing</a>
+      <a href="#" class="active">Compare</a>
+      <a href="../index.html">Open app ↗</a>
+    </div>
+    <div class="nav-actions">
+      <button class="theme-toggle" aria-label="Toggle theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button>
+      <div class="lang-toggle"><button data-lang="en">EN</button><button data-lang="fr">FR</button></div>
+      <a class="btn btn-ghost btn-sm" href="Demo.html">Sign in</a>
+      <a class="btn btn-primary btn-sm" href="Demo.html">Book a demo</a>
+      <button class="nav-burger" aria-label="Menu"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+  <div class="nav-drawer">
+    <a href="Product.html">Product</a>
+    <a href="Customers.html">Customers</a>
+    <a href="Pricing.html">Pricing</a>
+    <a href="Integrations.html">Integrations</a>
+    <a href="Security.html">Security</a>
+    <a href="About.html">About</a>
+    <a href="Blog.html">Journal</a>
+    <a href="ROI.html">ROI calculator</a>
+    <a href="../index.html">Open the app</a>
+    <div class="drawer-cta">
+      <a class="btn btn-ghost btn-sm" href="Demo.html">Sign in</a>
+      <a class="btn btn-primary btn-sm" href="Demo.html">Book a demo</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="c-hero">
+  <div class="container">
+    <div class="eyebrow" style="justify-content:center;display:inline-flex;">The honest comparison</div>
+    <h1 class="h-display">Bryte Rewards <span style="color:var(--b-ink-3);font-style:italic;">vs</span> Bonusly.</h1>
+    <p class="lead">A fair, detailed side-by-side from the people who built one of them. We'll say where they're better, too — and where we'd actually recommend choosing them instead.</p>
+
+    <div class="verdict-band">
+      <div class="ic">i</div>
+      <p><strong>TL;DR</strong> — Bonusly is a mature, points-first product best for U.S. teams of 500+ who want a gamified, fast-paced recognition culture. Bryte Rewards is editorial-first, Canadian-native, and a better fit for 50–2,000 person teams where recognition quality matters more than volume.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SIDE BY SIDE -->
+<section class="versus">
+  <div class="container">
+    <div class="versus-row">
+      <div class="vs-card ours">
+        <div class="brand">
+          <div class="mark">B</div>
+          <div class="name">Bryte Rewards</div>
+        </div>
+        <p class="vs-pitch">Editorial recognition, <em>in your voice.</em> Big cards, writing-first, Canadian data, no integration tax.</p>
+        <div class="vs-facts">
+          <div><span class="k">Founded</span><span class="v">2022 · Toronto</span></div>
+          <div><span class="k">Pricing</span><span class="v">From $4 CAD / user</span></div>
+          <div><span class="k">Data residency</span><span class="v">🇨🇦 Canada by default</span></div>
+          <div><span class="k">Best fit</span><span class="v">50–2,000 person teams</span></div>
+        </div>
+      </div>
+
+      <div class="versus-vs">vs</div>
+
+      <div class="vs-card theirs">
+        <div class="brand">
+          <div class="mark">B</div>
+          <div class="name">Bonusly</div>
+        </div>
+        <p class="vs-pitch">Points-driven peer recognition at scale. Fast, high-frequency, <em>big marketplace.</em></p>
+        <div class="vs-facts">
+          <div><span class="k">Founded</span><span class="v">2012 · Boulder, CO</span></div>
+          <div><span class="k">Pricing</span><span class="v">From $3.26 USD / user</span></div>
+          <div><span class="k">Data residency</span><span class="v">🇺🇸 U.S. primary</span></div>
+          <div><span class="k">Best fit</span><span class="v">500–10k person teams</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARISON TABLE -->
+<section class="table-sec">
+  <div class="container">
+    <div class="eyebrow">The feature-by-feature</div>
+    <h2 class="h-display" style="margin-top:16px; max-width: 720px;">Where they <em class="italic ink-maple">actually differ.</em></h2>
+
+    <div class="cmp-table">
+      <div class="cmp-row head">
+        <div class="h label">Feature</div>
+        <div class="h ours">Bryte Rewards</div>
+        <div class="h">Bonusly</div>
+      </div>
+
+      <!-- PRICING -->
+      <div class="cmp-row section"><div>Pricing &amp; fit</div><div></div><div></div></div>
+      <div class="cmp-row">
+        <div class="cmp-label">Starting price<span class="sub">Per user per month</span></div>
+        <div class="cmp-cell ours">$4 CAD<span class="caveat">= ~$2.90 USD</span></div>
+        <div class="cmp-cell">$3.26 USD<span class="caveat">= ~$4.50 CAD</span></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-label">SSO charge<span class="sub">SAML, SCIM, Okta, Entra</span></div>
+        <div class="cmp-cell ours"><span class="y">✓</span><span class="caveat">Included on Starter</span></div>
+        <div class="cmp-cell"><span class="n">✗</span><span class="caveat">Pro tier only</span></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-label">Integration add-ons<span class="sub">Per connector fees</span></div>
+        <div class="cmp-cell ours"><span class="y">None</span><span class="caveat">All 32 included</span></div>
+        <div class="cmp-cell">Per-seat uplift<span class="caveat">on Enterprise</span></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-label">Annual commitment required<span class="sub">To access best pricing</span></div>
+        <div class="cmp-cell ours"><span class="y">Monthly works</span></div>
+        <div class="cmp-cell">Annual only<span class="caveat">at headline price</span></div>
+      </div>
+
+      <!-- CANADIAN -->
+      <div class="cmp-row section"><div>Canadian fit</div><div></div><div></div></div>
+      <div class="cmp-row">
+        <div class="cmp-label">Canadian data residency<span class="sub">Where employee data is stored</span></div>
+        <div class="cmp-cell ours"><span class="y">✓</span><span class="caveat">AWS ca-central-1 default</span></div>
+        <div class="cmp-cell"><span class="n">✗</span><span class="caveat">U.S. regions only</span></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-label">PIPEDA + Québec Law 25<span class="sub">Compliance attestations</span></div>
+        <div class="cmp-cell ours"><span class="y">✓</span></div>
+        <div class="cmp-cell">Via DPA<span class="caveat">No Law 25 attestation</span></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-label">Bilingual EN/FR UI<span class="sub">End-user experience</span></div>
+        <div class="cmp-cell ours"><span class="y">Native</span><span class="caveat">Built-in toggle</span></div>
+        <div class="cmp-cell">Partial<span class="caveat">Beta</span></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-label">Canadian rewards catalogue<span class="sub">Tim Hortons, MEC, Indigo, etc.</span></div>
+        <div class="cmp-cell ours"><span class="y">✓</span><span class="caveat">CAD-native, 40+ brands</span></div>
+        <div class="cmp-cell">Limited<span class="caveat">Via global aggregator</span></div>
+      </div>
+
+      <!-- PRODUCT -->
+      <div class="cmp-row section"><div>Product philosophy</div><div></div><div></div></div>
+      <div class="cmp-row">
+        <div class="cmp-label">Design emphasis<span class="sub">How kudos actually show up</span></div>
+        <div class="cmp-cell ours">Editorial cards<span class="caveat">Writing-first</span></div>
+        <div class="cmp-cell">Points feed<span class="caveat">Activity-first</span></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-label">Anonymous recognition<span class="sub">Give without attribution</span></div>
+        <div class="cmp-cell ours"><span class="y">Supported</span></div>
+        <div class="cmp-cell"><span class="n">✗</span></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-label">Custom rewards &amp; charities<span class="sub">Beyond the catalogue</span></div>
+        <div class="cmp-cell ours"><span class="y">✓</span><span class="caveat">Merch, charity, bespoke</span></div>
+        <div class="cmp-cell"><span class="y">✓</span><span class="caveat">Charity only</span></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-label">Manager &amp; admin analytics<span class="sub">Team culture dashboards</span></div>
+        <div class="cmp-cell ours"><span class="y">Included</span></div>
+        <div class="cmp-cell"><span class="y">Included</span><span class="caveat">More mature / granular</span></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-label">Gamification &amp; leaderboards<span class="sub">Points races, streaks</span></div>
+        <div class="cmp-cell ours">Light touch<span class="caveat">Streaks yes, no races</span></div>
+        <div class="cmp-cell">Extensive<span class="caveat">Core to product</span></div>
+      </div>
+
+      <!-- INTEGRATIONS -->
+      <div class="cmp-row section"><div>Integrations</div><div></div><div></div></div>
+      <div class="cmp-row">
+        <div class="cmp-label">Slack &amp; Teams</div>
+        <div class="cmp-cell ours"><span class="y">✓</span></div>
+        <div class="cmp-cell"><span class="y">✓</span></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-label">HRIS (BambooHR, ADP, Workday, Rippling)</div>
+        <div class="cmp-cell ours"><span class="y">All included</span></div>
+        <div class="cmp-cell"><span class="y">All included</span></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-label">Humi &amp; Ceridian Dayforce<span class="sub">Canadian HRIS</span></div>
+        <div class="cmp-cell ours"><span class="y">✓</span></div>
+        <div class="cmp-cell"><span class="n">✗</span></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-label">Public API<span class="sub">Build your own</span></div>
+        <div class="cmp-cell ours"><span class="y">REST + webhooks</span></div>
+        <div class="cmp-cell"><span class="y">REST only</span></div>
+      </div>
+
+      <!-- SECURITY -->
+      <div class="cmp-row section"><div>Security &amp; compliance</div><div></div><div></div></div>
+      <div class="cmp-row">
+        <div class="cmp-label">SOC 2 Type II</div>
+        <div class="cmp-cell ours"><span class="y">✓</span></div>
+        <div class="cmp-cell"><span class="y">✓</span></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-label">ISO 27001</div>
+        <div class="cmp-cell ours"><span class="y">✓</span></div>
+        <div class="cmp-cell"><span class="n">In progress</span></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-label">Uptime SLA<span class="sub">Trailing 12 months</span></div>
+        <div class="cmp-cell ours">99.97%</div>
+        <div class="cmp-cell">99.95%</div>
+      </div>
+
+      <!-- SUPPORT -->
+      <div class="cmp-row section"><div>Support &amp; service</div><div></div><div></div></div>
+      <div class="cmp-row">
+        <div class="cmp-label">Implementation<span class="sub">Setup &amp; rollout</span></div>
+        <div class="cmp-cell ours">Free<span class="caveat">Dedicated human, included</span></div>
+        <div class="cmp-cell">Paid add-on<span class="caveat">Or self-serve</span></div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-label">Human support response<span class="sub">Average, business hours</span></div>
+        <div class="cmp-cell ours">&lt; 2 hours<span class="caveat">EST, weekdays</span></div>
+        <div class="cmp-cell">&lt; 4 hours<span class="caveat">Varies by tier</span></div>
+      </div>
+    </div>
+
+    <p style="margin-top:20px; font-size: var(--t-xs); color: var(--b-ink-3); text-align: center; font-style: italic;">Data sourced from Bonusly's public website, G2 reviews, and customer interviews as of Q1 2025. We update this table quarterly. If you see something that's changed, email <a href="mailto:hello@bryte.ca" style="color:var(--b-gold-deep);">hello@bryte.ca</a>.</p>
+  </div>
+</section>
+
+<!-- WHERE BONUSLY IS BETTER -->
+<section class="honesty">
+  <div class="container">
+    <div class="eyebrow">Where Bonusly is actually better</div>
+    <h2 class="h-display" style="margin-top:20px;">The parts we're <em>not</em> going to pretend about.</h2>
+    <p class="lead" style="margin-top:16px;">We built Bryte Rewards, so of course we think we're a better fit for most people. But Bonusly has been doing this since 2012, and in these specific places, they're ahead of us.</p>
+
+    <div class="honesty-list">
+      <div class="honesty-item">
+        <div class="ic">B</div>
+        <div><h4>They have way more customers</h4><p>4,000+ vs our 340+. If "which tool does everyone use?" is your primary decision criterion, the answer is them. (We'd argue it shouldn't be — but we also get it.)</p></div>
+      </div>
+      <div class="honesty-item">
+        <div class="ic">B</div>
+        <div><h4>Deeper analytics &amp; reporting</h4><p>Their admin dashboards are more mature. Ten years of product surface will do that. We ship fast, but they have cohort analysis and segment drill-downs we haven't built yet.</p></div>
+      </div>
+      <div class="honesty-item">
+        <div class="ic">B</div>
+        <div><h4>Gamification depth</h4><p>If your culture thrives on points races, streak leaderboards, and public scoring — they've built that in a way we deliberately haven't. Different philosophy, theirs is the one you want.</p></div>
+      </div>
+      <div class="honesty-item">
+        <div class="ic">B</div>
+        <div><h4>Bigger global rewards catalogue</h4><p>Because of scale, they can source from more U.S./international aggregators. If you have a team across 40 countries, their catalogue is broader. (Though for Canadian teams specifically, ours is richer.)</p></div>
+      </div>
+      <div class="honesty-item">
+        <div class="ic">B</div>
+        <div><h4>A more battle-tested product</h4><p>They've been in production since 2012. We've been live since 2024. Some of our edges are shinier; some of theirs have had ten years of edge-case polish.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHEN TO CHOOSE WHICH -->
+<section class="choose">
+  <div class="container">
+    <div class="eyebrow">The honest recommendation</div>
+    <h2 class="h-display" style="margin-top:20px; max-width:760px;">Here's who should pick <em class="italic ink-maple">which tool.</em></h2>
+
+    <div class="choose-grid">
+      <div class="choose-card ours">
+        <h3>Choose Bryte Rewards if…</h3>
+        <ul>
+          <li>You're a Canadian team, or a U.S. team with a significant Canadian office.</li>
+          <li>Your team is 50–2,000 people. We're laser-focused on this band.</li>
+          <li>You care more about recognition <em>quality</em> than recognition volume.</li>
+          <li>You want data residency in Canada by default — not a $2k/mo add-on.</li>
+          <li>You've tried gamified points systems and found they flatten the culture rather than build it.</li>
+          <li>You want bilingual EN/FR that actually works — not a half-done translation.</li>
+          <li>You want honest, flat pricing with nothing locked behind "Enterprise Plus."</li>
+          <li>You prefer a small, design-forward team over a mature marketplace leader.</li>
+        </ul>
+      </div>
+
+      <div class="choose-card">
+        <h3>Choose Bonusly if…</h3>
+        <ul>
+          <li>You're a U.S. team and data residency is not a factor.</li>
+          <li>You're 2,000+ employees and want a product with a decade of enterprise polish.</li>
+          <li>Your culture thrives on gamification — streaks, leaderboards, points races.</li>
+          <li>You need extremely deep analytics / slicing across huge datasets.</li>
+          <li>Your team is genuinely global (20+ countries) and catalogue breadth matters more than Canadian depth.</li>
+          <li>You're replacing an existing Bonusly deployment and the switching cost outweighs the gains.</li>
+          <li>You prefer a bigger vendor with a marketplace footprint.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SWITCHING CTA -->
+<section class="switch-cta">
+  <div class="container">
+    <h2 class="h-display">Switching from Bonusly? <em>We'll migrate you.</em></h2>
+    <p>Free data migration for teams over 100 people — recognition history, points balances, team structure, badges. 4-week rollout, white-glove, no extra fee. Typical switcher goes live inside a month.</p>
+    <div style="display:flex; gap:14px; justify-content:center; flex-wrap:wrap;">
+      <a class="btn btn-primary" href="Demo.html">Book a migration call</a>
+      <a class="btn btn-ghost btn-inverse" href="Customers.html">Read switcher stories</a>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="footer-grid">
+    <div>
+      <a class="logo" href="Home.html"><span class="logo-mark">B</span>Bryte Rewards</a>
+      <p style="margin: 20px 0 0; font-size: var(--t-small); color: var(--b-ink-3); max-width: 280px;">Recognition software for Canadian teams. Say the things that matter, out loud.</p>
+      <div style="margin-top: 20px; font-size: var(--t-xs); color: var(--b-ink-3); display: inline-flex; align-items: center; gap: 8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#B8452E"><path d="M12 2l1.5 4.5L18 4l-1.5 5L21 8l-3 4 3 4-4.5-1L18 20l-4.5-2.5L12 22l-1.5-4.5L6 20l1.5-5L3 16l3-4-3-4 4.5 1L6 4l4.5 2.5z"/></svg>
+        Made in Toronto
+      </div>
+    </div>
+    <div><h4>Product</h4><ul><li><a href="Product.html">Features</a></li><li><a href="Pricing.html">Pricing</a></li><li><a href="Integrations.html">Integrations</a></li><li><a href="Security.html">Security</a></li></ul></div>
+    <div><h4>Company</h4><ul><li><a href="Customers.html">Customers</a></li><li><a href="About.html">About</a></li><li><a href="Demo.html">Book a demo</a></li><li><a href="#">Careers</a></li></ul></div>
+    <div><h4>Resources</h4><ul><li><a href="Blog.html">Journal</a></li><li><a href="ROI.html">ROI calculator</a></li><li><a href="Compare.html">Compare</a></li><li><a href="#">Help centre</a></li></ul></div>
+    <div><h4>Legal</h4><ul><li><a href="#">Privacy</a></li><li><a href="#">Terms</a></li><li><a href="#">PIPEDA notice</a></li><li><a href="#">Accessibility</a></li></ul></div>
+  </div>
+  <div class="footer-bottom"><span>© 2025 Bryte Rewards Inc. · Toronto, ON</span><span>EN · <a href="#" style="color: var(--b-ink-3);">FR</a></span></div>
+</footer>
+
+<script src="site.js?v=6"></script>
+</body>
+</html>
