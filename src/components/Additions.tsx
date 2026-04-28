@@ -3,10 +3,14 @@ import { Icon } from './Icon';
 import { BRYTE_DATA } from '@/lib/data';
 import type { Recognition } from '@/lib/types';
 import { useFocusTrap } from './Extras';
-import { useCurrentUser, type NotificationPrefs } from '@/lib/queries/users';
+import { useCurrentUser, useCurrentOrg, type NotificationPrefs } from '@/lib/queries/users';
 import { useBadges } from '@/lib/queries/badges';
 import { useMyRecognitions, type DbRecognition } from '@/lib/queries/recognitions';
 import { useUpdateNotificationPrefs } from '@/lib/mutations/useUpdateNotificationPrefs';
+import { useIntegrations } from '@/lib/queries/integrations';
+import { useOrgRedemptions } from '@/lib/queries/rewards';
+import { useApproveRedemption } from '@/lib/mutations/useApproveRedemption';
+import { supabase } from '@/lib/supabase';
 
 const noAnim = () =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -749,6 +753,62 @@ export function ManagerNudgeModal({
 
 // ─── BillingPanel ───────────────────────────────────────
 export function BillingPanel() {
+  const { data: org, isLoading } = useCurrentOrg();
+  const { data: user } = useCurrentUser();
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  const planLabel: Record<string, string> = {
+    free: 'Free',
+    growth: 'Growth',
+    enterprise: 'Enterprise',
+  };
+  const plan = org?.plan ?? 'free';
+  const planName = planLabel[plan] ?? plan;
+  const pointsRemaining = org?.points_pool_remaining ?? 0;
+  const renewalDate = (org as any)?.renewal_date
+    ? new Date((org as any).renewal_date).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
+    : '—';
+  const last4 = (org as any)?.payment_method_last4;
+
+  const handleChangePlan = async (priceId: string) => {
+    if (!user) return;
+    setCheckoutLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            price_id: priceId,
+            success_url: window.location.href + '?billing=success',
+            cancel_url: window.location.href,
+          }),
+        }
+      );
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div className="card" style={{ padding: 28, minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="muted">Loading billing info…</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -756,16 +816,19 @@ export function BillingPanel() {
           <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
             <div>
               <div className="serif italic" style={{ fontSize: 'var(--t-xs)', color: 'var(--b-gold)', marginBottom: 4 }}>Current subscription</div>
-              <div className="h2">Growth plan · CA$4/teammate/month</div>
-              <div className="muted" style={{ fontSize: 'var(--t-small)', marginTop: 6 }}>148 active seats · next invoice May 1</div>
+              <div className="h2">{planName} plan</div>
+              <div className="muted" style={{ fontSize: 'var(--t-small)', marginTop: 6 }}>
+                {renewalDate !== '—' ? `Next renewal ${renewalDate}` : 'No active subscription'}
+                {last4 && ` · ····${last4}`}
+              </div>
             </div>
-            <span className="pill gold">Active</span>
+            <span className={`pill ${plan === 'free' ? '' : 'gold'}`}>{plan === 'free' ? 'Free' : 'Active'}</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
             {[
-              { l: 'Next invoice', v: 'CA$1,880', sub: '148 × CA$4 + taxes' },
-              { l: 'Points pool remaining', v: '35,880', sub: 'of 120,000' },
-              { l: 'Annual value', v: 'CA$22,560', sub: 'billed monthly' },
+              { l: 'Next renewal', v: renewalDate, sub: plan === 'free' ? 'No subscription' : 'Auto-renews' },
+              { l: 'Points pool remaining', v: pointsRemaining.toLocaleString(), sub: `of ${(org?.points_pool_remaining !== undefined ? 120000 : 0).toLocaleString()}` },
+              { l: 'Current plan', v: planName, sub: plan === 'free' ? 'Upgrade to unlock more' : 'Billed monthly' },
             ].map(s => (
               <div key={s.l} style={{ padding: '14px 16px', background: 'var(--b-surface)', borderRadius: 'var(--r-md)' }}>
                 <div className="label">{s.l}</div>
@@ -775,27 +838,29 @@ export function BillingPanel() {
             ))}
           </div>
           <div className="row" style={{ gap: 10 }}>
-            <button className="btn btn-primary">Top up points pool</button>
-            <button className="btn btn-ghost">Change plan</button>
-            <button className="btn-text" style={{ marginLeft: 'auto' }}>Export invoices →</button>
+            {plan === 'free' && (
+              <button
+                className="btn btn-primary"
+                disabled={checkoutLoading}
+                onClick={() => handleChangePlan(import.meta.env.VITE_STRIPE_GROWTH_PRICE_ID ?? 'price_growth')}
+              >
+                {checkoutLoading ? 'Redirecting…' : 'Upgrade to Growth →'}
+              </button>
+            )}
+            {plan === 'growth' && (
+              <button
+                className="btn btn-ghost"
+                disabled={checkoutLoading}
+                onClick={() => handleChangePlan(import.meta.env.VITE_STRIPE_GROWTH_PRICE_ID ?? 'price_growth')}
+              >
+                {checkoutLoading ? 'Redirecting…' : 'Manage subscription →'}
+              </button>
+            )}
           </div>
         </div>
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--b-border-soft)' }} className="h3">Invoice history</div>
-          {[
-            { date: 'Apr 1, 2026', amt: 'CA$1,880.00', status: 'Paid', inv: 'BR-2026-0421' },
-            { date: 'Mar 1, 2026', amt: 'CA$1,752.00', status: 'Paid', inv: 'BR-2026-0313' },
-            { date: 'Feb 1, 2026', amt: 'CA$1,688.00', status: 'Paid', inv: 'BR-2026-0201' },
-            { date: 'Jan 1, 2026', amt: 'CA$1,688.00', status: 'Paid', inv: 'BR-2026-0101' },
-          ].map((r, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 120px 100px 60px', gap: 14, padding: '14px 24px', borderBottom: i < 3 ? '1px solid var(--b-border-soft)' : 'none', alignItems: 'center', fontSize: 'var(--t-small)' }}>
-              <span className="mono" style={{ color: 'var(--b-ink)', fontWeight: 600 }}>{r.date}</span>
-              <span style={{ color: 'var(--b-ink-3)' }}>{r.inv}</span>
-              <span className="mono" style={{ color: 'var(--b-ink)', fontWeight: 600 }}>{r.amt}</span>
-              <span className="pill forest" style={{ width: 'fit-content' }}>{r.status}</span>
-              <button className="btn-text" style={{ fontSize: 'var(--t-xs)' }}>PDF →</button>
-            </div>
-          ))}
+        <div className="card" style={{ padding: '16px 24px' }}>
+          <div className="h3" style={{ marginBottom: 12 }}>Billing events</div>
+          <BillingEventsList orgId={org?.id} />
         </div>
       </div>
       <div className="card" style={{ padding: 24, background: 'linear-gradient(135deg, var(--b-gold-pale), var(--b-surface))', border: '1px solid var(--b-gold-border)' }}>
@@ -811,23 +876,125 @@ export function BillingPanel() {
             </li>
           ))}
         </ul>
-        <button className="btn btn-primary btn-block">Talk to us →</button>
+        <a href="mailto:sales@bryte.app" className="btn btn-primary btn-block" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>Talk to us →</a>
       </div>
+    </div>
+  );
+}
+
+function BillingEventsList({ orgId }: { orgId?: string }) {
+  const [events, setEvents] = useState<Array<{ id: string; event_type: string; plan: string; created_at: string }>>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!orgId) return;
+    setLoading(true);
+    supabase
+      .from('billing_events')
+      .select('id, event_type, plan, created_at')
+      .eq('org_id', orgId)
+      .order('created_at', { ascending: false })
+      .limit(10)
+      .then(({ data }) => {
+        setEvents((data ?? []) as typeof events);
+        setLoading(false);
+      });
+  }, [orgId]);
+
+  if (loading) return <div className="muted" style={{ fontSize: 'var(--t-small)', padding: '8px 0' }}>Loading…</div>;
+  if (events.length === 0) return <div className="muted" style={{ fontSize: 'var(--t-small)', padding: '8px 0' }}>No billing events yet. Events will appear here once a Stripe subscription is active.</div>;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {events.map((e, i) => (
+        <div key={e.id} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 140px', gap: 14, padding: '12px 0', borderBottom: i < events.length - 1 ? '1px solid var(--b-border-soft)' : 'none', alignItems: 'center', fontSize: 'var(--t-small)' }}>
+          <span style={{ color: 'var(--b-ink-3)', fontFamily: 'monospace', fontSize: 'var(--t-xs)' }}>{e.event_type}</span>
+          <span className="pill" style={{ width: 'fit-content', background: e.plan === 'enterprise' ? 'var(--b-gold-pale)' : undefined }}>{e.plan}</span>
+          <span className="muted mono" style={{ fontSize: 'var(--t-xs)' }}>{new Date(e.created_at).toLocaleDateString('en-CA')}</span>
+        </div>
+      ))}
     </div>
   );
 }
 
 // ─── IntegrationsPanel ──────────────────────────────────
 export function IntegrationsPanel() {
-  const I = BRYTE_DATA.INTEGRATIONS;
+  const { data: user } = useCurrentUser();
+  const { data: integrations = [], refetch } = useIntegrations();
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  const slackIntegration = integrations.find(i => i.kind === 'slack');
+  const slackTeamName = (slackIntegration?.config_json as any)?.team_name as string | undefined;
+
+  const slackClientId = import.meta.env.VITE_SLACK_CLIENT_ID;
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const slackRedirectUri = `${supabaseUrl}/functions/v1/slack-oauth-callback`;
+  const slackScopes = 'commands,chat:write,users:read';
+
+  const handleConnectSlack = () => {
+    if (!user?.org_id || !slackClientId) return;
+    const params = new URLSearchParams({
+      client_id: slackClientId,
+      scope: slackScopes,
+      redirect_uri: slackRedirectUri,
+      state: user.org_id,
+    });
+    window.location.href = `https://slack.com/oauth/v2/authorize?${params}`;
+  };
+
+  const handleDisconnectSlack = async () => {
+    if (!user?.org_id) return;
+    setDisconnecting(true);
+    await supabase.from('integrations').delete().eq('org_id', user.org_id).eq('kind', 'slack');
+    await refetch();
+    setDisconnecting(false);
+  };
+
+  const staticApps = BRYTE_DATA.INTEGRATIONS.filter(a => a.name !== 'Slack');
+
   return (
     <div>
       <div className="h3 mb-4">Connected apps</div>
       <div className="muted" style={{ fontSize: 'var(--t-small)', marginBottom: 20, maxWidth: 500 }}>
-        Recognition fits where your team already works. Connect Slack or Teams to let people recognise each other with a slash command.
+        Recognition fits where your team already works. Connect Slack to let people recognise each other with a slash command.
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
-        {I.map(app => (
+        {/* Slack — live */}
+        <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12, border: slackIntegration ? '1px solid var(--b-forest-border, #A8C5A0)' : undefined }}>
+          <div className="row" style={{ gap: 12, alignItems: 'center' }}>
+            <div style={{ width: 40, height: 40, borderRadius: 8, background: '#4A154B', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16 }}>
+              S
+            </div>
+            <div className="grow">
+              <div className="serif" style={{ fontWeight: 600, color: 'var(--b-ink)' }}>Slack</div>
+              {slackIntegration && (
+                <span className="pill forest" style={{ fontSize: 9, marginTop: 2 }}>● Connected{slackTeamName ? ` · ${slackTeamName}` : ''}</span>
+              )}
+            </div>
+          </div>
+          <div className="muted" style={{ fontSize: 'var(--t-xs)', lineHeight: 1.5, minHeight: 30 }}>
+            Recognise teammates with <code style={{ background: 'var(--b-surface)', padding: '1px 4px', borderRadius: 3 }}>/recognize @Name for #value: message</code> in any channel.
+          </div>
+          {slackIntegration ? (
+            <div className="row" style={{ gap: 8, marginTop: 'auto' }}>
+              <button className="btn btn-sm btn-ghost grow" disabled={disconnecting} onClick={handleDisconnectSlack}>
+                {disconnecting ? 'Disconnecting…' : 'Disconnect'}
+              </button>
+            </div>
+          ) : (
+            <button
+              className="btn btn-sm btn-primary"
+              style={{ marginTop: 'auto' }}
+              onClick={handleConnectSlack}
+              disabled={!slackClientId}
+              title={!slackClientId ? 'VITE_SLACK_CLIENT_ID not set' : undefined}
+            >
+              Connect
+            </button>
+          )}
+        </div>
+        {/* Other apps — static */}
+        {staticApps.map(app => (
           <div key={app.name} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="row" style={{ gap: 12, alignItems: 'center' }}>
               <div style={{ width: 40, height: 40, borderRadius: 8, background: app.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16 }}>
@@ -835,13 +1002,10 @@ export function IntegrationsPanel() {
               </div>
               <div className="grow">
                 <div className="serif" style={{ fontWeight: 600, color: 'var(--b-ink)' }}>{app.name}</div>
-                {app.connected && <span className="pill forest" style={{ fontSize: 9, marginTop: 2 }}>● Connected</span>}
               </div>
             </div>
             <div className="muted" style={{ fontSize: 'var(--t-xs)', lineHeight: 1.5, minHeight: 30 }}>{app.desc}</div>
-            <button className={'btn btn-sm ' + (app.connected ? 'btn-ghost' : 'btn-primary')} style={{ marginTop: 'auto' }}>
-              {app.connected ? 'Manage →' : 'Connect'}
-            </button>
+            <button className="btn btn-sm btn-ghost" style={{ marginTop: 'auto' }} disabled>Coming soon</button>
           </div>
         ))}
       </div>

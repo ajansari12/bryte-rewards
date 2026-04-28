@@ -2,6 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { Icon } from './Icon';
 import { BRYTE_DATA } from '@/lib/data';
 import type { Recognition } from '@/lib/types';
+import { useCurrentUser } from '@/lib/queries/users';
+import { useOrgRedemptions } from '@/lib/queries/rewards';
+import { useApproveRedemption } from '@/lib/mutations/useApproveRedemption';
+import { supabase } from '@/lib/supabase';
 
 // ─── NotificationsPage ──────────────────────────────────
 export function NotificationsPage({ onOpenRec }: { onOpenRec: (rec: Recognition) => void }) {
@@ -396,49 +400,123 @@ const _initE = (n: string) => n.split(' ').map(w => w[0]).slice(0, 2).join('');
 
 // ─── ApprovalQueuePanel ─────────────────────────────────
 export function ApprovalQueuePanel({ onToast }: { onToast?: (t: { kind?: 'success' | 'error' | 'info'; msg: string }) => void }) {
-  const [queue, setQueue] = useState(BRYTE_DATA.APPROVAL_QUEUE);
-  const pending = queue.filter(q => q.status === 'pending');
-  const processed = queue.filter(q => q.status !== 'pending');
+  const { data: user } = useCurrentUser();
+  const { data: redemptions = [], isLoading } = useOrgRedemptions();
+  const approveMutation = useApproveRedemption();
+  const [actioningId, setActioningId] = useState<string | null>(null);
 
-  const approve = (id: string) => { setQueue(q => q.map(x => x.id === id ? { ...x, status: 'approved' } : x)); onToast?.({ kind: 'success', msg: 'Approved ✦' }); };
-  const deny = (id: string) => { setQueue(q => q.map(x => x.id === id ? { ...x, status: 'denied' } : x)); onToast?.({ kind: 'info', msg: 'Request declined' }); };
+  const pending = redemptions.filter(r => r.status === 'pending');
+  const processed = redemptions.filter(r => r.status !== 'pending').slice(0, 10);
+
+  const handleApprove = async (id: string) => {
+    if (!user) return;
+    setActioningId(id);
+    try {
+      await approveMutation.mutateAsync({
+        redemption_id: id,
+        status: 'approved',
+        org_id: user.org_id,
+        processed_by: user.id,
+      });
+
+      // Call fulfill-redemption to send email and mark fulfilled
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fulfill-redemption`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ redemption_id: id }),
+        }
+      );
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message ?? 'Fulfillment failed');
+      onToast?.({ kind: 'success', msg: result.email_sent ? 'Approved — fulfillment email sent ✦' : 'Approved ✦' });
+    } catch (e) {
+      onToast?.({ kind: 'error', msg: e instanceof Error ? e.message : 'Failed to approve' });
+    } finally {
+      setActioningId(null);
+    }
+  };
+
+  const handleDeny = async (id: string) => {
+    if (!user) return;
+    setActioningId(id);
+    try {
+      await approveMutation.mutateAsync({
+        redemption_id: id,
+        status: 'cancelled',
+        org_id: user.org_id,
+        processed_by: user.id,
+      });
+      onToast?.({ kind: 'info', msg: 'Request declined' });
+    } catch (e) {
+      onToast?.({ kind: 'error', msg: e instanceof Error ? e.message : 'Failed to decline' });
+    } finally {
+      setActioningId(null);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div>
+        <div className="h3" style={{ marginBottom: 8 }}>Reward approvals</div>
+        <div className="muted" style={{ fontSize: 'var(--t-small)', marginTop: 16 }}>Loading…</div>
+      </div>
+    );
+  }
 
   return (
     <div>
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
         <div>
           <div className="h3">Reward approvals</div>
-          <div className="muted" style={{ fontSize: 'var(--t-small)', marginTop: 4 }}>Rewards over 1,500 pts need a manager sign-off.</div>
+          <div className="muted" style={{ fontSize: 'var(--t-small)', marginTop: 4 }}>Review and fulfil teammate reward redemptions.</div>
         </div>
         <span className="pill gold">{pending.length} pending</span>
       </div>
+
+      {pending.length === 0 && (
+        <div className="card" style={{ padding: '28px 24px', textAlign: 'center', marginTop: 18 }}>
+          <div className="muted" style={{ fontSize: 'var(--t-small)' }}>No pending redemptions. All caught up ✦</div>
+        </div>
+      )}
 
       {pending.length > 0 && (
         <div style={{ marginTop: 18 }}>
           <div className="label" style={{ marginBottom: 10 }}>Pending your review</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {pending.map(r => (
-              <div key={r.id} className="card" style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: '36px 1fr auto', gap: 14, alignItems: 'center' }}>
-                <div className="avatar sm role-employee">{_initE(r.requester)}</div>
-                <div>
-                  <div style={{ fontSize: '0.88rem', marginBottom: 3 }}>
-                    <span className="serif" style={{ fontWeight: 600, color: 'var(--b-ink)' }}>{r.requester}</span>
-                    <span className="muted" style={{ fontSize: '0.82rem' }}> wants to redeem </span>
-                    <span style={{ fontWeight: 600, color: 'var(--b-ink)' }}>{r.reward}</span>
+            {pending.map(r => {
+              const requesterName = (r.user as any)?.display_name ?? 'Unknown';
+              const rewardTitle = (r.reward as any)?.title ?? 'Reward';
+              const isActioning = actioningId === r.id;
+              return (
+                <div key={r.id} className="card" style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: '36px 1fr auto', gap: 14, alignItems: 'center', opacity: isActioning ? 0.6 : 1, transition: 'opacity 200ms' }}>
+                  <div className="avatar sm role-employee">{_initE(requesterName)}</div>
+                  <div>
+                    <div style={{ fontSize: '0.88rem', marginBottom: 3 }}>
+                      <span className="serif" style={{ fontWeight: 600, color: 'var(--b-ink)' }}>{requesterName}</span>
+                      <span className="muted" style={{ fontSize: '0.82rem' }}> wants to redeem </span>
+                      <span style={{ fontWeight: 600, color: 'var(--b-ink)' }}>{rewardTitle}</span>
+                    </div>
+                    <div className="row" style={{ gap: 10, fontSize: 'var(--t-xs)', color: 'var(--b-ink-3)' }}>
+                      <span className="mono">{r.points_spent.toLocaleString()} pts</span>
+                      <span>·</span>
+                      <span>{new Date(r.requested_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}</span>
+                    </div>
                   </div>
-                  <div className="row" style={{ gap: 10, fontSize: 'var(--t-xs)', color: 'var(--b-ink-3)' }}>
-                    <span className="mono">{r.points.toLocaleString()} pts</span>
-                    <span>·</span>
-                    <span>{r.requested}</span>
-                    {r.reason && <><span>·</span><span className="italic">"{r.reason}"</span></>}
+                  <div className="row" style={{ gap: 6 }}>
+                    <button className="btn btn-ghost btn-sm" disabled={isActioning} onClick={() => handleDeny(r.id)}>Decline</button>
+                    <button className="btn btn-primary btn-sm" disabled={isActioning} onClick={() => handleApprove(r.id)}>
+                      {isActioning ? '…' : 'Approve →'}
+                    </button>
                   </div>
                 </div>
-                <div className="row" style={{ gap: 6 }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => deny(r.id)}>Decline</button>
-                  <button className="btn btn-primary btn-sm" onClick={() => approve(r.id)}>Approve →</button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -447,17 +525,28 @@ export function ApprovalQueuePanel({ onToast }: { onToast?: (t: { kind?: 'succes
         <div style={{ marginTop: 28 }}>
           <div className="label" style={{ marginBottom: 10 }}>Recently processed</div>
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-            {processed.map((r, i) => (
-              <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '28px 1fr auto auto', gap: 14, padding: '12px 18px', borderBottom: i < processed.length - 1 ? '1px solid var(--b-border-soft)' : 'none', alignItems: 'center', fontSize: 'var(--t-small)' }}>
-                <div className="avatar role-employee" style={{ width: 28, height: 28, fontSize: 10 }}>{_initE(r.requester)}</div>
-                <span>
-                  <span className="serif" style={{ fontWeight: 600 }}>{r.requester}</span>
-                  <span className="muted"> · {r.reward}</span>
-                </span>
-                <span className={`pill ${r.status === 'approved' ? 'forest' : ''}`} style={{ background: r.status === 'denied' ? 'var(--b-terra-pale)' : undefined, color: r.status === 'denied' ? 'var(--b-terra)' : undefined }}>{r.status}</span>
-                <span className="muted mono" style={{ fontSize: 'var(--t-xs)' }}>{r.requested}</span>
-              </div>
-            ))}
+            {processed.map((r, i) => {
+              const requesterName = (r.user as any)?.display_name ?? 'Unknown';
+              const rewardTitle = (r.reward as any)?.title ?? 'Reward';
+              const statusPill = r.status === 'fulfilled'
+                ? { cls: 'pill forest', style: {} }
+                : r.status === 'approved'
+                ? { cls: 'pill gold', style: {} }
+                : { cls: 'pill', style: { background: 'var(--b-terra-pale)', color: 'var(--b-terra)' } };
+              return (
+                <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '28px 1fr auto auto', gap: 14, padding: '12px 18px', borderBottom: i < processed.length - 1 ? '1px solid var(--b-border-soft)' : 'none', alignItems: 'center', fontSize: 'var(--t-small)' }}>
+                  <div className="avatar role-employee" style={{ width: 28, height: 28, fontSize: 10 }}>{_initE(requesterName)}</div>
+                  <span>
+                    <span className="serif" style={{ fontWeight: 600 }}>{requesterName}</span>
+                    <span className="muted"> · {rewardTitle}</span>
+                  </span>
+                  <span className={statusPill.cls} style={{ ...statusPill.style, width: 'fit-content' }}>{r.status}</span>
+                  <span className="muted mono" style={{ fontSize: 'var(--t-xs)' }}>
+                    {r.processed_at ? new Date(r.processed_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }) : ''}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
