@@ -116,33 +116,35 @@ export function GiveRecognitionModal({ onClose, onDone }: GiveRecognitionModalPr
           <div className="modal-head">
             <h2 id="give-modal-title" className="section-heading">Recognise a teammate</h2>
             <p className="sub muted" style={{ marginTop: 6, fontSize: 'var(--t-small)' }}>This will appear on the team wall and notify them.</p>
-            <button className="close" onClick={onClose}><Icon name="close" size={16} /></button>
+            <button className="close" aria-label="Close" onClick={onClose}><Icon name="close" size={16} /></button>
           </div>
 
           <div className="modal-body">
             {/* Recipient */}
             <div className="form-group">
-              <label className="form-label">Who are you recognising?</label>
+              <label className="form-label" htmlFor="give-recipient-search">Who are you recognising?</label>
               {recipient ? (
                 <div className="row" style={{ background: 'var(--b-gold-pale)', border: '1px solid var(--b-gold-border)', borderRadius: 'var(--r-md)', padding: '8px 12px', gap: 10 }}>
-                  <div className={`avatar sm role-${recipient.role}`}>{initials(recipient.name)}</div>
+                  <div className={`avatar sm role-${recipient.role}`} aria-hidden="true">{initials(recipient.name)}</div>
                   <div className="grow">
                     <div style={{ fontWeight: 600, color: 'var(--b-ink)', fontSize: '0.875rem' }}>{recipient.name}</div>
                     <div style={{ fontSize: 'var(--t-xs)', color: 'var(--b-ink-3)' }}>{recipient.title}</div>
                   </div>
-                  <button className="icon-btn" onClick={() => setRecipient(null)}><Icon name="close" size={14} /></button>
+                  <button className="icon-btn" aria-label="Remove recipient" onClick={() => setRecipient(null)}><Icon name="close" size={14} /></button>
                 </div>
               ) : (
                 <>
-                  <input className="input" placeholder="Search by name…" value={search} onChange={e => setSearch(e.target.value)} autoFocus />
+                  <input id="give-recipient-search" className="input" placeholder="Search by name…" value={search} onChange={e => setSearch(e.target.value)} autoFocus aria-autocomplete="list" aria-expanded={search.length > 0} role="combobox" aria-controls="give-recipient-listbox" />
                   {search && (
-                    <div style={{ marginTop: 6, maxHeight: 180, overflowY: 'auto', border: '1px solid var(--b-border)', borderRadius: 'var(--r-md)', background: 'var(--b-card)' }}>
+                    <div id="give-recipient-listbox" role="listbox" aria-label="Teammates" style={{ marginTop: 6, maxHeight: 180, overflowY: 'auto', border: '1px solid var(--b-border)', borderRadius: 'var(--r-md)', background: 'var(--b-card)' }}>
                       {filtered.slice(0, 6).map(p => (
-                        <div key={p.id} onClick={() => { setRecipient(p); setSearch(''); }}
+                        <div key={p.id} role="option" aria-selected={false} tabIndex={0}
+                          onClick={() => { setRecipient(p); setSearch(''); }}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { setRecipient(p); setSearch(''); } }}
                           style={{ display: 'flex', gap: 10, padding: '8px 12px', cursor: 'pointer', alignItems: 'center', transition: 'background 80ms var(--ease)' }}
                           onMouseEnter={e => (e.currentTarget.style.background = 'var(--b-elevated)')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                          <div className={`avatar sm role-${p.role}`}>{initials(p.name)}</div>
+                          <div className={`avatar sm role-${p.role}`} aria-hidden="true">{initials(p.name)}</div>
                           <div>
                             <div style={{ fontSize: '0.875rem', color: 'var(--b-ink)', fontWeight: 500 }}>{p.name}</div>
                             <div style={{ fontSize: 'var(--t-xs)', color: 'var(--b-ink-3)' }}>{p.title}</div>
@@ -150,7 +152,7 @@ export function GiveRecognitionModal({ onClose, onDone }: GiveRecognitionModalPr
                         </div>
                       ))}
                       {filtered.length === 0 && (
-                        <div style={{ padding: '12px 16px', color: 'var(--b-ink-3)', fontSize: 'var(--t-sm)' }}>No teammates found</div>
+                        <div role="option" aria-selected={false} style={{ padding: '12px 16px', color: 'var(--b-ink-3)', fontSize: 'var(--t-sm)' }}>No teammates found</div>
                       )}
                     </div>
                   )}
@@ -180,7 +182,7 @@ export function GiveRecognitionModal({ onClose, onDone }: GiveRecognitionModalPr
             {/* Message */}
             <div className="form-group">
               <div className="row" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
-                <label className="form-label" style={{ margin: 0 }}>What did they do?</label>
+                <label className="form-label" htmlFor="give-message" style={{ margin: 0 }}>What did they do?</label>
                 <button type="button" className="btn-text" style={{ fontSize: 'var(--t-xs)' }} onClick={() => setShowTpl(v => !v)}>
                   {showTpl ? '× Hide templates' : '☷ Use a template'}
                 </button>
@@ -201,7 +203,7 @@ export function GiveRecognitionModal({ onClose, onDone }: GiveRecognitionModalPr
                   ))}
                 </div>
               )}
-              <textarea className="textarea quoted"
+              <textarea id="give-message" className="textarea quoted"
                 placeholder="Describe what happened. Be specific — this is what makes recognition meaningful."
                 value={message} onChange={e => setMessage(e.target.value)} maxLength={500} />
               <div className="row" style={{ justifyContent: 'space-between', marginTop: 6 }}>

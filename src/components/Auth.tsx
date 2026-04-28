@@ -117,25 +117,29 @@ export function AuthPage({ mode = 'login' }: { mode?: string }) {
 
           {mode === 'signup' && (
             <div className="form-group">
-              <label className="form-label">Full name</label>
-              <input className="input" placeholder="Alex Thibodeau" value={form.name}
+              <label className="form-label" htmlFor="auth-name">Full name</label>
+              <input id="auth-name" className="input" placeholder="Alex Thibodeau" value={form.name}
+                autoComplete="name"
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             </div>
           )}
           <div className="form-group">
-            <label className="form-label">Work email</label>
-            <input className="input" type="email" placeholder="alex@mapleviewmedical.ca" value={form.email}
+            <label className="form-label" htmlFor="auth-email">Work email</label>
+            <input id="auth-email" className="input" type="email" placeholder="alex@mapleviewmedical.ca" value={form.email}
+              autoComplete="email"
               onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
           </div>
           <div className="form-group">
-            <label className="form-label">Password</label>
-            <input className="input" type="password" placeholder="••••••••••" value={form.password}
+            <label className="form-label" htmlFor="auth-password">Password</label>
+            <input id="auth-password" className="input" type="password" placeholder="••••••••••" value={form.password}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
           </div>
           {mode === 'signup' && (
             <div className="form-group">
-              <label className="form-label">Organisation name</label>
-              <input className="input" placeholder="Mapleview Medical Group" value={form.org}
+              <label className="form-label" htmlFor="auth-org">Organisation name</label>
+              <input id="auth-org" className="input" placeholder="Mapleview Medical Group" value={form.org}
+                autoComplete="organization"
                 onChange={e => setForm(f => ({ ...f, org: e.target.value }))} />
             </div>
           )}
