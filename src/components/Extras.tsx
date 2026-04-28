@@ -85,37 +85,72 @@ export function NotificationsPage({ onOpenRec }: { onOpenRec: (rec: Recognition)
   );
 }
 
-// ─── CoachmarksTour ─────────────────────────────────────
-export function CoachmarksTour({ onDone }: { onDone: () => void }) {
-  const steps = [
-    {
-      title: 'Welcome to Bryte ✦',
-      body: "This is your recognition wall. Where teammates go to say 'I saw you. Thank you.'",
-      cta: 'Show me around',
-    },
-    {
-      title: 'Recognise someone',
-      body: "Hit ⌘K or press R anywhere. Pick a value, write a few sentences. That's it.",
-      cta: 'Got it',
-    },
-    {
-      title: 'The points are real',
-      body: "Every recognition carries points. Stack them up, redeem for gift cards, donate, or take a day.",
-      cta: 'Cool',
-    },
-    {
-      title: "You're set",
-      body: "Need to find your way? ⌘K opens search. Now — is there someone you've been meaning to thank?",
-      cta: 'Start using Bryte',
-    },
-  ];
-  const [i, setI] = useState(0);
-  const step = steps[i];
+// ─── CoachmarksTour (DOM-anchored) ──────────────────────
+interface CoachmarkStep {
+  selector: string;
+  title: string;
+  body: string;
+  cta: string;
+  placement: 'bottom' | 'top' | 'right' | 'left';
+}
 
-  const handleNext = () => {
-    if (i < steps.length - 1) setI(i + 1);
-    else { try { localStorage.setItem('bryte.tour.v1', '1'); } catch {} onDone(); }
+const COACHMARK_STEPS: CoachmarkStep[] = [
+  {
+    selector: '.topbar',
+    title: 'Welcome to Bryte ✦',
+    body: "This is your recognition wall. Where teammates go to say 'I saw you. Thank you.'",
+    cta: 'Show me around',
+    placement: 'bottom',
+  },
+  {
+    selector: '.btn-celebrate',
+    title: 'Recognise someone',
+    body: "Hit ⌘K or press R anywhere. Pick a value, write a few sentences. That's it.",
+    cta: 'Got it',
+    placement: 'bottom',
+  },
+  {
+    selector: '[data-route="rewards"]',
+    title: 'The points are real',
+    body: 'Every recognition carries points. Stack them up, redeem for gift cards, donate, or take a day.',
+    cta: 'Cool',
+    placement: 'right',
+  },
+  {
+    selector: '.topbar-search',
+    title: "You're set",
+    body: "Need to find your way? ⌘K opens search. Now — is there someone you've been meaning to thank?",
+    cta: 'Start using Bryte',
+    placement: 'bottom',
+  },
+];
+
+interface AnchorRect { top: number; left: number; width: number; height: number }
+
+export function CoachmarksTour({ onDone }: { onDone: () => void }) {
+  const [stepIdx, setStepIdx] = useState(0);
+  const [rect, setRect] = useState<AnchorRect | null>(null);
+  const step = COACHMARK_STEPS[stepIdx];
+
+  const readRect = () => {
+    const el = document.querySelector<HTMLElement>(step.selector);
+    if (!el) { setRect(null); return; }
+    const r = el.getBoundingClientRect();
+    setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
   };
+
+  useEffect(() => {
+    readRect();
+    const onScroll = () => readRect();
+    const ro = new ResizeObserver(() => readRect());
+    window.addEventListener('scroll', onScroll, true);
+    ro.observe(document.documentElement);
+    return () => {
+      window.removeEventListener('scroll', onScroll, true);
+      ro.disconnect();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepIdx]);
 
   const handleSkip = () => {
     try { localStorage.setItem('bryte.tour.v1', '1'); } catch {}
@@ -126,30 +161,104 @@ export function CoachmarksTour({ onDone }: { onDone: () => void }) {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') handleSkip(); };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleNext = () => {
+    if (stepIdx < COACHMARK_STEPS.length - 1) setStepIdx(i => i + 1);
+    else { try { localStorage.setItem('bryte.tour.v1', '1'); } catch {} onDone(); }
+  };
+
+  const PAD = 12, TIP_W = 320;
+
+  const tooltipStyle = (): React.CSSProperties => {
+    if (!rect) return { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' };
+    const vw = window.innerWidth;
+    if (step.placement === 'bottom') {
+      let left = rect.left + rect.width / 2 - TIP_W / 2;
+      left = Math.max(PAD, Math.min(left, vw - TIP_W - PAD));
+      return { position: 'fixed', top: rect.top + rect.height + PAD, left };
+    }
+    if (step.placement === 'right') {
+      const top = Math.max(PAD, rect.top + rect.height / 2 - 90);
+      return { position: 'fixed', top, left: rect.left + rect.width + PAD };
+    }
+    if (step.placement === 'left') {
+      const top = Math.max(PAD, rect.top + rect.height / 2 - 90);
+      return { position: 'fixed', top, left: Math.max(PAD, rect.left - TIP_W - PAD) };
+    }
+    // top
+    let left = rect.left + rect.width / 2 - TIP_W / 2;
+    left = Math.max(PAD, Math.min(left, vw - TIP_W - PAD));
+    return { position: 'fixed', top: Math.max(PAD, rect.top - PAD - 200), left };
+  };
+
+  const spotlightStyle = (): React.CSSProperties => {
+    if (!rect) return {};
+    return {
+      position: 'fixed',
+      top: rect.top - 4,
+      left: rect.left - 4,
+      width: rect.width + 8,
+      height: rect.height + 8,
+      borderRadius: 'var(--r-md)',
+      boxShadow: '0 0 0 4000px rgba(28,20,16,0.55)',
+      pointerEvents: 'none',
+      zIndex: 9998,
+    };
+  };
+
   return (
-    <div className="modal-backdrop">
-      <div className="card" style={{ width: 'min(440px, 92vw)', padding: 28, textAlign: 'center' }}>
-        <div className="row" style={{ justifyContent: 'center', gap: 6, marginBottom: 18 }}>
-          {steps.map((_, idx) => (
+    <>
+      {/* Click-away backdrop */}
+      <div
+        onClick={handleSkip}
+        aria-hidden="true"
+        style={{ position: 'fixed', inset: 0, zIndex: 9997, cursor: 'default' }}
+      />
+
+      {/* Spotlight ring around anchor */}
+      {rect && <div style={spotlightStyle()} />}
+
+      {/* Tooltip card */}
+      <div
+        style={{
+          ...tooltipStyle(),
+          zIndex: 9999,
+          width: TIP_W,
+          background: 'var(--b-card)',
+          border: '1px solid var(--b-border)',
+          borderRadius: 'var(--r-lg)',
+          boxShadow: 'var(--shadow-lg)',
+          padding: 22,
+          animation: 'modal-in 250ms var(--ease-spring)',
+        }}
+      >
+        {/* Progress pips + skip */}
+        <div className="row" style={{ gap: 6, marginBottom: 14 }}>
+          {COACHMARK_STEPS.map((_, idx) => (
             <span key={idx} style={{
-              width: idx === i ? 22 : 6, height: 6, borderRadius: 3,
-              background: idx === i ? 'var(--b-gold)' : 'var(--b-border)',
-              transition: 'all .3s',
+              width: idx === stepIdx ? 22 : 6, height: 6, borderRadius: 3,
+              background: idx === stepIdx ? 'var(--b-gold)' : idx < stepIdx ? 'var(--b-gold-border)' : 'var(--b-border)',
+              transition: 'all 300ms',
             }} />
           ))}
-        </div>
-        <h2 className="serif" style={{ fontSize: '1.4rem', fontWeight: 600, margin: 0 }}>{step.title}</h2>
-        <p style={{ marginTop: 12, lineHeight: 1.6, color: 'var(--b-ink-2)', fontSize: 'var(--t-md)' }}>{step.body}</p>
-        <div className="row" style={{ marginTop: 22, gap: 8, justifyContent: 'center' }}>
-          {i < steps.length - 1 && <button className="btn btn-ghost btn-sm" onClick={handleSkip}>Skip</button>}
-          <button className="btn btn-primary" onClick={handleNext}>
-            {step.cta} {i < steps.length - 1 && <Icon name="arrow" size={12} />}
+          <button
+            onClick={handleSkip}
+            style={{ marginLeft: 'auto', fontSize: 'var(--t-xs)', color: 'var(--b-ink-4)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          >
+            Skip tour
           </button>
         </div>
+
+        <h2 className="serif" style={{ fontSize: '1.15rem', fontWeight: 600, margin: '0 0 8px' }}>{step.title}</h2>
+        <p style={{ fontSize: 'var(--t-sm)', lineHeight: 1.6, color: 'var(--b-ink-2)', margin: '0 0 18px' }}>{step.body}</p>
+
+        <button className="btn btn-primary btn-sm" onClick={handleNext}>
+          {step.cta} {stepIdx < COACHMARK_STEPS.length - 1 && <Icon name="arrow" size={12} />}
+        </button>
       </div>
-    </div>
+    </>
   );
 }
 

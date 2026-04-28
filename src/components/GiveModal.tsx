@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Icon } from './Icon';
 import { BRYTE_DATA } from '@/lib/data';
 import type { Recognition } from '@/lib/types';
+import { useFocusTrap } from './Extras';
 
 interface Person {
   name: string;
@@ -42,6 +43,8 @@ export function GiveRecognitionModal({
   );
   const [showTpl, setShowTpl] = useState(false);
 
+  const trapRef = useFocusTrap(phase === 'idle', onClose);
+
   const initials = (n: string) =>
     n
       .split(' ')
@@ -53,43 +56,6 @@ export function GiveRecognitionModal({
       !search || p.name.toLowerCase().includes(search.toLowerCase())
   );
   const canSend = recipient && value && message.length > 10;
-
-  // Escape to close, focus trap on open
-  useEffect(() => {
-    const prevFocus = document.activeElement as HTMLElement | null;
-    const firstField = document.querySelector<HTMLElement>(
-      '.modal input, .modal textarea, .modal button'
-    );
-    firstField?.focus?.();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && phase === 'idle') {
-        e.preventDefault();
-        onClose();
-      }
-      if (e.key === 'Tab') {
-        const focusables = [
-          ...document.querySelectorAll<HTMLElement>(
-            '.modal button:not([disabled]), .modal input, .modal textarea, .modal [tabindex]:not([tabindex="-1"])'
-          ),
-        ].filter((el) => el.offsetParent !== null);
-        if (!focusables.length) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          last.focus();
-          e.preventDefault();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          first.focus();
-          e.preventDefault();
-        }
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      prevFocus?.focus?.();
-    };
-  }, [phase, onClose]);
 
   const handleSubmit = () => {
     if (!canSend || phase !== 'idle') return;
@@ -193,13 +159,15 @@ export function GiveRecognitionModal({
 
       <div
         className="modal-backdrop"
-        onClick={onClose}
+        onClick={phase === 'idle' ? onClose : undefined}
         style={{
           opacity: phase === 'flying' ? 0.3 : 1,
           transition: 'opacity 300ms var(--ease)',
+          pointerEvents: phase === 'flying' ? 'none' : 'auto',
         }}
       >
         <div
+          ref={trapRef}
           className="modal"
           onClick={(e) => e.stopPropagation()}
           role="dialog"
@@ -546,6 +514,8 @@ export function GiveRecognitionModal({
 
             {/* Points */}
             <div
+              role="status"
+              aria-live="polite"
               style={{
                 padding: '10px 14px',
                 background: 'var(--b-forest-pale)',

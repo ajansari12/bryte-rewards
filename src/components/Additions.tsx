@@ -2,8 +2,57 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { Icon } from './Icon';
 import { BRYTE_DATA } from '@/lib/data';
 import type { Recognition } from '@/lib/types';
+import { useFocusTrap } from './Extras';
+
+const noAnim = () =>
+  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const initials = (n: string) => n.split(' ').map(w => w[0]).slice(0, 2).join('');
+
+// ─── Fuzzy scorer ────────────────────────────────────────
+interface MatchResult { score: number; ranges: [number, number][] }
+
+function scoreMatch(query: string, target: string): MatchResult {
+  const q = query.toLowerCase();
+  const t = target.toLowerCase();
+  if (!q) return { score: 0, ranges: [] };
+  const idx = t.indexOf(q);
+  if (idx !== -1) return { score: 100 - (t.length - q.length), ranges: [[idx, idx + q.length]] };
+  const ranges: [number, number][] = [];
+  let qi = 0, score = 0, lastHit = -1;
+  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
+    if (t[ti] === q[qi]) {
+      const gap = lastHit === -1 ? 0 : ti - lastHit - 1;
+      score += 10 - gap * 2;
+      if (ranges.length && ranges[ranges.length - 1][1] === ti) {
+        ranges[ranges.length - 1][1] = ti + 1;
+      } else {
+        ranges.push([ti, ti + 1]);
+      }
+      lastHit = ti;
+      qi++;
+    }
+  }
+  if (qi < q.length) return { score: -1, ranges: [] };
+  return { score, ranges };
+}
+
+function HighlightLabel({ text, ranges }: { text: string; ranges: [number, number][] }) {
+  if (!ranges.length) return <span>{text}</span>;
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+  for (const [start, end] of ranges) {
+    if (start > cursor) parts.push(<span key={`t${cursor}`}>{text.slice(cursor, start)}</span>);
+    parts.push(
+      <mark key={`m${start}`} style={{ background: 'var(--b-gold-pale)', color: 'var(--b-gold)', borderRadius: 2, padding: '0 1px' }}>
+        {text.slice(start, end)}
+      </mark>
+    );
+    cursor = end;
+  }
+  if (cursor < text.length) parts.push(<span key={`t${cursor}`}>{text.slice(cursor)}</span>);
+  return <span>{parts}</span>;
+}
 
 // ─── ProfilePage ────────────────────────────────────────
 export function ProfilePage({
@@ -21,12 +70,64 @@ export function ProfilePage({
     type: r.type as Recognition['type'],
   }));
 
+  const nextThreshold = 5000;
+  const pct = Math.min(me.points / nextThreshold, 1);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), 100);
+    return () => clearTimeout(t);
+  }, []);
+
+  // SVG progress ring
+  const R = 52, CX = 64, CY = 64, SW = 7;
+  const circ = 2 * Math.PI * R;
+  const offset = ready && !noAnim() ? circ * (1 - pct) : circ;
+
   return (
     <div>
       <div className="card" style={{ padding: 32, marginBottom: 24, textAlign: 'center' }}>
-        <div className={`avatar xl role-${me.role}`} style={{ margin: '0 auto 14px', width: 88, height: 88, fontSize: 28 }}>{me.initials}</div>
+        {/* Avatar with progress ring */}
+        <div style={{ position: 'relative', width: 128, height: 128, margin: '0 auto 16px' }}>
+          <svg width="128" height="128" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)' }} aria-hidden="true">
+            <circle cx={CX} cy={CY} r={R} fill="none" stroke="var(--b-border)" strokeWidth={SW} />
+            <circle
+              cx={CX} cy={CY} r={R} fill="none"
+              stroke="var(--b-gold)" strokeWidth={SW}
+              strokeDasharray={circ}
+              strokeDashoffset={offset}
+              strokeLinecap="round"
+              style={{ transition: noAnim() ? 'none' : 'stroke-dashoffset 900ms cubic-bezier(0.4,0,0.2,1)' }}
+            />
+          </svg>
+          <div
+            className={`avatar xl role-${me.role}`}
+            style={{ position: 'absolute', top: SW + 4, left: SW + 4, right: SW + 4, bottom: SW + 4, margin: 0, width: 'auto', height: 'auto', fontSize: 28 }}
+          >
+            {me.initials}
+          </div>
+        </div>
+
         <h1 className="serif" style={{ fontSize: '1.8rem', fontWeight: 600, margin: 0 }}>{me.displayName}</h1>
         <div className="muted" style={{ marginTop: 4 }}>{me.title}</div>
+
+        {/* Points tier bar */}
+        <div style={{ margin: '16px auto 0', maxWidth: 260 }}>
+          <div className="row" style={{ justifyContent: 'space-between', marginBottom: 5 }}>
+            <span className="label">
+              <strong style={{ color: 'var(--b-gold)' }}>{me.points.toLocaleString()}</strong> pts
+            </span>
+            <span className="label">Next: {nextThreshold.toLocaleString()}</span>
+          </div>
+          <div className="progress-linear" style={{ height: 6, borderRadius: 3 }}>
+            <div
+              className="fill"
+              style={{
+                width: ready ? `${pct * 100}%` : '0%',
+                transition: noAnim() ? 'none' : 'width 900ms cubic-bezier(0.4,0,0.2,1)',
+              }}
+            />
+          </div>
+        </div>
 
         <div className="row" style={{ justifyContent: 'center', gap: 36, marginTop: 22 }}>
           <div>
@@ -69,15 +170,18 @@ export function ProfilePage({
       <h2 className="serif" style={{ fontSize: '1.1rem', fontWeight: 600, margin: '0 0 12px' }}>Recent recognitions</h2>
       <div style={{ display: 'grid', gap: 10 }}>
         {recentRecs.map(r => (
-          <div key={r._id} className="card" style={{ padding: 16, cursor: 'pointer' }} onClick={() => onOpenRec(r)}>
-            <div className="row" style={{ gap: 10, marginBottom: 6 }}>
-              <span className="chip-mini">{r.value}</span>
-              <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>· {r.time}</span>
-              <span className="grow" />
-              <span className="mono" style={{ color: 'var(--b-gold)', fontWeight: 700, fontSize: 'var(--t-xs)' }}>+{r.points}</span>
+          <div key={r._id} className="rec-card" style={{ cursor: 'pointer' }} onClick={() => onOpenRec(r)}>
+            <div className="strip" style={{ background: 'var(--b-gold)' }} />
+            <div style={{ padding: '14px 16px' }}>
+              <div className="row" style={{ gap: 10, marginBottom: 6 }}>
+                <span className="chip-mini">{r.value}</span>
+                <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>· {r.time}</span>
+                <span className="grow" />
+                <span className="mono" style={{ color: 'var(--b-gold)', fontWeight: 700, fontSize: 'var(--t-xs)' }}>+{r.points}</span>
+              </div>
+              <div style={{ fontSize: 'var(--t-sm)', lineHeight: 1.5 }}>"{r.message}"</div>
+              <div className="muted" style={{ fontSize: 'var(--t-xs)', marginTop: 6 }}>From {r.sender}</div>
             </div>
-            <div style={{ fontSize: 'var(--t-sm)', lineHeight: 1.5 }}>"{r.message}"</div>
-            <div className="muted" style={{ fontSize: 'var(--t-xs)', marginTop: 6 }}>From {r.sender}</div>
           </div>
         ))}
       </div>
@@ -89,6 +193,8 @@ export function ProfilePage({
 export function SearchPalette({ onClose, onJump }: { onClose: () => void; onJump: (route: string) => void }) {
   const [q, setQ] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => { inputRef.current?.focus(); }, []);
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -96,33 +202,76 @@ export function SearchPalette({ onClose, onJump }: { onClose: () => void; onJump
     return () => window.removeEventListener('keydown', h);
   }, [onClose]);
 
-  const items = [
-    { kind: 'action', label: 'Recognise someone', icon: 'sparkle', route: '__recognize' },
-    { kind: 'page', label: 'Recognition feed', icon: 'feed', route: 'feed' },
-    { kind: 'page', label: 'My profile', icon: 'users', route: 'profile' },
-    { kind: 'page', label: 'Notifications', icon: 'bell', route: 'notifications' },
-    { kind: 'page', label: 'Leaderboard', icon: 'trophy', route: 'leaderboard' },
-    { kind: 'page', label: 'Badges', icon: 'badge', route: 'badges' },
-    { kind: 'page', label: 'Rewards', icon: 'gift', route: 'rewards' },
-    { kind: 'page', label: 'Team pulse', icon: 'users', route: 'manager' },
-    { kind: 'page', label: 'Analytics', icon: 'chart', route: 'analytics' },
-    { kind: 'page', label: 'Admin', icon: 'shield', route: 'admin' },
-  ];
-  const filtered = q ? items.filter(i => i.label.toLowerCase().includes(q.toLowerCase())) : items;
+  const ALL_ITEMS = useMemo(() => [
+    { kind: 'action' as const, label: 'Recognise someone', icon: 'sparkle', route: '__recognize' },
+    { kind: 'page' as const, label: 'Recognition feed', icon: 'feed', route: 'feed' },
+    { kind: 'page' as const, label: 'My profile', icon: 'users', route: 'profile' },
+    { kind: 'page' as const, label: 'Notifications', icon: 'bell', route: 'notifications' },
+    { kind: 'page' as const, label: 'Leaderboard', icon: 'trophy', route: 'leaderboard' },
+    { kind: 'page' as const, label: 'Badges', icon: 'badge', route: 'badges' },
+    { kind: 'page' as const, label: 'Rewards', icon: 'gift', route: 'rewards' },
+    { kind: 'page' as const, label: 'Team pulse', icon: 'users', route: 'manager' },
+    { kind: 'page' as const, label: 'Analytics', icon: 'chart', route: 'analytics' },
+    { kind: 'page' as const, label: 'Admin', icon: 'shield', route: 'admin' },
+  ], []);
+
+  const scored = useMemo(() => {
+    if (!q) return ALL_ITEMS.map(i => ({ ...i, score: 0, ranges: [] as [number, number][] }));
+    return ALL_ITEMS
+      .map(item => { const m = scoreMatch(q, item.label); return { ...item, ...m }; })
+      .filter(item => item.score >= 0)
+      .sort((a, b) => b.score - a.score);
+  }, [q, ALL_ITEMS]);
+
+  const actions = scored.filter(item => item.kind === 'action');
+  const pages = scored.filter(item => item.kind === 'page');
+  const flatItems = q ? scored : [...actions, ...pages];
+
   const [active, setActive] = useState(0);
   useEffect(() => { setActive(0); }, [q]);
 
+  useEffect(() => {
+    const el = listRef.current?.querySelector<HTMLButtonElement>(`[data-idx="${active}"]`);
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [active]);
+
   const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') { e.preventDefault(); setActive(a => Math.min(a + 1, filtered.length - 1)); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive(a => Math.min(a + 1, flatItems.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(a => Math.max(a - 1, 0)); }
-    else if (e.key === 'Enter' && filtered[active]) { onJump(filtered[active].route); onClose(); }
+    else if (e.key === 'Enter' && flatItems[active]) { onJump(flatItems[active].route); onClose(); }
   };
+
+  const renderItem = (item: typeof flatItems[0], globalIdx: number) => (
+    <button
+      key={item.label}
+      data-idx={globalIdx}
+      onMouseEnter={() => setActive(globalIdx)}
+      onClick={() => { onJump(item.route); onClose(); }}
+      className="row"
+      style={{
+        width: '100%', padding: '10px 14px', gap: 12,
+        background: globalIdx === active ? 'var(--b-cream-2)' : 'transparent',
+        border: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--b-ink)',
+        transition: 'background 80ms var(--ease)',
+      }}
+    >
+      <Icon name={item.icon} size={14} style={{ color: 'var(--b-ink-3)', flexShrink: 0 }} />
+      <span style={{ flex: 1 }}>
+        <HighlightLabel text={item.label} ranges={item.ranges} />
+      </span>
+      <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>{item.kind}</span>
+    </button>
+  );
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="card" style={{ width: 'min(560px, 92vw)', maxHeight: '70vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+      <div
+        className="card"
+        style={{ width: 'min(560px, 92vw)', maxHeight: '70vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+        onClick={e => e.stopPropagation()}
+      >
         <div className="row" style={{ padding: 14, borderBottom: '1px solid var(--b-border-soft)', gap: 10 }}>
-          <Icon name="search" size={16} />
+          <Icon name="search" size={16} style={{ color: 'var(--b-ink-3)', flexShrink: 0 }} />
           <input
             ref={inputRef}
             value={q}
@@ -133,24 +282,22 @@ export function SearchPalette({ onClose, onJump }: { onClose: () => void; onJump
           />
           <kbd style={{ fontFamily: 'var(--f-mono)', fontSize: 10, padding: '2px 6px', border: '1px solid var(--b-border)', borderRadius: 4 }}>esc</kbd>
         </div>
-        <div style={{ overflow: 'auto', maxHeight: '50vh' }}>
-          {filtered.length === 0 && <div className="muted" style={{ padding: 22, textAlign: 'center' }}>Nothing matches "{q}".</div>}
-          {filtered.map((item, i) => (
-            <button
-              key={item.label}
-              onMouseEnter={() => setActive(i)}
-              onClick={() => { onJump(item.route); onClose(); }}
-              className="row"
-              style={{
-                width: '100%', padding: '10px 14px', gap: 12, background: i === active ? 'var(--b-cream-2)' : 'transparent',
-                border: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--b-ink)',
-              }}
-            >
-              <Icon name={item.icon} size={14} />
-              <span style={{ flex: 1 }}>{item.label}</span>
-              <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>{item.kind}</span>
-            </button>
-          ))}
+        <div ref={listRef} style={{ overflow: 'auto', maxHeight: '50vh' }}>
+          {flatItems.length === 0 && <div className="muted" style={{ padding: 22, textAlign: 'center' }}>Nothing matches "{q}".</div>}
+
+          {!q && actions.length > 0 && (
+            <>
+              <div className="label" style={{ padding: '10px 14px 4px', fontSize: 10 }}>Actions</div>
+              {actions.map((item, i) => renderItem(item, i))}
+            </>
+          )}
+          {!q && pages.length > 0 && (
+            <>
+              <div className="label" style={{ padding: '10px 14px 4px', fontSize: 10 }}>Pages</div>
+              {pages.map((item, i) => renderItem(item, actions.length + i))}
+            </>
+          )}
+          {q && flatItems.map((item, i) => renderItem(item, i))}
         </div>
       </div>
     </div>
@@ -158,17 +305,47 @@ export function SearchPalette({ onClose, onJump }: { onClose: () => void; onJump
 }
 
 // ─── RecognitionDetail ──────────────────────────────────
+const QUICK_REACTIONS = ['❤️', '🙌', '🔥', '✦', '💛'];
+
 export function RecognitionDetail({ rec, onClose, onRecognize }: { rec: Recognition; onClose: () => void; onRecognize: () => void }) {
+  const trapRef = useFocusTrap(true, onClose);
   const comments = ((BRYTE_DATA as any).SAMPLE_COMMENTS as Array<{ author: string; role: string; text: string; time: string }>);
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
-  }, [onClose]);
+
+  const [reactions, setReactions] = useState<Record<string, number>>({ ...rec.reactions });
+  const [myReactions, setMyReactions] = useState<Set<string>>(new Set());
+  const [reply, setReply] = useState('');
+
+  const toggleReaction = (emoji: string) => {
+    setMyReactions(prev => {
+      const next = new Set(prev);
+      if (next.has(emoji)) {
+        next.delete(emoji);
+        setReactions(r => ({ ...r, [emoji]: Math.max(0, (r[emoji] || 0) - 1) }));
+      } else {
+        next.add(emoji);
+        setReactions(r => ({ ...r, [emoji]: (r[emoji] || 0) + 1 }));
+      }
+      return next;
+    });
+  };
+
+  const onReplyKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && reply.trim()) {
+      setReply('');
+    }
+  };
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="card" style={{ width: 'min(640px, 92vw)', maxHeight: '88vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
+      <div
+        ref={trapRef}
+        className="card"
+        style={{ width: 'min(640px, 92vw)', maxHeight: '88vh', overflow: 'auto' }}
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Recognition detail"
+      >
         <div className="row" style={{ padding: 18, borderBottom: '1px solid var(--b-border-soft)' }}>
           <div className="grow">
             <div className="row" style={{ gap: 8 }}>
@@ -176,12 +353,12 @@ export function RecognitionDetail({ rec, onClose, onRecognize }: { rec: Recognit
               <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>· {rec.time}</span>
             </div>
           </div>
-          <button className="icon-btn" onClick={onClose}><Icon name="close" size={14} /></button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="close" size={14} /></button>
         </div>
 
         <div style={{ padding: 22 }}>
           <div className="row" style={{ gap: 12, marginBottom: 16 }}>
-            <div className={`avatar md role-${rec.senderRole === 'manager' ? 'manager' : 'employee'}`}>{rec.sender.split(' ').map(s => s[0]).slice(0, 2).join('')}</div>
+            <div className={`avatar md role-${rec.senderRole === 'manager' ? 'manager' : 'employee'}`}>{initials(rec.sender)}</div>
             <div>
               <div className="serif" style={{ fontWeight: 600 }}>{rec.sender}</div>
               <div className="muted" style={{ fontSize: 'var(--t-xs)' }}>recognised <strong>{rec.recipient}</strong></div>
@@ -197,19 +374,47 @@ export function RecognitionDetail({ rec, onClose, onRecognize }: { rec: Recognit
             "{rec.message}"
           </blockquote>
 
-          {Object.keys(rec.reactions || {}).length > 0 && (
-            <div className="row" style={{ gap: 6, marginTop: 14, flexWrap: 'wrap' }}>
-              {Object.entries(rec.reactions).map(([emoji, count]) => (
-                <span key={emoji} className="chip" style={{ padding: '4px 10px' }}>{emoji} {count as number}</span>
-              ))}
-            </div>
-          )}
+          {/* Reactions */}
+          <div className="row" style={{ gap: 6, marginTop: 16, flexWrap: 'wrap' }}>
+            {Object.entries(reactions).filter(([, count]) => (count as number) > 0).map(([emoji, count]) => (
+              <button
+                key={emoji}
+                onClick={() => toggleReaction(emoji)}
+                style={{
+                  padding: '4px 10px', cursor: 'pointer', border: 'none',
+                  background: myReactions.has(emoji) ? 'var(--b-gold-pale)' : 'var(--b-surface)',
+                  outline: myReactions.has(emoji) ? '1.5px solid var(--b-gold-border)' : '1.5px solid transparent',
+                  borderRadius: 'var(--r-pill)', fontSize: 'var(--t-sm)',
+                  transition: 'all 120ms var(--ease)',
+                }}
+              >
+                {emoji} {count as number}
+              </button>
+            ))}
+            {QUICK_REACTIONS.filter(e => !(reactions[e] > 0)).map(emoji => (
+              <button
+                key={emoji}
+                onClick={() => toggleReaction(emoji)}
+                style={{
+                  padding: '4px 10px', cursor: 'pointer', border: 'none',
+                  background: 'var(--b-surface)', borderRadius: 'var(--r-pill)',
+                  fontSize: 'var(--t-sm)', opacity: 0.5,
+                  transition: 'opacity 120ms var(--ease)',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.opacity = '1'; }}
+                onMouseLeave={e => { e.currentTarget.style.opacity = '0.5'; }}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
 
+          {/* Comments */}
           <div style={{ marginTop: 22 }}>
             <div className="label" style={{ marginBottom: 10 }}>Comments</div>
             {comments.map((c, i) => (
               <div key={i} className="row" style={{ gap: 10, padding: '10px 0', borderTop: i > 0 ? '1px solid var(--b-border-soft)' : 'none' }}>
-                <div className={`avatar sm role-${c.role}`}>{c.author.split(' ').map(s => s[0]).slice(0, 2).join('')}</div>
+                <div className={`avatar sm role-${c.role}`}>{initials(c.author)}</div>
                 <div className="grow">
                   <div className="row" style={{ gap: 6 }}>
                     <span style={{ fontWeight: 600, fontSize: 'var(--t-sm)' }}>{c.author}</span>
@@ -219,6 +424,36 @@ export function RecognitionDetail({ rec, onClose, onRecognize }: { rec: Recognit
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Reply */}
+          <div style={{ marginTop: 18 }}>
+            <textarea
+              value={reply}
+              onChange={e => setReply(e.target.value)}
+              onKeyDown={onReplyKey}
+              rows={2}
+              placeholder="Add a comment… (⌘↵ to send)"
+              style={{
+                width: '100%', padding: '10px 12px',
+                fontFamily: 'var(--f-serif)', fontSize: 'var(--t-sm)',
+                border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)',
+                background: 'var(--b-cream-2)', color: 'var(--b-ink)', resize: 'none',
+                outline: 'none', transition: 'border-color 120ms var(--ease)',
+              }}
+              onFocus={e => { e.currentTarget.style.borderColor = 'var(--b-gold-border)'; }}
+              onBlur={e => { e.currentTarget.style.borderColor = 'var(--b-border)'; }}
+            />
+            <div className="row" style={{ justifyContent: 'flex-end', marginTop: 6, gap: 8 }}>
+              <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>{reply.length}/280</span>
+              <button
+                className="btn btn-primary btn-sm"
+                disabled={reply.trim().length < 1}
+                onClick={() => setReply('')}
+              >
+                Post
+              </button>
+            </div>
           </div>
         </div>
 
@@ -236,53 +471,102 @@ export function RecognitionDetail({ rec, onClose, onRecognize }: { rec: Recognit
 
 // ─── DigestPreview ──────────────────────────────────────
 export function DigestPreview({ onClose }: { onClose: () => void }) {
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
-  }, [onClose]);
+  const trapRef = useFocusTrap(true, onClose);
   const recs = BRYTE_DATA.INDUSTRIES.healthcare.sampleRecs.slice(0, 3);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="card" style={{ width: 'min(560px, 92vw)', maxHeight: '88vh', overflow: 'auto' }} onClick={e => e.stopPropagation()}>
-        <div className="row" style={{ padding: 18, borderBottom: '1px solid var(--b-border-soft)' }}>
-          <div className="grow">
+      <div
+        ref={trapRef}
+        className="card"
+        style={{ width: 'min(600px, 92vw)', maxHeight: '88vh', overflow: 'auto', padding: 0 }}
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Weekly digest preview"
+      >
+        {/* Chrome header */}
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--b-border-soft)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
             <div className="serif" style={{ fontWeight: 600, fontSize: '1.05rem' }}>Weekly digest preview</div>
-            <div className="muted" style={{ fontSize: 'var(--t-xs)' }}>Sent every Monday, 9am local</div>
+            <div className="muted" style={{ fontSize: 'var(--t-xs)' }}>
+              Sent every Monday, 9am local · <span style={{ fontFamily: 'var(--font-mono)' }}>alex@mapleviewmedical.ca</span>
+            </div>
           </div>
-          <button className="icon-btn" onClick={onClose}><Icon name="close" size={14} /></button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="close" size={14} /></button>
         </div>
-        <div style={{ padding: 22, background: 'var(--b-cream-2)' }}>
-          <div className="serif" style={{ fontSize: '1.4rem', fontWeight: 600, marginBottom: 6 }}>This week at Mapleview ✦</div>
-          <div className="muted" style={{ fontSize: 'var(--t-sm)', marginBottom: 22 }}>April 19 – April 25</div>
 
-          <div className="row" style={{ gap: 12, marginBottom: 22 }}>
-            <div className="card grow" style={{ padding: 12, textAlign: 'center' }}>
-              <div className="mono" style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--b-gold)' }}>34</div>
-              <div className="label">recognitions</div>
-            </div>
-            <div className="card grow" style={{ padding: 12, textAlign: 'center' }}>
-              <div className="mono" style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--b-forest)' }}>21</div>
-              <div className="label">teammates</div>
-            </div>
-            <div className="card grow" style={{ padding: 12, textAlign: 'center' }}>
-              <div className="mono" style={{ fontSize: '1.4rem', fontWeight: 700 }}>2,140</div>
-              <div className="label">points given</div>
-            </div>
-          </div>
-
-          <div className="serif" style={{ fontWeight: 600, marginBottom: 10 }}>Highlights</div>
-          {recs.map((r, i) => (
-            <div key={i} className="card" style={{ padding: 14, marginBottom: 10 }}>
-              <div className="row" style={{ gap: 6, marginBottom: 4 }}>
-                <span className="chip-mini">{r.value}</span>
+        {/* Email frame */}
+        <div style={{ background: 'var(--b-canvas)', padding: 24 }}>
+          <div style={{ maxWidth: 520, margin: '0 auto', background: 'var(--b-card)', borderRadius: 'var(--r-lg)', overflow: 'hidden', border: '1px solid var(--b-border-soft)' }}>
+            {/* Dark header */}
+            <div style={{ background: 'var(--b-ink)', padding: '28px 32px' }}>
+              <div className="serif" style={{ color: 'var(--b-canvas)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+                Bryte<span style={{ color: 'var(--b-gold)' }}>.</span>
+                <span style={{ fontStyle: 'italic', fontWeight: 300, fontSize: '1.1rem', color: 'rgba(250,246,239,0.6)', marginLeft: 4 }}>Weekly Digest</span>
               </div>
-              <div style={{ fontSize: 'var(--t-sm)', lineHeight: 1.5 }}>"{r.message}"</div>
-              <div className="muted" style={{ fontSize: 'var(--t-xs)', marginTop: 6 }}>{r.sender} → {r.recipient}</div>
+              <div style={{ marginTop: 6, fontSize: 'var(--t-xs)', color: 'rgba(250,246,239,0.5)', letterSpacing: '0.04em' }}>
+                MAPLEVIEW MEDICAL · April 19 – April 25, 2026
+              </div>
             </div>
-          ))}
+            {/* Gold separator */}
+            <div style={{ height: 3, background: 'linear-gradient(90deg, var(--b-gold), var(--b-gold-light), transparent)' }} />
+
+            <div style={{ padding: '24px 32px' }}>
+              <p style={{ fontSize: '1rem', color: 'var(--b-ink)', lineHeight: 1.6, margin: '0 0 24px' }}>
+                Hi Alex — here's what happened on your team wall this week. ✦
+              </p>
+
+              {/* Stats row */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
+                {[
+                  { v: '34', l: 'recognitions', c: 'var(--b-gold)' },
+                  { v: '21', l: 'teammates', c: 'var(--b-forest)' },
+                  { v: '2,140', l: 'points given', c: 'var(--b-ink)' },
+                ].map(s => (
+                  <div key={s.l} style={{ textAlign: 'center', padding: '14px 10px', background: 'var(--b-surface)', borderRadius: 'var(--r-md)' }}>
+                    <div className="mono" style={{ fontSize: '1.4rem', fontWeight: 700, color: s.c }}>{s.v}</div>
+                    <div className="label" style={{ marginTop: 4 }}>{s.l}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Section divider */}
+              <div className="row" style={{ gap: 12, alignItems: 'center', marginBottom: 16 }}>
+                <div style={{ flex: 1, height: 1, background: 'var(--b-border-soft)' }} />
+                <span className="label" style={{ fontSize: 10, letterSpacing: '0.08em' }}>THIS WEEK'S HIGHLIGHTS</span>
+                <div style={{ flex: 1, height: 1, background: 'var(--b-border-soft)' }} />
+              </div>
+
+              {recs.map((r, i) => (
+                <div key={i} style={{ padding: '14px 16px', marginBottom: 10, background: 'var(--b-surface)', borderRadius: 'var(--r-md)', borderLeft: '3px solid var(--b-gold)' }}>
+                  <div className="row" style={{ gap: 6, marginBottom: 6 }}>
+                    <span className="chip-mini">{r.value}</span>
+                    <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>· {r.time}</span>
+                  </div>
+                  <div style={{ fontSize: 'var(--t-sm)', lineHeight: 1.5, fontStyle: 'italic', color: 'var(--b-ink-2)' }}>"{r.message}"</div>
+                  <div className="muted" style={{ fontSize: 'var(--t-xs)', marginTop: 6 }}>{r.sender} → {r.recipient}</div>
+                </div>
+              ))}
+
+              {/* CTA */}
+              <div style={{ textAlign: 'center', marginTop: 28, paddingTop: 24, borderTop: '1px solid var(--b-border-soft)' }}>
+                <span style={{
+                  display: 'inline-block', padding: '12px 28px',
+                  background: 'var(--b-gold)', color: 'var(--b-ink)',
+                  borderRadius: 'var(--r-pill)', fontWeight: 700, fontSize: '0.9rem',
+                }}>
+                  View full wall →
+                </span>
+                <div className="muted" style={{ fontSize: 'var(--t-xs)', marginTop: 12, lineHeight: 1.6 }}>
+                  You're receiving this because you're an admin at Mapleview Medical.<br />
+                  Unsubscribe · Email preferences
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+
         <div className="row" style={{ padding: 14, borderTop: '1px solid var(--b-border-soft)', gap: 8 }}>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
           <span className="grow" />
@@ -303,48 +587,100 @@ export function ManagerNudgeModal({
   onClose: () => void;
   onSend: (person: string) => void;
 }) {
+  const trapRef = useFocusTrap(true, onClose);
+  const firstName = person.split(' ')[0];
+  const MAX = 280;
+
   const prompts = useMemo(() => [
-    `Notice ${person.split(' ')[0]} hasn't been recognised in 30+ days. A quick note can change a week.`,
-    `What did ${person.split(' ')[0]} do recently that you appreciated?`,
-    `Even a one-line thank-you lands. Keep it specific.`,
-  ], [person]);
-  const [msg, setMsg] = useState(`${person.split(' ')[0]}, I've been meaning to say — `);
+    `${firstName} hasn't been recognised in 30+ days. A quick note can change someone's week.`,
+    `What did ${firstName} do recently that you appreciated?`,
+    `Even one line lands. The most meaningful recognitions are specific.`,
+  ], [firstName]);
+
+  const [promptIdx, setPromptIdx] = useState(0);
+  const [promptOpacity, setPromptOpacity] = useState(1);
+  const [msg, setMsg] = useState(`${firstName}, I've been meaning to say — `);
 
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
-  }, [onClose]);
+    if (noAnim()) return;
+    const interval = setInterval(() => {
+      setPromptOpacity(0);
+      setTimeout(() => {
+        setPromptIdx(i => (i + 1) % prompts.length);
+        setPromptOpacity(1);
+      }, 200);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [prompts.length]);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="card" style={{ width: 'min(480px, 92vw)' }} onClick={e => e.stopPropagation()}>
+      <div
+        ref={trapRef}
+        className="card"
+        style={{ width: 'min(480px, 92vw)' }}
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Send ${firstName} a private note`}
+      >
         <div className="row" style={{ padding: 18, borderBottom: '1px solid var(--b-border-soft)' }}>
           <div className="grow">
-            <div className="serif" style={{ fontWeight: 600 }}>Send {person.split(' ')[0]} a note</div>
+            <div className="serif" style={{ fontWeight: 600 }}>Send {firstName} a note</div>
             <div className="muted" style={{ fontSize: 'var(--t-xs)' }}>Private. Won't appear on the wall.</div>
           </div>
-          <button className="icon-btn" onClick={onClose}><Icon name="close" size={14} /></button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="close" size={14} /></button>
         </div>
+
         <div style={{ padding: 18 }}>
-          <div className="muted" style={{ fontSize: 'var(--t-xs)', lineHeight: 1.6, marginBottom: 12 }}>
-            {prompts[0]}
+          {/* Cycling prompt */}
+          <div
+            aria-live="polite"
+            style={{
+              fontSize: 'var(--t-xs)', lineHeight: 1.6, marginBottom: 14,
+              padding: '10px 14px',
+              background: 'var(--b-gold-pale)', borderRadius: 'var(--r-md)',
+              borderLeft: '3px solid var(--b-gold-border)',
+              color: 'var(--b-ink-2)',
+              opacity: promptOpacity,
+              transition: noAnim() ? 'none' : 'opacity 200ms var(--ease)',
+            }}
+          >
+            {prompts[promptIdx]}
           </div>
+
           <textarea
             value={msg}
-            onChange={e => setMsg(e.target.value)}
+            onChange={e => { if (e.target.value.length <= MAX) setMsg(e.target.value); }}
             rows={5}
             style={{
               width: '100%', padding: 12, fontFamily: 'var(--f-serif)', fontSize: 'var(--t-sm)',
               border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)',
               background: 'var(--b-cream-2)', color: 'var(--b-ink)', resize: 'vertical',
+              outline: 'none', transition: 'border-color 120ms var(--ease)',
             }}
+            onFocus={e => { e.currentTarget.style.borderColor = 'var(--b-gold-border)'; }}
+            onBlur={e => { e.currentTarget.style.borderColor = 'var(--b-border)'; }}
           />
+          <div className="row" style={{ justifyContent: 'space-between', marginTop: 6 }}>
+            <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>This goes only to {firstName}.</span>
+            <span
+              className="mono"
+              style={{ fontSize: 'var(--t-xs)', color: msg.length > MAX * 0.85 ? 'var(--b-gold)' : 'var(--b-ink-4)' }}
+            >
+              {msg.length}/{MAX}
+            </span>
+          </div>
         </div>
+
         <div className="row" style={{ padding: 14, borderTop: '1px solid var(--b-border-soft)', gap: 8 }}>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>Cancel</button>
           <span className="grow" />
-          <button className="btn btn-primary btn-sm" onClick={() => onSend(person)} disabled={msg.trim().length < 10}>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => onSend(person)}
+            disabled={msg.trim().length < 10}
+          >
             Send privately
           </button>
         </div>
