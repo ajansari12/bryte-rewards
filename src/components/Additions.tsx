@@ -3,9 +3,10 @@ import { Icon } from './Icon';
 import { BRYTE_DATA } from '@/lib/data';
 import type { Recognition } from '@/lib/types';
 import { useFocusTrap } from './Extras';
-import { useCurrentUser } from '@/lib/queries/users';
+import { useCurrentUser, type NotificationPrefs } from '@/lib/queries/users';
 import { useBadges } from '@/lib/queries/badges';
 import { useMyRecognitions, type DbRecognition } from '@/lib/queries/recognitions';
+import { useUpdateNotificationPrefs } from '@/lib/mutations/useUpdateNotificationPrefs';
 
 const noAnim = () =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -68,9 +69,18 @@ export function ProfilePage({
   const { data: currentUser } = useCurrentUser();
   const { data: allBadges = [] } = useBadges();
   const { data: myRecs = [] } = useMyRecognitions();
+  const updatePrefs = useUpdateNotificationPrefs();
 
   const earnedBadges = allBadges.filter(b => b.awarded_at !== null);
   const recentRecs = myRecs.slice(0, 3);
+
+  const defaultPrefs: NotificationPrefs = { in_app: true, email_immediate: false, email_digest: true };
+  const prefs: NotificationPrefs = currentUser?.notification_prefs ?? defaultPrefs;
+
+  const handlePrefToggle = (key: keyof NotificationPrefs, value: boolean) => {
+    if (!currentUser) return;
+    updatePrefs.mutate({ userId: currentUser.id, prefs: { ...prefs, [key]: value } });
+  };
 
   const points = currentUser?.points ?? 0;
   const nextThreshold = 5000;
@@ -200,6 +210,38 @@ export function ProfilePage({
             </div>
           );
         })}
+      </div>
+
+      {/* Notification preferences */}
+      <h2 className="serif" style={{ fontSize: '1.1rem', fontWeight: 600, margin: '28px 0 12px' }}>Notification settings</h2>
+      <div className="card" style={{ padding: 20 }}>
+        {(
+          [
+            { key: 'in_app' as const, label: 'In-app notifications', sub: 'Bell badge and notification panel' },
+            { key: 'email_immediate' as const, label: 'Immediate email', sub: 'Email the moment you\'re recognised' },
+            { key: 'email_digest' as const, label: 'Weekly digest', sub: 'Monday morning summary of the week\'s highlights' },
+          ] as const
+        ).map(({ key, label, sub }, i, arr) => (
+          <div key={key} className="row" style={{
+            padding: '14px 0',
+            borderBottom: i < arr.length - 1 ? '1px solid var(--b-border-soft)' : 'none',
+            justifyContent: 'space-between',
+          }}>
+            <div>
+              <div style={{ fontSize: '0.875rem', color: 'var(--b-ink)', fontWeight: 500 }}>{label}</div>
+              <div style={{ fontSize: 'var(--t-xs)', color: 'var(--b-ink-3)', marginTop: 2 }}>{sub}</div>
+            </div>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={prefs[key]}
+                onChange={e => handlePrefToggle(key, e.target.checked)}
+                disabled={updatePrefs.isPending}
+              />
+              <span className="track" /><span className="thumb" />
+            </label>
+          </div>
+        ))}
       </div>
     </div>
   );

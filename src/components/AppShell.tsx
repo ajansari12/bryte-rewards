@@ -6,6 +6,7 @@ import { FeedPage } from './Feed';
 import { GiveRecognitionModal } from './GiveModal';
 import { BRYTE_DATA } from '@/lib/data';
 import { Icon } from './Icon';
+import { useNotificationSync } from '@/lib/hooks/useNotificationSync';
 import type { Industry, Theme, Route } from '@/lib/types';
 
 // Lazy-load less-critical page components
@@ -35,6 +36,7 @@ const titleFor: Record<string, string> = {
 export function AppShell() {
   const app = useApp();
   const navigate = useNavigate();
+  const { notifs, unreadCount, markAllRead } = useNotificationSync();
 
   const pathname = window.location.pathname;
   const routeSegment = pathname.split('/').pop() || 'feed';
@@ -53,7 +55,7 @@ export function AppShell() {
           onRecognize={() => app.setShowModal(true)}
           onToggleTheme={app.toggleTheme}
           theme={app.theme}
-          notifications={app.notifs.filter(n => !n.read).length}
+          notifications={unreadCount}
           onBell={() => app.setShowNotifPanel(!app.showNotifPanel)}
           showNotifPanel={app.showNotifPanel}
           onSearch={() => app.setShowSearch(true)}
@@ -109,9 +111,9 @@ export function AppShell() {
         <>
           <div className="notif-backdrop" onClick={() => app.setShowNotifPanel(false)} />
           <NotifPanel
-            notifs={app.notifs}
+            notifs={notifs}
             onClose={() => app.setShowNotifPanel(false)}
-            onMarkAll={app.markAllRead}
+            onMarkAll={markAllRead}
             onSeeAll={() => { app.setShowNotifPanel(false); setRoute('notifications'); }}
           />
         </>

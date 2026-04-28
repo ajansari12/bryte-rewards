@@ -2,6 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { qk } from './keys';
 
+export interface NotificationPrefs {
+  in_app: boolean;
+  email_immediate: boolean;
+  email_digest: boolean;
+}
+
 export interface DbUser {
   id: string;
   org_id: string;
@@ -12,6 +18,7 @@ export interface DbUser {
   points: number;
   manager_id: string | null;
   start_date: string | null;
+  notification_prefs: NotificationPrefs;
 }
 
 export interface DbOrg {

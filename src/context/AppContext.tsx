@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { BRYTE_DATA, SAMPLE_NOTIFS } from '@/lib/data';
+import { BRYTE_DATA } from '@/lib/data';
 import { supabase } from '@/lib/supabase';
-import type { Notification, Toast, Theme, Industry } from '@/lib/types';
+import type { Toast, Theme, Industry, Recognition } from '@/lib/types';
 
 interface AppState {
   industry: Industry;
@@ -9,11 +9,10 @@ interface AppState {
   showModal: boolean;
   toasts: Toast[];
   confetti: number;
-  notifs: Notification[];
   showNotifPanel: boolean;
   showTweaks: boolean;
   showSearch: boolean;
-  detailRec: import('@/lib/types').Recognition | null;
+  detailRec: Recognition | null;
   showDigest: boolean;
   nudgePerson: string | null;
   showTour: boolean;
@@ -28,7 +27,7 @@ interface AppActions {
   setShowNotifPanel: (v: boolean) => void;
   setShowTweaks: (v: boolean) => void;
   setShowSearch: (v: boolean) => void;
-  setDetailRec: (r: import('@/lib/types').Recognition | null) => void;
+  setDetailRec: (r: Recognition | null) => void;
   setShowDigest: (v: boolean) => void;
   setNudgePerson: (p: string | null) => void;
   setShowTour: (v: boolean) => void;
@@ -36,8 +35,6 @@ interface AppActions {
   setNominateBadge: (b: { name: string; icon: string; criteria?: string } | null) => void;
   pushToast: (t: Omit<Toast, 'id'>) => void;
   fireConfetti: () => void;
-  markAllRead: () => void;
-  setNotifs: (fn: (prev: Notification[]) => Notification[]) => void;
 }
 
 const AppContext = createContext<(AppState & AppActions) | null>(null);
@@ -48,11 +45,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [showModal, setShowModal] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [confetti, setConfetti] = useState(0);
-  const [notifs, setNotifs] = useState<Notification[]>(SAMPLE_NOTIFS as Notification[]);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [showTweaks, setShowTweaks] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
-  const [detailRec, setDetailRec] = useState<import('@/lib/types').Recognition | null>(null);
+  const [detailRec, setDetailRec] = useState<Recognition | null>(null);
   const [showDigest, setShowDigest] = useState(false);
   const [nudgePerson, setNudgePerson] = useState<string | null>(null);
   const [showTour, setShowTour] = useState(false);
@@ -136,19 +132,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const fireConfetti = useCallback(() => setConfetti(c => c + 1), []);
 
-  const markAllRead = useCallback(() => {
-    setNotifs(n => n.map(x => ({ ...x, read: true })));
-  }, []);
-
   return (
     <AppContext.Provider value={{
       industry, theme, showModal, toasts, confetti,
-      notifs, showNotifPanel, showTweaks, showSearch, detailRec, showDigest,
+      showNotifPanel, showTweaks, showSearch, detailRec, showDigest,
       nudgePerson, showTour, showKudos, nominateBadge,
       setIndustry, toggleTheme, setShowModal,
       setShowNotifPanel, setShowTweaks, setShowSearch, setDetailRec,
       setShowDigest, setNudgePerson, setShowTour, setShowKudos, setNominateBadge,
-      pushToast, fireConfetti, markAllRead, setNotifs,
+      pushToast, fireConfetti,
     }}>
       {children}
     </AppContext.Provider>
