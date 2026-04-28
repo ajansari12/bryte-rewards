@@ -1,5 +1,4 @@
 import { useRouteError, isRouteErrorResponse, useNavigate } from 'react-router';
-import * as Sentry from '@sentry/react';
 import { useEffect } from 'react';
 
 export function RouteError() {
@@ -8,7 +7,7 @@ export function RouteError() {
 
   useEffect(() => {
     if (error && !isRouteErrorResponse(error)) {
-      Sentry.captureException(error);
+      import('@sentry/react').then((Sentry) => Sentry.captureException(error)).catch(() => {});
     }
   }, [error]);
 
