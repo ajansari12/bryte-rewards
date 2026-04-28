@@ -12,7 +12,6 @@ import path from 'node:path';
 // redirect (the URL bar stays clean, mirroring Netlify rewrite-with-200).
 const marketingRoutes: Record<string, string> = {
   '/': 'Home.html',
-  '/home': 'Home.html',
   '/product': 'Product.html',
   '/pricing': 'Pricing.html',
   '/customers': 'Customers.html',
@@ -27,47 +26,29 @@ const marketingRoutes: Record<string, string> = {
   '/roi': 'ROI.html',
 };
 
-function marketingMiddleware(injectViteClient: boolean): Connect.NextHandleFunction {
-  const marketingDir = path.join(process.cwd(), 'public', 'marketing');
+function marketingMiddleware(rootDir: string): Connect.NextHandleFunction {
   return (req, res, next) => {
-    try {
-      const url = req.url?.split('?')[0] ?? '/';
-      if (url.startsWith('/@') || url.startsWith('/node_modules/') || url.startsWith('/src/')) {
-        return next();
-      }
-      const file = marketingRoutes[url];
-      if (!file) return next();
+    const url = req.url?.split('?')[0] ?? '/';
+    const file = marketingRoutes[url];
+    if (!file) return next();
 
-      const filePath = path.join(marketingDir, file);
-      if (!fs.existsSync(filePath)) return next();
+    const filePath = path.join(rootDir, 'public', 'marketing', file);
+    if (!fs.existsSync(filePath)) return next();
 
-      let html = fs.readFileSync(filePath, 'utf-8');
-      const headInjections: string[] = [];
-      if (!/<base\s/i.test(html)) {
-        headInjections.push('<base href="/marketing/">');
-      }
-      // Inject Vite's HMR client so the dev preview iframe (e.g. Bolt) keeps a
-      // live WebSocket and doesn't force-reload the page. Skipped in `vite preview`
-      // (production preview) where /@vite/client doesn't exist.
-      if (injectViteClient) {
-        headInjections.push('<script type="module" src="/@vite/client"></script>');
-      }
-      if (headInjections.length > 0) {
-        html = html.replace(
-          /<head(\s[^>]*)?>/i,
-          (match) => `${match}\n  ${headInjections.join('\n  ')}`
-        );
-      }
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.end(html);
-    } catch {
-      next();
+    let html = fs.readFileSync(filePath, 'utf-8');
+    if (!/<base\s/i.test(html)) {
+      html = html.replace(
+        /<head(\s[^>]*)?>/i,
+        (match) => `${match}\n  <base href="/marketing/">`
+      );
     }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.end(html);
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
     react(),
     tailwindcss(),
@@ -75,14 +56,24 @@ export default defineConfig({
     {
       name: 'marketing-clean-urls',
       configureServer(server) {
-        server.middlewares.use(marketingMiddleware(true));
+        const root = server.config.root;
+        server.middlewares.use(marketingMiddleware(root));
       },
       configurePreviewServer(server) {
-        server.middlewares.use(marketingMiddleware(false));
+        const root = server.config.root;
+        server.middlewares.use(marketingMiddleware(root));
       },
     },
   ],
+  server: {
+    port: 3000,
+    host: true,
+  },
+  preview: {
+    port: 4173,
+    host: true,
+  },
   build: {
     sourcemap: true,
   },
-});
+}));
