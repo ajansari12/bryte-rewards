@@ -82,12 +82,6 @@ export const router = createBrowserRouter([
   },
   {
     path: '*',
-    loader: async () => {
-      if (typeof window !== 'undefined') {
-        window.location.replace('/');
-      }
-      return null;
-    },
-    element: null,
+    element: <RouteError />,
   },
 ]);
