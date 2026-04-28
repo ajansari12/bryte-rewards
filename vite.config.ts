@@ -27,7 +27,7 @@ const marketingRoutes: Record<string, string> = {
   '/roi': 'ROI.html',
 };
 
-function marketingMiddleware(): Connect.NextHandleFunction {
+function marketingMiddleware(injectViteClient: boolean): Connect.NextHandleFunction {
   const marketingDir = path.join(process.cwd(), 'public', 'marketing');
   return (req, res, next) => {
     try {
@@ -42,10 +42,20 @@ function marketingMiddleware(): Connect.NextHandleFunction {
       if (!fs.existsSync(filePath)) return next();
 
       let html = fs.readFileSync(filePath, 'utf-8');
+      const headInjections: string[] = [];
       if (!/<base\s/i.test(html)) {
+        headInjections.push('<base href="/marketing/">');
+      }
+      // Inject Vite's HMR client so the dev preview iframe (e.g. Bolt) keeps a
+      // live WebSocket and doesn't force-reload the page. Skipped in `vite preview`
+      // (production preview) where /@vite/client doesn't exist.
+      if (injectViteClient) {
+        headInjections.push('<script type="module" src="/@vite/client"></script>');
+      }
+      if (headInjections.length > 0) {
         html = html.replace(
           /<head(\s[^>]*)?>/i,
-          (match) => `${match}\n  <base href="/marketing/">`
+          (match) => `${match}\n  ${headInjections.join('\n  ')}`
         );
       }
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -65,10 +75,10 @@ export default defineConfig({
     {
       name: 'marketing-clean-urls',
       configureServer(server) {
-        server.middlewares.use(marketingMiddleware());
+        server.middlewares.use(marketingMiddleware(true));
       },
       configurePreviewServer(server) {
-        server.middlewares.use(marketingMiddleware());
+        server.middlewares.use(marketingMiddleware(false));
       },
     },
   ],
