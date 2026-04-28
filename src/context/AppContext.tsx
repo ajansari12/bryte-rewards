@@ -1,12 +1,11 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { BRYTE_DATA, SAMPLE_NOTIFS } from '@/lib/data';
-import type { Recognition, Notification, Toast, Route, Screen, Theme, Industry } from '@/lib/types';
+import { supabase } from '@/lib/supabase';
+import type { Recognition, Notification, Toast, Theme, Industry } from '@/lib/types';
 
 interface AppState {
-  screen: Screen;
   industry: Industry;
   theme: Theme;
-  route: Route;
   recs: Recognition[];
   newIds: Set<string>;
   showModal: boolean;
@@ -25,10 +24,8 @@ interface AppState {
 }
 
 interface AppActions {
-  setScreen: (s: Screen) => void;
   setIndustry: (i: Industry) => void;
   toggleTheme: () => void;
-  setRoute: (r: Route) => void;
   setShowModal: (v: boolean) => void;
   setShowNotifPanel: (v: boolean) => void;
   setShowTweaks: (v: boolean) => void;
@@ -49,10 +46,8 @@ interface AppActions {
 const AppContext = createContext<(AppState & AppActions) | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [screen, setScreenState] = useState<Screen>('login');
   const [industry, setIndustryState] = useState<Industry>('healthcare');
   const [theme, setTheme] = useState<Theme>('light');
-  const [route, setRoute] = useState<Route>('feed');
   const [recs, setRecs] = useState<Recognition[]>(() => {
     const pack = BRYTE_DATA.INDUSTRIES.healthcare;
     return pack.sampleRecs.map((r, i) => ({ ...r, _id: `seed-${i}` }));
@@ -78,22 +73,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const saved = JSON.parse(localStorage.getItem('bryte-tweaks') || '{}');
       if (saved.industry) setIndustryState(saved.industry as Industry);
       if (saved.theme) setTheme(saved.theme as Theme);
-      const savedScreen = localStorage.getItem('bryte-screen') as Screen;
-      if (savedScreen) setScreenState(savedScreen);
     } catch {}
   }, []);
 
   // Show tour on first app entry
   useEffect(() => {
-    if (screen === 'app') {
-      try {
-        if (!localStorage.getItem('bryte.tour.v1')) {
-          const t = setTimeout(() => setShowTour(true), 1200);
-          return () => clearTimeout(t);
-        }
-      } catch {}
-    }
-  }, [screen]);
+    try {
+      if (!localStorage.getItem('bryte.tour.v1')) {
+        const t = setTimeout(() => setShowTour(true), 1200);
+        return () => clearTimeout(t);
+      }
+    } catch {}
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -118,25 +109,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  // Persist screen
+  // Auth state listener — redirect to /login on sign-out
   useEffect(() => {
-    try { localStorage.setItem('bryte-screen', screen); } catch {}
-  }, [screen]);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        window.location.href = '/login';
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const persist = (obj: Record<string, string>) => {
     try { localStorage.setItem('bryte-tweaks', JSON.stringify(obj)); } catch {}
   };
-
-  const setScreen = useCallback((s: Screen) => {
-    setScreenState(s);
-  }, []);
 
   const setIndustry = useCallback((ind: Industry) => {
     setIndustryState(ind);
     const pack = BRYTE_DATA.INDUSTRIES[ind];
     setRecs(pack.sampleRecs.map((r, i) => ({ ...r, _id: `${ind}-${i}` })));
     setNewIds(new Set());
-    persist({ industry: ind, theme });
+    persist({ industry: ind, theme: '' });
   }, [theme]);
 
   const toggleTheme = useCallback(() => {
@@ -171,7 +163,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       read: false,
     } as Notification, ...n]);
     setTimeout(() => setNewIds(s => { const n = new Set(s); n.delete(newRec._id!); return n; }), 2500);
-    setRoute('feed');
   }, [fireConfetti, pushToast]);
 
   const markAllRead = useCallback(() => {
@@ -180,10 +171,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      screen, industry, theme, route, recs, newIds, showModal, toasts, confetti,
+      industry, theme, recs, newIds, showModal, toasts, confetti,
       notifs, showNotifPanel, showTweaks, showSearch, detailRec, showDigest,
       nudgePerson, showTour, showKudos, nominateBadge,
-      setScreen, setIndustry, toggleTheme, setRoute, setShowModal,
+      setIndustry, toggleTheme, setShowModal,
       setShowNotifPanel, setShowTweaks, setShowSearch, setDetailRec,
       setShowDigest, setNudgePerson, setShowTour, setShowKudos, setNominateBadge,
       pushToast, fireConfetti, handleSubmitRec, markAllRead, setNotifs,

@@ -1,23 +1,75 @@
 // Auth.tsx — split-panel login/signup + 4-step onboarding wizard
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import { Icon } from './Icon';
 import { BRYTE_DATA } from '@/lib/data';
+import { supabase } from '@/lib/supabase';
 
 // ─── Auth Pages ──────────────────────────────────────
-export function AuthPage({ mode = 'login', onDone }: { mode?: string; onDone: (dest: string) => void }) {
+export function AuthPage({ mode = 'login' }: { mode?: string }) {
+  const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '', org: '', name: '' });
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const headlines: Record<string, { h: string; sub: string }> = {
     login: { h: 'Welcome back.', sub: 'Recognise, celebrate, and connect with your team.' },
-    signup: { h: "Your team’s culture starts here.", sub: 'The recognition platform built for Canadian teams across every industry.' },
+    signup: { h: "Your team's culture starts here.", sub: 'The recognition platform built for Canadian teams across every industry.' },
   };
   const { h, sub } = headlines[mode] || headlines.login;
 
-  const handle = () => {
+  const handle = async () => {
+    setError('');
     setSubmitting(true);
-    setTimeout(() => { setSubmitting(false); onDone('onboarding'); }, 700);
+    try {
+      if (mode === 'login') {
+        const { error: authErr } = await supabase.auth.signInWithPassword({
+          email: form.email,
+          password: form.password,
+        });
+        if (authErr) { setError(authErr.message); return; }
+        // Check if user has completed onboarding (has a users row)
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('users')
+            .select('id')
+            .eq('id', user.id)
+            .maybeSingle();
+          navigate(profile ? '/app/feed' : '/onboarding');
+        }
+      } else {
+        const { data, error: authErr } = await supabase.auth.signUp({
+          email: form.email,
+          password: form.password,
+          options: { data: { display_name: form.name } },
+        });
+        if (authErr) { setError(authErr.message); return; }
+        if (data.user) {
+          // Create the org row — signing up user becomes the first admin
+          const { data: org, error: orgErr } = await supabase
+            .from('organizations')
+            .insert({ name: form.org || 'My Organisation', industry: 'healthcare' })
+            .select('id')
+            .single();
+          if (orgErr) { setError(orgErr.message); return; }
+          // Create the user profile row
+          const { error: profileErr } = await supabase
+            .from('users')
+            .insert({
+              id: data.user.id,
+              org_id: org.id,
+              display_name: form.name || form.email.split('@')[0],
+              role: 'admin',
+            });
+          if (profileErr) { setError(profileErr.message); return; }
+          navigate('/onboarding');
+        }
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -88,15 +140,26 @@ export function AuthPage({ mode = 'login', onDone }: { mode?: string; onDone: (d
             </div>
           )}
 
-          <button className="btn btn-primary btn-block btn-lg" style={{ marginTop: 8 }} onClick={handle} disabled={submitting}>
+          {error && (
+            <p style={{ fontSize: 'var(--t-xs)', color: 'var(--b-terra)', marginBottom: 12, lineHeight: 1.5 }}>
+              {error}
+            </p>
+          )}
+
+          <button
+            className="btn btn-primary btn-block btn-lg"
+            style={{ marginTop: 8 }}
+            onClick={handle}
+            disabled={submitting || !form.email || !form.password}
+          >
             {submitting ? 'One moment…' : mode === 'login' ? 'Sign in →' : 'Create account →'}
           </button>
 
           <div style={{ textAlign: 'center', marginTop: 18, fontSize: 'var(--t-xs)', color: 'var(--b-ink-3)' }}>
             {mode === 'login' ? (
-              <>Don&apos;t have an account? <button className="btn-text" style={{ fontSize: 'inherit' }} onClick={() => onDone('signup')}>Sign up →</button></>
+              <>Don&apos;t have an account? <button className="btn-text" style={{ fontSize: 'inherit' }} onClick={() => navigate('/signup')}>Sign up →</button></>
             ) : (
-              <>Already have an account? <button className="btn-text" style={{ fontSize: 'inherit' }} onClick={() => onDone('login')}>Sign in →</button></>
+              <>Already have an account? <button className="btn-text" style={{ fontSize: 'inherit' }} onClick={() => navigate('/login')}>Sign in →</button></>
             )}
           </div>
         </div>
@@ -108,16 +171,15 @@ export function AuthPage({ mode = 'login', onDone }: { mode?: string; onDone: (d
 // ─── Onboarding Wizard ───────────────────────────────
 const ONBOARDING_STEPS = ['Welcome', 'Industry', 'Values', 'Launch'];
 
-export function OnboardingWizard({ industry, onSetIndustry, onComplete }: {
-  industry: string;
-  onSetIndustry: (industry: string) => void;
-  onComplete: () => void;
-}) {
+export function OnboardingWizard() {
+  const navigate = useNavigate();
   const [step, setStep] = useState(0);
-  const [localIndustry, setLocalIndustry] = useState(industry);
+  const [localIndustry, setLocalIndustry] = useState('healthcare');
   const [values, setValues] = useState<Array<{ id: string; name: string; icon: string; points: number }> | null>(null);
   const [launching, setLaunching] = useState(false);
   const [launched, setLaunched] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const data = BRYTE_DATA.INDUSTRIES;
 
   useEffect(() => {
@@ -126,10 +188,67 @@ export function OnboardingWizard({ industry, onSetIndustry, onComplete }: {
     }
   }, [localIndustry]);
 
-  const launch = () => {
+  const launch = async () => {
     setLaunching(true);
-    setTimeout(() => { setLaunched(true); }, 400);
-    setTimeout(() => { onSetIndustry(localIndustry); onComplete(); }, 2200);
+    setError('');
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { navigate('/login'); return; }
+
+      // Get the org the user created at signup
+      const { data: profile } = await supabase
+        .from('users')
+        .select('org_id')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (!profile) { navigate('/login'); return; }
+
+      const orgId = profile.org_id;
+
+      // Update org industry
+      await supabase
+        .from('organizations')
+        .update({ industry: localIndustry, name: data[localIndustry].org })
+        .eq('id', orgId);
+
+      // Insert selected values
+      if (values && values.length > 0) {
+        await supabase.from('values').insert(
+          values.map((v, i) => ({
+            org_id: orgId,
+            name: v.name,
+            icon: v.icon,
+            points: v.points,
+            sort_order: i + 1,
+          }))
+        );
+      }
+
+      // Insert badge definitions from the industry pack (using healthcare defaults as base)
+      const industryBadges = [
+        { name: 'First Recognition', icon: '✦', category: 'Milestones', criteria: 'Send your first recognition', is_seasonal: false },
+        { name: 'Kindness Week', icon: '💛', category: 'Seasonal', criteria: 'Recognise 5 teammates in a week', is_seasonal: true },
+        { name: 'Mentor', icon: '📖', category: 'Leadership', criteria: 'Onboard a new teammate', is_seasonal: false },
+        { name: '10-Day Streak', icon: '🔥', category: 'Consistency', criteria: 'Recognise someone 10 days in a row', is_seasonal: false },
+        { name: '100 Recognitions', icon: '🎉', category: 'Milestones', criteria: 'Team hits 100 recognitions this month', is_seasonal: false },
+        { name: 'Team Anchor', icon: '⚓', category: 'Leadership', criteria: 'Receive 20+ recognitions for Team values', is_seasonal: false },
+        { name: "Founder's Circle", icon: '✶', category: 'Milestones', criteria: 'First 50 people on your team to join Bryte', is_seasonal: false },
+        { name: 'Heavy Lifter', icon: '💪', category: 'Consistency', criteria: 'Give 30+ recognitions in a quarter', is_seasonal: false },
+        { name: 'Q1 Champion', icon: '🏆', category: 'Milestones', criteria: 'Top 10 on leaderboard for a full quarter', is_seasonal: false },
+      ];
+      await supabase.from('badges').insert(
+        industryBadges.map(b => ({ ...b, org_id: orgId }))
+      );
+
+      setTimeout(() => { setLaunched(true); }, 400);
+      setTimeout(() => { navigate('/app/feed'); }, 2200);
+    } catch {
+      setError('Something went wrong. Please try again.');
+      setLaunching(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (launched) return <LaunchScreen />;
@@ -141,13 +260,16 @@ export function OnboardingWizard({ industry, onSetIndustry, onComplete }: {
         {ONBOARDING_STEPS.map((s, i) => (
           <div key={s} style={{ display: 'flex', alignItems: 'center' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <div style={{
-                width: 34, height: 34, borderRadius: '50%',
-                background: i < step ? 'var(--b-forest)' : i === step ? 'var(--b-gold)' : 'var(--b-card)',
-                border: `2px solid ${i < step ? 'var(--b-forest)' : i === step ? 'var(--b-gold)' : 'var(--b-border-heavy)'}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'all 300ms var(--ease)',
-              }}>
+              <div
+                role="img"
+                aria-label={`Step ${i + 1}: ${s} (${i < step ? 'completed' : i === step ? 'current' : 'upcoming'})`}
+                style={{
+                  width: 34, height: 34, borderRadius: '50%',
+                  background: i < step ? 'var(--b-forest)' : i === step ? 'var(--b-gold)' : 'var(--b-card)',
+                  border: `2px solid ${i < step ? 'var(--b-forest)' : i === step ? 'var(--b-gold)' : 'var(--b-border-heavy)'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all 300ms var(--ease)',
+                }}>
                 {i < step
                   ? <Icon name="check" size={14} stroke={2.5} style={{ color: 'white' }} />
                   : <span className="serif" style={{ fontSize: '0.9rem', fontWeight: 700, color: i === step ? '#FAF6EF' : 'var(--b-ink-4)', fontVariationSettings: '"opsz" 18' }}>{i + 1}</span>
@@ -323,7 +445,7 @@ export function OnboardingWizard({ industry, onSetIndustry, onComplete }: {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, maxWidth: 520, margin: '0 auto 40px' }}>
               {[
                 { label: 'Values', value: values?.length || 5 },
-                { label: 'Badges ready', value: '20+' },
+                { label: 'Badges ready', value: '9' },
                 { label: 'Reward brands', value: '12' },
               ].map(s => (
                 <div key={s.label} className="stat-card" style={{ textAlign: 'center', padding: '20px 16px' }}>
@@ -333,9 +455,13 @@ export function OnboardingWizard({ industry, onSetIndustry, onComplete }: {
               ))}
             </div>
 
+            {error && (
+              <p style={{ fontSize: 'var(--t-xs)', color: 'var(--b-terra)', marginBottom: 16 }}>{error}</p>
+            )}
+
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
               <button className="btn btn-ghost" onClick={() => setStep(2)}>← Back</button>
-              <button className="btn btn-celebrate btn-lg" onClick={launch} disabled={launching}
+              <button className="btn btn-celebrate btn-lg" onClick={launch} disabled={launching || saving}
                 style={{ minWidth: 200, fontSize: '1rem', animation: 'pulse-celebrate 6s ease-in-out infinite' }}>
                 {launching ? 'Launching…' : 'Launch Bryte ✦'}
               </button>

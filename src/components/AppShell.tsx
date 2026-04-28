@@ -1,9 +1,12 @@
 import React, { Suspense } from 'react';
+import { useNavigate } from 'react-router';
 import { useApp } from '@/context/AppContext';
 import { Sidebar, Topbar, ToastRack, NotifPanel, Confetti } from './Shell';
 import { FeedPage } from './Feed';
 import { GiveRecognitionModal } from './GiveModal';
 import { BRYTE_DATA } from '@/lib/data';
+import { Icon } from './Icon';
+import type { Industry, Theme, Route } from '@/lib/types';
 
 // Lazy-load less-critical page components
 const LeaderboardPage = React.lazy(() => import('./Pages').then(m => ({ default: m.LeaderboardPage })));
@@ -31,15 +34,22 @@ const titleFor: Record<string, string> = {
 
 export function AppShell() {
   const app = useApp();
+  const navigate = useNavigate();
+
+  const pathname = window.location.pathname;
+  const routeSegment = pathname.split('/').pop() || 'feed';
+  const route = routeSegment as Route;
+
+  const setRoute = (r: Route) => navigate(`/app/${r}`);
 
   return (
     <Suspense fallback={null}>
     <div className="app">
-      <Sidebar route={app.route} setRoute={app.setRoute} industry={app.industry} />
+      <Sidebar route={route} setRoute={setRoute} industry={app.industry} />
 
       <div className="main">
         <Topbar
-          title={titleFor[app.route] || 'Bryte'}
+          title={titleFor[route] || 'Bryte'}
           onRecognize={() => app.setShowModal(true)}
           onToggleTheme={app.toggleTheme}
           theme={app.theme}
@@ -49,8 +59,8 @@ export function AppShell() {
           onSearch={() => app.setShowSearch(true)}
         />
 
-        <div className="content" key={app.route}>
-          {app.route === 'feed' && (
+        <div className="content" key={route}>
+          {route === 'feed' && (
             <FeedPage
               industry={app.industry}
               recs={app.recs}
@@ -61,25 +71,25 @@ export function AppShell() {
               onVote={(n: string) => app.pushToast({ kind: 'success', msg: `Voted for ${n.split(' ')[0]} ✦` })}
             />
           )}
-          {app.route === 'profile' && (
+          {route === 'profile' && (
             <ProfilePage onRecognize={() => app.setShowModal(true)} onOpenRec={app.setDetailRec} />
           )}
-          {app.route === 'notifications' && (
+          {route === 'notifications' && (
             <NotificationsPage onOpenRec={app.setDetailRec} />
           )}
-          {app.route === 'leaderboard' && <LeaderboardPage />}
-          {app.route === 'badges' && <BadgesPage onNominate={app.setNominateBadge} />}
-          {app.route === 'rewards' && (
+          {route === 'leaderboard' && <LeaderboardPage />}
+          {route === 'badges' && <BadgesPage onNominate={app.setNominateBadge} />}
+          {route === 'rewards' && (
             <RewardsPage onToast={app.pushToast} onConfetti={app.fireConfetti} />
           )}
-          {app.route === 'manager' && (
+          {route === 'manager' && (
             <ManagerPage onRecognize={() => app.setShowModal(true)} />
           )}
-          {app.route === 'analytics' && <AnalyticsPage />}
-          {app.route === 'admin' && (
+          {route === 'analytics' && <AnalyticsPage />}
+          {route === 'admin' && (
             <AdminPage onToast={app.pushToast} onOpenKudos={() => app.setShowKudos(true)} />
           )}
-          {app.route === 'mobile' && <MobileGalleryPage industry={app.industry} />}
+          {route === 'mobile' && <MobileGalleryPage industry={app.industry} />}
 
           {/* Footer nav */}
           <div style={{
@@ -87,10 +97,10 @@ export function AppShell() {
             borderTop: '1px solid var(--b-border-soft)',
             display: 'flex', gap: 24, justifyContent: 'center', flexWrap: 'wrap',
           }}>
-            <button className="btn-text" onClick={() => app.setRoute('mobile')}>
+            <button className="btn-text" onClick={() => setRoute('mobile')}>
               See mobile story →
             </button>
-            <button className="btn-text" onClick={() => app.setScreen('login')}>
+            <button className="btn-text" onClick={() => navigate('/login')}>
               ← Auth &amp; onboarding
             </button>
           </div>
@@ -105,7 +115,7 @@ export function AppShell() {
             notifs={app.notifs}
             onClose={() => app.setShowNotifPanel(false)}
             onMarkAll={app.markAllRead}
-            onSeeAll={() => { app.setShowNotifPanel(false); app.setRoute('notifications'); }}
+            onSeeAll={() => { app.setShowNotifPanel(false); setRoute('notifications'); }}
           />
         </>
       )}
@@ -123,7 +133,7 @@ export function AppShell() {
           onClose={() => app.setShowSearch(false)}
           onJump={(r: string) => {
             if (r === '__recognize') app.setShowModal(true);
-            else app.setRoute(r as any);
+            else setRoute(r as Route);
           }}
         />
       )}
@@ -167,8 +177,8 @@ export function AppShell() {
           theme={app.theme}
           onTheme={app.toggleTheme}
           onClose={() => app.setShowTweaks(false)}
-          onGoAuth={() => app.setScreen('login')}
-          onGoOnboarding={() => app.setScreen('onboarding')}
+          onGoAuth={() => navigate('/login')}
+          onGoOnboarding={() => navigate('/onboarding')}
         />
       )}
     </div>
@@ -177,9 +187,6 @@ export function AppShell() {
 }
 
 // ─── TweaksPanel ─────────────────────────────────────────
-import { Icon } from './Icon';
-import type { Industry, Theme } from '@/lib/types';
-
 interface TweaksPanelProps {
   industry: Industry;
   onIndustry: (i: Industry) => void;
