@@ -1,15 +1,8 @@
 import { useRouteError, isRouteErrorResponse, useNavigate } from 'react-router';
-import { useEffect } from 'react';
 
 export function RouteError() {
   const error = useRouteError();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (error && !isRouteErrorResponse(error)) {
-      import('@sentry/react').then((Sentry) => Sentry.captureException(error)).catch(() => {});
-    }
-  }, [error]);
 
   const is404 = isRouteErrorResponse(error) && error.status === 404;
   const title = is404 ? 'Page not found' : 'Something went wrong';

@@ -6,23 +6,6 @@ import { AppProvider } from '@/context/AppContext';
 import { router } from '@/router';
 import './styles/globals.css';
 
-// Sentry is optional — initialise only when the package is present and DSN is configured
-if (import.meta.env.VITE_SENTRY_DSN) {
-  import('@sentry/react').then((Sentry) => {
-    Sentry.init({
-      dsn: import.meta.env.VITE_SENTRY_DSN,
-      environment: import.meta.env.MODE,
-      integrations: [
-        Sentry.browserTracingIntegration(),
-        Sentry.replayIntegration({ maskAllText: false, blockAllMedia: false }),
-      ],
-      tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
-      replaysSessionSampleRate: 0.05,
-      replaysOnErrorSampleRate: 1.0,
-    });
-  }).catch(() => { /* @sentry/react not installed — skip */ });
-}
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { retry: 1 },
