@@ -6,15 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:marketing": "node public/marketing/build.js",
+    "gen:og": "node public/marketing/gen-og.js",
     "preview": "vite preview --port 4173",
     "lint": "eslint",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:marketing": "playwright test tests/e2e/marketing-a11y.spec.ts",
     "test": "vitest run && playwright test"
   },
   "dependencies": {
-    "@sentry/react": "^10.50.0",
     "@supabase/supabase-js": "^2.105.0",
     "@tanstack/react-query": "^5.0.0",
     "react": "19.2.4",
@@ -24,7 +26,6 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.11.2",
     "@playwright/test": "^1.59.1",
-    "@sentry/vite-plugin": "^5.2.0",
     "@tailwindcss/vite": "^4",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",

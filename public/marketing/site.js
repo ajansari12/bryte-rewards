@@ -66,10 +66,14 @@
     burger.addEventListener('click', () => {
       const open = drawer.classList.toggle('open');
       burger.classList.toggle('open', open);
+      burger.setAttribute('aria-expanded', String(open));
       document.body.style.overflow = open ? 'hidden' : '';
     });
     drawer.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
-      drawer.classList.remove('open'); burger.classList.remove('open'); document.body.style.overflow = '';
+      drawer.classList.remove('open');
+      burger.classList.remove('open');
+      burger.setAttribute('aria-expanded', 'false');
+      document.body.style.overflow = '';
     }));
   }
 

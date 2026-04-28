@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bryte Rewards — Recognition that feels Canadian.</title>
 <meta name="description" content="Bryte Rewards helps Canadian teams say the things that matter, out loud. Employee recognition built on your values, your words, and your currency.">
-<link rel="stylesheet" href="site.css?v=5">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="site.css?v=6">
 <style>
   /* ═══════════════════════════════════════════════
      HOME PAGE
@@ -418,46 +420,69 @@
   .final-cta .lead { margin-bottom: 40px; max-width: 640px; margin-left: auto; margin-right: auto; }
   .final-ctas { display: flex; justify-content: center; align-items: center; gap: 16px; flex-wrap: wrap; }
 </style>
+<!-- SEO + Social -->
+<link rel="canonical" href="https://bryte.app/marketing/Home.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bryte Rewards">
+<meta property="og:title" content="Bryte Rewards — Recognition that feels Canadian.">
+<meta property="og:description" content="Bryte Rewards helps Canadian teams say the things that matter, out loud. Employee recognition built on your values, your words, and your currency.">
+<meta property="og:url" content="https://bryte.app/marketing/Home.html">
+<meta property="og:image" content="https://bryte.app/og/home.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@bryteapp">
+<meta name="twitter:title" content="Bryte Rewards — Recognition that feels Canadian.">
+<meta name="twitter:description" content="Bryte Rewards helps Canadian teams say the things that matter, out loud. Employee recognition built on your values, your words, and your currency.">
+<meta name="twitter:image" content="https://bryte.app/og/home.png">
 </head>
 <body>
 
 <!-- ─── NAV ──────────────────────────────────────── -->
-<nav class="nav">
+<nav class="nav" role="navigation" aria-label="Main">
   <div class="nav-inner">
-    <a class="logo" href="Home.html">
-      <span class="logo-mark">B</span>
+    <a aria-current="page" class="logo" href="Home.html" aria-label="Bryte Rewards home">
+      <span class="logo-mark" aria-hidden="true">B</span>
       Bryte Rewards
     </a>
     <div class="nav-links">
       <a href="Product.html">Product</a>
-      <a href="Customers.html">Customers</a>
       <a href="Pricing.html">Pricing</a>
+      <a href="Customers.html">Customers</a>
       <a href="Security.html">Security</a>
-      <a href="../index.html">Open app ↗</a>
+      <a href="Blog.html">Journal</a>
+      <a href="About.html">About</a>
     </div>
     <div class="nav-actions">
-      <button class="theme-toggle" aria-label="Toggle theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button>
-      <div class="lang-toggle"><button data-lang="en">EN</button><button data-lang="fr">FR</button></div>
-      <a class="btn btn-ghost btn-sm" href="Demo.html">Sign in</a>
+      <button class="theme-toggle" aria-label="Toggle colour theme">
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+      <div class="lang-toggle">
+        <button data-lang="en" aria-label="Switch to English">EN</button>
+        <button data-lang="fr" aria-label="Switch to French">FR</button>
+      </div>
+      <a class="btn btn-ghost btn-sm" href="https://app.bryte.app/login">Sign in</a>
       <a class="btn btn-primary btn-sm" href="Demo.html">Book a demo</a>
-      <button class="nav-burger" aria-label="Menu"><span></span><span></span><span></span></button>
+      <button class="nav-burger" aria-label="Open menu" aria-expanded="false" aria-controls="nav-drawer">
+        <span></span><span></span><span></span>
+      </button>
     </div>
   </div>
-  <div class="nav-drawer">
-  <a href="Product.html">Product</a>
-  <a href="Customers.html">Customers</a>
-  <a href="Pricing.html">Pricing</a>
-  <a href="Integrations.html">Integrations</a>
-  <a href="Security.html">Security</a>
-  <a href="About.html">About</a>
-  <a href="Blog.html">Journal</a>
-  <a href="ROI.html">ROI calculator</a>
-  <a href="../index.html">Open the app</a>
-  <div class="drawer-cta">
-    <a class="btn btn-ghost btn-sm" href="Demo.html">Sign in</a>
-    <a class="btn btn-primary btn-sm" href="Demo.html">Book a demo</a>
+  <div class="nav-drawer" id="nav-drawer" aria-label="Mobile navigation">
+    <a href="Product.html">Product</a>
+    <a href="Pricing.html">Pricing</a>
+    <a href="Customers.html">Customers</a>
+    <a href="Integrations.html">Integrations</a>
+    <a href="Security.html">Security</a>
+    <a href="About.html">About</a>
+    <a href="Blog.html">Journal</a>
+    <a href="ROI.html">ROI calculator</a>
+    <div class="drawer-cta">
+      <a class="btn btn-ghost btn-sm" href="https://app.bryte.app/login">Sign in</a>
+      <a class="btn btn-primary btn-sm" href="Demo.html">Book a demo</a>
+    </div>
   </div>
-</div>
 </nav>
 
 <!-- ─── HERO ──────────────────────────────────────── -->
@@ -782,7 +807,7 @@
         <li>Slack + Teams integration</li>
         <li>Basic rewards catalogue</li>
       </ul>
-      <a class="btn btn-ghost" href="Pricing.html">Start free trial</a>
+      <a class="btn btn-ghost" href="https://app.bryte.app/signup">Start free trial</a>
     </div>
     <div class="price-card featured reveal d1">
       <h3>Grow</h3>
@@ -855,10 +880,12 @@
 <footer class="site-footer">
   <div class="footer-grid">
     <div>
-      <a class="logo" href="Home.html"><span class="logo-mark">B</span>Bryte Rewards</a>
+      <a aria-current="page" class="logo" href="Home.html" aria-label="Bryte Rewards home">
+        <span class="logo-mark" aria-hidden="true">B</span>Bryte Rewards
+      </a>
       <p style="margin: 20px 0 0; font-size: var(--t-small); color: var(--b-ink-3); max-width: 280px;">Recognition software for Canadian teams. Say the things that matter, out loud.</p>
       <div style="margin-top: 20px; font-size: var(--t-xs); color: var(--b-ink-3); display: inline-flex; align-items: center; gap: 8px;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="#B8452E"><path d="M12 2l1.5 4.5L18 4l-1.5 5L21 8l-3 4 3 4-4.5-1L18 20l-4.5-2.5L12 22l-1.5-4.5L6 20l1.5-5L3 16l3-4-3-4 4.5 1L6 4l4.5 2.5z"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#B8452E" aria-hidden="true"><path d="M12 2l1.5 4.5L18 4l-1.5 5L21 8l-3 4 3 4-4.5-1L18 20l-4.5-2.5L12 22l-1.5-4.5L6 20l1.5-5L3 16l3-4-3-4 4.5 1L6 4l4.5 2.5z"/></svg>
         Made in Toronto
       </div>
     </div>
@@ -867,25 +894,25 @@
       <ul>
         <li><a href="Product.html">Features</a></li>
         <li><a href="Pricing.html">Pricing</a></li>
+        <li><a href="Integrations.html">Integrations</a></li>
         <li><a href="Security.html">Security</a></li>
-        <li><a href="../index.html">Open the app</a></li>
       </ul>
     </div>
     <div>
       <h4>Company</h4>
       <ul>
+        <li><a href="About.html">About</a></li>
         <li><a href="Customers.html">Customers</a></li>
         <li><a href="Demo.html">Book a demo</a></li>
         <li><a href="#">Careers</a></li>
-        <li><a href="#">Press kit</a></li>
       </ul>
     </div>
     <div>
       <h4>Resources</h4>
       <ul>
+        <li><a href="Blog.html">Journal</a></li>
+        <li><a href="ROI.html">ROI calculator</a></li>
         <li><a href="#">Recognition playbook</a></li>
-        <li><a href="#">Values worksheet</a></li>
-        <li><a href="#">ROI calculator</a></li>
         <li><a href="#">Help centre</a></li>
       </ul>
     </div>
@@ -922,7 +949,7 @@
   </div>
 </aside>
 
-<script src="site.js?v=4"></script>
+<script src="site.js?v=6"></script>
 <script>
   // Typewriter for the hero card
   const target = document.getElementById('typed-text');
