@@ -26,29 +26,37 @@ const marketingRoutes: Record<string, string> = {
   '/roi': 'ROI.html',
 };
 
-function marketingMiddleware(rootDir: string): Connect.NextHandleFunction {
+function marketingMiddleware(): Connect.NextHandleFunction {
+  const marketingDir = path.join(process.cwd(), 'public', 'marketing');
   return (req, res, next) => {
-    const url = req.url?.split('?')[0] ?? '/';
-    const file = marketingRoutes[url];
-    if (!file) return next();
+    try {
+      const url = req.url?.split('?')[0] ?? '/';
+      if (url.startsWith('/@') || url.startsWith('/node_modules/') || url.startsWith('/src/')) {
+        return next();
+      }
+      const file = marketingRoutes[url];
+      if (!file) return next();
 
-    const filePath = path.join(rootDir, 'public', 'marketing', file);
-    if (!fs.existsSync(filePath)) return next();
+      const filePath = path.join(marketingDir, file);
+      if (!fs.existsSync(filePath)) return next();
 
-    let html = fs.readFileSync(filePath, 'utf-8');
-    if (!/<base\s/i.test(html)) {
-      html = html.replace(
-        /<head(\s[^>]*)?>/i,
-        (match) => `${match}\n  <base href="/marketing/">`
-      );
+      let html = fs.readFileSync(filePath, 'utf-8');
+      if (!/<base\s/i.test(html)) {
+        html = html.replace(
+          /<head(\s[^>]*)?>/i,
+          (match) => `${match}\n  <base href="/marketing/">`
+        );
+      }
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.end(html);
+    } catch {
+      next();
     }
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.end(html);
   };
 }
 
-export default defineConfig(({ command }) => ({
+export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
@@ -56,24 +64,14 @@ export default defineConfig(({ command }) => ({
     {
       name: 'marketing-clean-urls',
       configureServer(server) {
-        const root = server.config.root;
-        server.middlewares.use(marketingMiddleware(root));
+        server.middlewares.use(marketingMiddleware());
       },
       configurePreviewServer(server) {
-        const root = server.config.root;
-        server.middlewares.use(marketingMiddleware(root));
+        server.middlewares.use(marketingMiddleware());
       },
     },
   ],
-  server: {
-    port: 3000,
-    host: true,
-  },
-  preview: {
-    port: 4173,
-    host: true,
-  },
   build: {
     sourcemap: true,
   },
-}));
+});
