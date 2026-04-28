@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "typecheck": "tsc -b --noEmit",
     "build:marketing": "node public/marketing/build.js",
     "gen:og": "node public/marketing/gen-og.js",
     "preview": "vite preview --port 4173",

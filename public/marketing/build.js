@@ -122,8 +122,26 @@ const footerHtml = readFileSync(join(__dir, '_partials/footer.html'), 'utf8');
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+const SLUG_TO_PATH = {
+  home: '/',
+  product: '/product',
+  pricing: '/pricing',
+  customers: '/customers',
+  integrations: '/integrations',
+  security: '/security',
+  about: '/about',
+  compare: '/compare',
+  blog: '/blog',
+  'blog-post-1': '/blog/recognition-not-points',
+  'blog-post-2': '/blog/values-refresh',
+  demo: '/demo',
+  roi: '/roi',
+  '404': '/404',
+};
+
 function buildSeoBlock(page) {
-  const canonical = `https://bryte.app/marketing/${page.file}`;
+  const path = SLUG_TO_PATH[page.slug] ?? `/${page.slug}`;
+  const canonical = `https://bryte.app${path === '/' ? '' : path}${path === '/' ? '/' : ''}`;
   const ogImage = `https://bryte.app/og/${page.slug}.png`;
   return `
 <!-- SEO + Social -->
@@ -185,49 +203,38 @@ function replaceNavFooter(html) {
 }
 
 function fixCtAs(html) {
-  // "Open app" / "Open the app" links → app subdomain
-  html = html.replace(/href="\.\.\/index\.html"/g, 'href="https://app.bryte.app/"');
+  // Migrate any remaining absolute app.bryte.app references to same-origin paths
+  html = html.replace(/https:\/\/app\.bryte\.app\/login/g, '/login');
+  html = html.replace(/https:\/\/app\.bryte\.app\/signup/g, '/signup');
+  html = html.replace(/https:\/\/app\.bryte\.app\//g, '/app/');
+
+  // "Open app" / "Open the app" links → app SPA
+  html = html.replace(/href="\.\.\/index\.html"/g, 'href="/app/"');
 
   // Sign in buttons that point to Demo.html → actual login
-  // We identify "Sign in" CTAs by their text content pattern
   html = html.replace(
     /<a([^>]*?)class="([^"]*btn-ghost[^"]*)"([^>]*)href="Demo\.html"([^>]*)>Sign in<\/a>/g,
-    '<a$1class="$2"$3href="https://app.bryte.app/login"$4>Sign in</a>'
+    '<a$1class="$2"$3href="/login"$4>Sign in</a>'
   );
   html = html.replace(
     /<a([^>]*?)href="Demo\.html"([^>]*)class="([^"]*btn-ghost[^"]*)"([^>]*)>Sign in<\/a>/g,
-    '<a$1href="https://app.bryte.app/login"$2class="$3"$4>Sign in</a>'
+    '<a$1href="/login"$2class="$3"$4>Sign in</a>'
   );
 
-  // "Start free trial" → signup
-  html = html.replace(
-    /href="(Pricing\.html|Demo\.html)"([^>]*)>Start free trial/g,
-    'href="https://app.bryte.app/signup"$2>Start free trial'
-  );
-  html = html.replace(
-    /href="(Pricing\.html|Demo\.html)"([^>]*)>Get started/g,
-    'href="https://app.bryte.app/signup"$2>Get started'
-  );
-  html = html.replace(
-    /href="(Pricing\.html|Demo\.html)"([^>]*)>Sign up/g,
-    'href="https://app.bryte.app/signup"$2>Sign up'
-  );
-  html = html.replace(
-    /href="(Pricing\.html|Demo\.html)"([^>]*)>Start for free/g,
-    'href="https://app.bryte.app/signup"$2>Start for free'
-  );
-  html = html.replace(
-    /href="(Pricing\.html|Demo\.html)"([^>]*)>Try free for 30 days/g,
-    'href="https://app.bryte.app/signup"$2>Try free for 30 days'
-  );
-  html = html.replace(
-    /href="(Pricing\.html|Demo\.html)"([^>]*)>Start 30-day trial/g,
-    'href="https://app.bryte.app/signup"$2>Start 30-day trial'
-  );
-  html = html.replace(
-    /href="(Pricing\.html|Demo\.html)"([^>]*)>Start your free trial/g,
-    'href="https://app.bryte.app/signup"$2>Start your free trial'
-  );
+  // Trial / signup CTAs → /signup
+  const ctaCopy = [
+    'Start free trial',
+    'Get started',
+    'Sign up',
+    'Start for free',
+    'Try free for 30 days',
+    'Start 30-day trial',
+    'Start your free trial',
+  ];
+  for (const copy of ctaCopy) {
+    const re = new RegExp(`href="(Pricing\\.html|Demo\\.html)"([^>]*)>${copy}`, 'g');
+    html = html.replace(re, `href="/signup"$2>${copy}`);
+  }
 
   return html;
 }
