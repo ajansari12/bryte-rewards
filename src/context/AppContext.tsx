@@ -1,13 +1,11 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { BRYTE_DATA, SAMPLE_NOTIFS } from '@/lib/data';
 import { supabase } from '@/lib/supabase';
-import type { Recognition, Notification, Toast, Theme, Industry } from '@/lib/types';
+import type { Notification, Toast, Theme, Industry } from '@/lib/types';
 
 interface AppState {
   industry: Industry;
   theme: Theme;
-  recs: Recognition[];
-  newIds: Set<string>;
   showModal: boolean;
   toasts: Toast[];
   confetti: number;
@@ -15,7 +13,7 @@ interface AppState {
   showNotifPanel: boolean;
   showTweaks: boolean;
   showSearch: boolean;
-  detailRec: Recognition | null;
+  detailRec: import('@/lib/types').Recognition | null;
   showDigest: boolean;
   nudgePerson: string | null;
   showTour: boolean;
@@ -30,7 +28,7 @@ interface AppActions {
   setShowNotifPanel: (v: boolean) => void;
   setShowTweaks: (v: boolean) => void;
   setShowSearch: (v: boolean) => void;
-  setDetailRec: (r: Recognition | null) => void;
+  setDetailRec: (r: import('@/lib/types').Recognition | null) => void;
   setShowDigest: (v: boolean) => void;
   setNudgePerson: (p: string | null) => void;
   setShowTour: (v: boolean) => void;
@@ -38,7 +36,6 @@ interface AppActions {
   setNominateBadge: (b: { name: string; icon: string; criteria?: string } | null) => void;
   pushToast: (t: Omit<Toast, 'id'>) => void;
   fireConfetti: () => void;
-  handleSubmitRec: (rec: Omit<Recognition, '_id'>) => void;
   markAllRead: () => void;
   setNotifs: (fn: (prev: Notification[]) => Notification[]) => void;
 }
@@ -48,11 +45,6 @@ const AppContext = createContext<(AppState & AppActions) | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [industry, setIndustryState] = useState<Industry>('healthcare');
   const [theme, setTheme] = useState<Theme>('light');
-  const [recs, setRecs] = useState<Recognition[]>(() => {
-    const pack = BRYTE_DATA.INDUSTRIES.healthcare;
-    return pack.sampleRecs.map((r, i) => ({ ...r, _id: `seed-${i}` }));
-  });
-  const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [showModal, setShowModal] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [confetti, setConfetti] = useState(0);
@@ -60,7 +52,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [showTweaks, setShowTweaks] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
-  const [detailRec, setDetailRec] = useState<Recognition | null>(null);
+  const [detailRec, setDetailRec] = useState<import('@/lib/types').Recognition | null>(null);
   const [showDigest, setShowDigest] = useState(false);
   const [nudgePerson, setNudgePerson] = useState<string | null>(null);
   const [showTour, setShowTour] = useState(false);
@@ -125,11 +117,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setIndustry = useCallback((ind: Industry) => {
     setIndustryState(ind);
-    const pack = BRYTE_DATA.INDUSTRIES[ind];
-    setRecs(pack.sampleRecs.map((r, i) => ({ ...r, _id: `${ind}-${i}` })));
-    setNewIds(new Set());
     persist({ industry: ind, theme: '' });
-  }, [theme]);
+  }, []);
 
   const toggleTheme = useCallback(() => {
     setTheme(t => {
@@ -147,42 +136,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const fireConfetti = useCallback(() => setConfetti(c => c + 1), []);
 
-  const handleSubmitRec = useCallback((rec: Omit<Recognition, '_id'>) => {
-    const newRec: Recognition = { ...rec, _id: `new-${Date.now()}` };
-    setRecs(s => [newRec, ...s]);
-    setNewIds(s => new Set([...s, newRec._id!]));
-    setShowModal(false);
-    fireConfetti();
-    pushToast({ kind: 'success', msg: `Sent. ✦ ${rec.recipient.split(' ')[0]}'s been notified.` });
-    setNotifs(n => [{
-      id: Date.now(),
-      type: 'received',
-      msg: `${rec.recipient.split(' ')[0]} will receive your recognition`,
-      sub: `"${rec.message.slice(0, 60)}…" · +${rec.points} pts`,
-      time: 'Just now',
-      read: false,
-    } as Notification, ...n]);
-    setTimeout(() => setNewIds(s => { const n = new Set(s); n.delete(newRec._id!); return n; }), 2500);
-  }, [fireConfetti, pushToast]);
-
   const markAllRead = useCallback(() => {
     setNotifs(n => n.map(x => ({ ...x, read: true })));
   }, []);
 
   return (
     <AppContext.Provider value={{
-      industry, theme, recs, newIds, showModal, toasts, confetti,
+      industry, theme, showModal, toasts, confetti,
       notifs, showNotifPanel, showTweaks, showSearch, detailRec, showDigest,
       nudgePerson, showTour, showKudos, nominateBadge,
       setIndustry, toggleTheme, setShowModal,
       setShowNotifPanel, setShowTweaks, setShowSearch, setDetailRec,
       setShowDigest, setNudgePerson, setShowTour, setShowKudos, setNominateBadge,
-      pushToast, fireConfetti, handleSubmitRec, markAllRead, setNotifs,
+      pushToast, fireConfetti, markAllRead, setNotifs,
     }}>
       {children}
     </AppContext.Provider>
   );
 }
+
+// Keep BRYTE_DATA accessible for components still using industry pack metadata
+export { BRYTE_DATA };
 
 export function useApp() {
   const ctx = useContext(AppContext);

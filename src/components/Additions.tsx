@@ -3,6 +3,9 @@ import { Icon } from './Icon';
 import { BRYTE_DATA } from '@/lib/data';
 import type { Recognition } from '@/lib/types';
 import { useFocusTrap } from './Extras';
+import { useCurrentUser } from '@/lib/queries/users';
+import { useBadges } from '@/lib/queries/badges';
+import { useMyRecognitions, type DbRecognition } from '@/lib/queries/recognitions';
 
 const noAnim = () =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -62,31 +65,42 @@ export function ProfilePage({
   onRecognize: () => void;
   onOpenRec: (rec: Recognition) => void;
 }) {
-  const me = BRYTE_DATA.CURRENT_USER;
-  const badges = ((BRYTE_DATA as any).BADGES as Array<{ id: string; name: string; icon: string; earned: boolean; date?: string }>).filter(b => b.earned);
-  const recentRecs = (BRYTE_DATA.INDUSTRIES.healthcare.sampleRecs as Array<any>).slice(0, 3).map((r, i): Recognition => ({
-    ...(r as any),
-    _id: `profile-${i}`,
-    type: r.type as Recognition['type'],
-  }));
+  const { data: currentUser } = useCurrentUser();
+  const { data: allBadges = [] } = useBadges();
+  const { data: myRecs = [] } = useMyRecognitions();
 
+  const earnedBadges = allBadges.filter(b => b.awarded_at !== null);
+  const recentRecs = myRecs.slice(0, 3);
+
+  const points = currentUser?.points ?? 0;
   const nextThreshold = 5000;
-  const pct = Math.min(me.points / nextThreshold, 1);
+  const pct = Math.min(points / nextThreshold, 1);
   const [ready, setReady] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setReady(true), 100);
     return () => clearTimeout(t);
   }, []);
 
-  // SVG progress ring
   const R = 52, CX = 64, CY = 64, SW = 7;
   const circ = 2 * Math.PI * R;
   const offset = ready && !noAnim() ? circ * (1 - pct) : circ;
 
+  const toRec = (r: DbRecognition): Recognition => ({
+    _id: r.id,
+    sender: (r.sender as any)?.display_name ?? 'Unknown',
+    senderRole: (r.sender as any)?.role ?? 'employee',
+    recipient: (r.recipient as any)?.display_name ?? 'Unknown',
+    value: (r.value as any)?.name ?? '',
+    message: r.message,
+    points: r.points,
+    time: new Date(r.created_at).toLocaleDateString(),
+    type: r.type,
+    reactions: {},
+  });
+
   return (
     <div>
       <div className="card" style={{ padding: 32, marginBottom: 24, textAlign: 'center' }}>
-        {/* Avatar with progress ring */}
         <div style={{ position: 'relative', width: 128, height: 128, margin: '0 auto 16px' }}>
           <svg width="128" height="128" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)' }} aria-hidden="true">
             <circle cx={CX} cy={CY} r={R} fill="none" stroke="var(--b-border)" strokeWidth={SW} />
@@ -100,21 +114,20 @@ export function ProfilePage({
             />
           </svg>
           <div
-            className={`avatar xl role-${me.role}`}
+            className={`avatar xl role-${currentUser?.role ?? 'employee'}`}
             style={{ position: 'absolute', top: SW + 4, left: SW + 4, right: SW + 4, bottom: SW + 4, margin: 0, width: 'auto', height: 'auto', fontSize: 28 }}
           >
-            {me.initials}
+            {initials(currentUser?.display_name ?? '??')}
           </div>
         </div>
 
-        <h1 className="serif" style={{ fontSize: '1.8rem', fontWeight: 600, margin: 0 }}>{me.displayName}</h1>
-        <div className="muted" style={{ marginTop: 4 }}>{me.title}</div>
+        <h1 className="serif" style={{ fontSize: '1.8rem', fontWeight: 600, margin: 0 }}>{currentUser?.display_name ?? '—'}</h1>
+        <div className="muted" style={{ marginTop: 4 }}>{currentUser?.title ?? ''}</div>
 
-        {/* Points tier bar */}
         <div style={{ margin: '16px auto 0', maxWidth: 260 }}>
           <div className="row" style={{ justifyContent: 'space-between', marginBottom: 5 }}>
             <span className="label">
-              <strong style={{ color: 'var(--b-gold)' }}>{me.points.toLocaleString()}</strong> pts
+              <strong style={{ color: 'var(--b-gold)' }}>{points.toLocaleString()}</strong> pts
             </span>
             <span className="label">Next: {nextThreshold.toLocaleString()}</span>
           </div>
@@ -131,20 +144,16 @@ export function ProfilePage({
 
         <div className="row" style={{ justifyContent: 'center', gap: 36, marginTop: 22 }}>
           <div>
-            <div className="mono" style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--b-gold)' }}>{me.points.toLocaleString()}</div>
+            <div className="mono" style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--b-gold)' }}>{points.toLocaleString()}</div>
             <div className="label">points</div>
           </div>
           <div>
-            <div className="mono" style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--b-forest)' }}>{badges.length}</div>
+            <div className="mono" style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--b-forest)' }}>{earnedBadges.length}</div>
             <div className="label">badges</div>
           </div>
           <div>
-            <div className="mono" style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--b-ink)' }}>12</div>
-            <div className="label">day streak</div>
-          </div>
-          <div>
-            <div className="mono" style={{ fontSize: '1.6rem', fontWeight: 700 }}>#6</div>
-            <div className="label">on board</div>
+            <div className="mono" style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--b-ink)' }}>{myRecs.length}</div>
+            <div className="label">received</div>
           </div>
         </div>
         <button className="btn btn-primary" style={{ marginTop: 22 }} onClick={onRecognize}>
@@ -154,13 +163,15 @@ export function ProfilePage({
 
       <h2 className="serif" style={{ fontSize: '1.1rem', fontWeight: 600, margin: '0 0 12px' }}>Badges</h2>
       <div className="row" style={{ gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
-        {badges.map(b => (
+        {earnedBadges.length === 0 ? (
+          <div className="muted" style={{ fontSize: 'var(--t-sm)' }}>No badges earned yet.</div>
+        ) : earnedBadges.map(b => (
           <div key={b.id} className="card" style={{ padding: '10px 14px' }}>
             <div className="row" style={{ gap: 8 }}>
               <span style={{ fontSize: 20 }}>{b.icon}</span>
               <div>
                 <div className="serif" style={{ fontWeight: 600, fontSize: 'var(--t-sm)' }}>{b.name}</div>
-                <div className="muted" style={{ fontSize: 9 }}>{b.date}</div>
+                <div className="muted" style={{ fontSize: 9 }}>{b.awarded_at ? new Date(b.awarded_at).toLocaleDateString() : ''}</div>
               </div>
             </div>
           </div>
@@ -169,21 +180,26 @@ export function ProfilePage({
 
       <h2 className="serif" style={{ fontSize: '1.1rem', fontWeight: 600, margin: '0 0 12px' }}>Recent recognitions</h2>
       <div style={{ display: 'grid', gap: 10 }}>
-        {recentRecs.map(r => (
-          <div key={r._id} className="rec-card" style={{ cursor: 'pointer' }} onClick={() => onOpenRec(r)}>
-            <div className="strip" style={{ background: 'var(--b-gold)' }} />
-            <div style={{ padding: '14px 16px' }}>
-              <div className="row" style={{ gap: 10, marginBottom: 6 }}>
-                <span className="chip-mini">{r.value}</span>
-                <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>· {r.time}</span>
-                <span className="grow" />
-                <span className="mono" style={{ color: 'var(--b-gold)', fontWeight: 700, fontSize: 'var(--t-xs)' }}>+{r.points}</span>
+        {recentRecs.length === 0 ? (
+          <div className="muted" style={{ fontSize: 'var(--t-sm)' }}>No recognitions received yet.</div>
+        ) : recentRecs.map(r => {
+          const rec = toRec(r);
+          return (
+            <div key={r.id} className="rec-card" style={{ cursor: 'pointer' }} onClick={() => onOpenRec(rec)}>
+              <div className="strip" style={{ background: 'var(--b-gold)' }} />
+              <div style={{ padding: '14px 16px' }}>
+                <div className="row" style={{ gap: 10, marginBottom: 6 }}>
+                  {rec.value && <span className="chip-mini">{rec.value}</span>}
+                  <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>· {rec.time}</span>
+                  <span className="grow" />
+                  <span className="mono" style={{ color: 'var(--b-gold)', fontWeight: 700, fontSize: 'var(--t-xs)' }}>+{rec.points}</span>
+                </div>
+                <div style={{ fontSize: 'var(--t-sm)', lineHeight: 1.5 }}>"{rec.message}"</div>
+                <div className="muted" style={{ fontSize: 'var(--t-xs)', marginTop: 6 }}>From {rec.sender}</div>
               </div>
-              <div style={{ fontSize: 'var(--t-sm)', lineHeight: 1.5 }}>"{r.message}"</div>
-              <div className="muted" style={{ fontSize: 'var(--t-xs)', marginTop: 6 }}>From {r.sender}</div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

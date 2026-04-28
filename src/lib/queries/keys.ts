@@ -1,0 +1,18 @@
+export const qk = {
+  recognitions: (orgId: string) => ['recognitions', orgId] as const,
+  myRecognitions: (userId: string) => ['recognitions', 'mine', userId] as const,
+  leaderboard: (orgId: string, period: string) => ['leaderboard', orgId, period] as const,
+  badges: (orgId: string) => ['badges', orgId] as const,
+  rewards: (orgId: string) => ['rewards', orgId] as const,
+  redemptions: (userId: string) => ['redemptions', userId] as const,
+  orgRedemptions: (orgId: string) => ['redemptions', 'org', orgId] as const,
+  currentUser: () => ['currentUser'] as const,
+  orgUsers: (orgId: string) => ['users', orgId] as const,
+  directReports: (managerId: string) => ['directReports', managerId] as const,
+  orgValues: (orgId: string) => ['values', orgId] as const,
+  notifications: (userId: string) => ['notifications', userId] as const,
+  integrations: (orgId: string) => ['integrations', orgId] as const,
+  currentOrg: (orgId: string) => ['org', orgId] as const,
+  weeklyActivity: (orgId: string) => ['analytics', 'weekly', orgId] as const,
+  valueBreakdown: (orgId: string) => ['analytics', 'values', orgId] as const,
+};

@@ -62,9 +62,6 @@ export function AppShell() {
         <div className="content" key={route}>
           {route === 'feed' && (
             <FeedPage
-              industry={app.industry}
-              recs={app.recs}
-              newIds={app.newIds}
               onRecognize={() => app.setShowModal(true)}
               onOpenRec={app.setDetailRec}
               onCelebrate={(a: any) => app.pushToast({ kind: 'success', msg: `Celebrating ${a.name}'s ${a.years}-year ✦` })}
@@ -122,9 +119,11 @@ export function AppShell() {
 
       {app.showModal && (
         <GiveRecognitionModal
-          industry={app.industry}
           onClose={() => app.setShowModal(false)}
-          onSubmit={app.handleSubmitRec}
+          onDone={() => {
+            app.fireConfetti();
+            app.pushToast({ kind: 'success', msg: 'Recognition sent ✦' });
+          }}
         />
       )}
 
