@@ -23,6 +23,7 @@ export const router = createBrowserRouter([
     path: '/',
     loader: async () => { throw redirect('/marketing/Home.html'); },
     element: null,
+    errorElement: <RouteError />,
   },
   {
     path: '/login',
@@ -87,6 +88,8 @@ export const router = createBrowserRouter([
   },
   {
     path: '*',
-    element: <RouteError />,
+    loader: async () => { throw redirect('/marketing/Home.html'); },
+    element: null,
+    errorElement: <RouteError />,
   },
 ]);
