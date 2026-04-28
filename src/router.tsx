@@ -88,7 +88,9 @@ export const router = createBrowserRouter([
   },
   {
     path: '*',
-    loader: async () => { throw redirect('/marketing/Home.html'); },
+    loader: async () => {
+      throw new Response('Not Found', { status: 404 });
+    },
     element: null,
     errorElement: <RouteError />,
   },
