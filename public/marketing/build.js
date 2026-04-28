@@ -27,7 +27,7 @@ const pages = [
     file: 'Product.html',
     slug: 'product',
     title: 'Product — Bryte Rewards',
-    description: 'Recognition feeds, values editor, manager dashboards, peer-nominated badges, and rewards — all in one PIPEDA-ready platform built for Canadian teams.',
+    description: 'Recognition feeds, values editor, manager dashboards, peer-nominated badges, and rewards — one platform built for Canadian teams, with your data stored in Canada.',
     ogTitle: 'Product Features — Bryte Rewards',
   },
   {
@@ -55,7 +55,7 @@ const pages = [
     file: 'Security.html',
     slug: 'security',
     title: 'Security & Privacy — Bryte Rewards',
-    description: 'PIPEDA-compliant, Canadian data residency, SOC 2 Type II in progress. Your employee data stays in Canada.',
+    description: 'Your team\u2019s data stays in Canada, protected by Canadian privacy law (PIPEDA & Quebec Law 25). Independent security audit underway.',
     ogTitle: 'Security & Privacy — Bryte Rewards',
   },
   {

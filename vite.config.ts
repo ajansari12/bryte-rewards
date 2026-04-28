@@ -10,8 +10,13 @@ import path from 'node:path';
 // The middleware reads the file and injects <base href="/marketing/"> so that
 // all relative asset paths inside the HTML resolve correctly without a
 // redirect (the URL bar stays clean, mirroring Netlify rewrite-with-200).
+// Note: '/' is intentionally NOT mapped here. In dev, the root must be served
+// by Vite (index.html + HMR client) so Bolt's preview iframe gets the React
+// SPA shell and a working heartbeat. In production, public/_redirects rewrites
+// '/' to /marketing/Home.html. To preview the marketing home in dev, visit
+// /home or /marketing/Home.html directly.
 const marketingRoutes: Record<string, string> = {
-  '/': 'Home.html',
+  '/home': 'Home.html',
   '/product': 'Product.html',
   '/pricing': 'Pricing.html',
   '/customers': 'Customers.html',
