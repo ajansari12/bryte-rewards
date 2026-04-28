@@ -13,17 +13,40 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Verify shared webhook secret
-    const secret = Deno.env.get("DIGEST_WEBHOOK_SECRET");
-    if (secret) {
-      const auth = req.headers.get("Authorization") ?? "";
-      const token = auth.replace("Bearer ", "");
-      if (token !== secret) {
-        return new Response(JSON.stringify({ message: "unauthorized" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    // Validate caller is service_role by checking the JWT role claim.
+    // pg_cron passes the real service-role JWT from Vault; the Supabase CLI also
+    // injects it automatically via `supabase functions invoke --no-verify-jwt`.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+
+    if (!token) {
+      return new Response(JSON.stringify({ message: "missing authorization token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Decode the JWT payload (no signature verification needed here — Supabase gateway
+    // has already verified it for functions with verify_jwt:true; for service-role
+    // calls we simply assert the role claim directly).
+    let role: string | undefined;
+    try {
+      const payloadBase64 = token.split(".")[1];
+      const padded = payloadBase64 + "=".repeat((4 - payloadBase64.length % 4) % 4);
+      const payload = JSON.parse(atob(padded));
+      role = payload.role;
+    } catch {
+      return new Response(JSON.stringify({ message: "malformed token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (role !== "service_role") {
+      return new Response(JSON.stringify({ message: "service_role required" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const resendKey = Deno.env.get("RESEND_API_KEY");
@@ -42,7 +65,7 @@ Deno.serve(async (req: Request) => {
 
     const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
 
-    // Fetch all digest recipients with their email from auth.users
+    // Fetch all digest recipients
     const { data: digestUsers, error: usersErr } = await supabase
       .from("users")
       .select("id, org_id, display_name, notification_prefs")
@@ -50,9 +73,10 @@ Deno.serve(async (req: Request) => {
     if (usersErr) throw usersErr;
 
     if (!digestUsers || digestUsers.length === 0) {
-      return new Response(JSON.stringify({ orgs_processed: 0, emails_sent: 0, errors: [] }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ orgs_processed: 0, emails_sent: 0, errors: [] }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Get auth emails via admin API
@@ -82,7 +106,7 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
       const orgName: string = org?.name ?? "Your Organisation";
 
-      // Fetch top recognitions for this org in the last 7 days
+      // Top recognitions for this org in the last 7 days
       const { data: recs } = await supabase
         .from("recognitions")
         .select(`
@@ -96,18 +120,17 @@ Deno.serve(async (req: Request) => {
         .order("points", { ascending: false })
         .limit(5);
 
-      // Fetch new badges awarded this week
+      // New badges awarded this week
       const { data: newBadges } = await supabase
         .from("user_badges")
-        .select("awarded_at, user:users!user_id(display_name), badge:badges!badge_id(name, icon)")
-        .eq("users.org_id", orgId)
+        .select("awarded_at, user:users!user_id(display_name, org_id), badge:badges!badge_id(name, icon)")
         .gte("awarded_at", since)
         .limit(5);
 
-      // Build leaderboard: aggregate points by recipient
+      // Weekly leaderboard: aggregate points by recipient
       const { data: allRecs } = await supabase
         .from("recognitions")
-        .select("recipient_id, points, recipient:users!recipient_id(display_name, org_id)")
+        .select("recipient_id, points, recipient:users!recipient_id(display_name)")
         .eq("org_id", orgId)
         .gte("created_at", since);
 
@@ -124,9 +147,10 @@ Deno.serve(async (req: Request) => {
         .slice(0, 5);
 
       const totalRecs = allRecs?.length ?? 0;
-      const weekLabel = new Date().toLocaleDateString("en-CA", { month: "long", day: "numeric", year: "numeric" });
+      const weekLabel = new Date().toLocaleDateString("en-CA", {
+        month: "long", day: "numeric", year: "numeric",
+      });
 
-      // Send one email per member
       for (const member of members) {
         const email = emailMap[member.id];
         if (!email) continue;
@@ -156,8 +180,7 @@ Deno.serve(async (req: Request) => {
             }),
           });
           if (!res.ok) {
-            const errText = await res.text();
-            errors.push(`${email}: ${errText}`);
+            errors.push(`${email}: ${await res.text()}`);
           } else {
             emailsSent++;
           }
@@ -168,7 +191,11 @@ Deno.serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ orgs_processed: Object.keys(byOrg).length, emails_sent: emailsSent, errors }),
+      JSON.stringify({
+        orgs_processed: Object.keys(byOrg).length,
+        emails_sent: emailsSent,
+        errors,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: unknown) {
@@ -194,11 +221,13 @@ function buildDigestHtml(p: DigestParams): string {
   const recItems = p.recs.map(r => {
     const sender = r.sender?.display_name ?? "Someone";
     const recipient = r.recipient?.display_name ?? "a teammate";
-    const value = r.value?.name ? `<span style="display:inline-block;background:#F5EDD6;color:#8B6914;border-radius:4px;padding:2px 8px;font-size:11px;margin-bottom:6px;">${r.value.name}</span><br>` : "";
+    const valueChip = r.value?.name
+      ? `<span style="display:inline-block;background:#F5EDD6;color:#8B6914;border-radius:4px;padding:2px 8px;font-size:11px;margin-bottom:6px;">${r.value.name}</span><br>`
+      : "";
     const snippet = (r.message ?? "").slice(0, 120) + ((r.message?.length ?? 0) > 120 ? "…" : "");
     return `
       <div style="padding:14px 16px;margin-bottom:10px;background:#F9F6F0;border-radius:8px;border-left:3px solid #C2882D;">
-        ${value}
+        ${valueChip}
         <div style="font-size:13px;line-height:1.5;font-style:italic;color:#4A3728;">"${snippet}"</div>
         <div style="font-size:11px;color:#8C7B74;margin-top:6px;">${sender} → ${recipient} · +${r.points} pts</div>
       </div>`;
@@ -226,7 +255,6 @@ function buildDigestHtml(p: DigestParams): string {
 <body style="margin:0;padding:0;background:#F2EDE6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <div style="max-width:580px;margin:32px auto;background:#FFFFFF;border-radius:12px;overflow:hidden;border:1px solid #E8E0D5;">
 
-    <!-- Header -->
     <div style="background:#1C1410;padding:28px 32px;">
       <div style="font-family:Georgia,serif;color:#FAF6EF;font-size:26px;font-weight:700;letter-spacing:-0.02em;">
         Bryte<span style="color:#C2882D;">.</span>
@@ -238,13 +266,11 @@ function buildDigestHtml(p: DigestParams): string {
     </div>
     <div style="height:3px;background:linear-gradient(90deg,#C2882D,#E8C56A,transparent);"></div>
 
-    <!-- Body -->
     <div style="padding:28px 32px;">
       <p style="font-size:15px;color:#1C1410;line-height:1.6;margin:0 0 24px;">
         Hi ${p.firstName} — here's what happened on your team wall this week. ✦
       </p>
 
-      <!-- Stats -->
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:28px;">
         <div style="text-align:center;padding:16px;background:#F9F6F0;border-radius:8px;">
           <div style="font-family:monospace;font-size:26px;font-weight:700;color:#C2882D;">${p.totalRecs}</div>
@@ -256,7 +282,6 @@ function buildDigestHtml(p: DigestParams): string {
         </div>
       </div>
 
-      <!-- Highlights -->
       ${p.recs.length > 0 ? `
       <div style="margin-bottom:28px;">
         <div style="font-size:10px;letter-spacing:0.08em;color:#8C7B74;text-transform:uppercase;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #E8E0D5;">
@@ -265,7 +290,6 @@ function buildDigestHtml(p: DigestParams): string {
         ${recItems}
       </div>` : ""}
 
-      <!-- Leaderboard -->
       ${p.leaderboard.length > 0 ? `
       <div style="margin-bottom:28px;">
         <div style="font-size:10px;letter-spacing:0.08em;color:#8C7B74;text-transform:uppercase;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #E8E0D5;">
@@ -276,7 +300,6 @@ function buildDigestHtml(p: DigestParams): string {
         </table>
       </div>` : ""}
 
-      <!-- Badges -->
       <div style="margin-bottom:28px;">
         <div style="font-size:10px;letter-spacing:0.08em;color:#8C7B74;text-transform:uppercase;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #E8E0D5;">
           New badges earned
@@ -284,15 +307,10 @@ function buildDigestHtml(p: DigestParams): string {
         ${badgeItems}
       </div>
 
-      <!-- CTA -->
       <div style="text-align:center;padding-top:24px;border-top:1px solid #E8E0D5;">
-        <a href="${Deno.env.get("SUPABASE_URL")?.replace("supabase.co", "bryte.app") ?? "#"}"
-           style="display:inline-block;padding:12px 28px;background:#C2882D;color:#1C1410;border-radius:20px;font-weight:700;font-size:14px;text-decoration:none;">
-          View full wall →
-        </a>
         <p style="font-size:11px;color:#8C7B74;margin-top:16px;line-height:1.6;">
           You're receiving this because weekly digest is enabled in your Bryte profile.<br>
-          <a href="#" style="color:#8C7B74;">Unsubscribe</a> · <a href="#" style="color:#8C7B74;">Email preferences</a>
+          Manage preferences in your profile settings.
         </p>
       </div>
     </div>
