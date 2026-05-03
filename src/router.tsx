@@ -1,7 +1,10 @@
 import { createBrowserRouter, redirect } from 'react-router';
 import React, { Suspense } from 'react';
-import { requireSession } from '@/lib/auth/requireSession';
-import { supabase } from '@/lib/supabase';
+import {
+  requireOnboardedSession,
+  requireSessionSkipIfOnboarded,
+  redirectIfAuthenticated,
+} from '@/lib/auth/requireSession';
 import { RouteError } from '@/components/RouteError';
 
 const AuthPage = React.lazy(() =>
@@ -28,11 +31,7 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     errorElement: <RouteError />,
-    async loader() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) throw redirect('/app/feed');
-      return null;
-    },
+    loader: redirectIfAuthenticated,
     element: (
       <SuspenseWrap>
         <AuthPage mode="login" />
@@ -42,11 +41,7 @@ export const router = createBrowserRouter([
   {
     path: '/signup',
     errorElement: <RouteError />,
-    async loader() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) throw redirect('/app/feed');
-      return null;
-    },
+    loader: redirectIfAuthenticated,
     element: (
       <SuspenseWrap>
         <AuthPage mode="signup" />
@@ -55,7 +50,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/onboarding',
-    loader: requireSession,
+    loader: requireSessionSkipIfOnboarded,
     errorElement: <RouteError />,
     element: (
       <SuspenseWrap>
@@ -65,7 +60,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/app',
-    loader: requireSession,
+    loader: requireOnboardedSession,
     errorElement: <RouteError />,
     element: (
       <SuspenseWrap>

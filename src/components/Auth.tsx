@@ -48,9 +48,11 @@ export function AuthPage({ mode = 'login' }: { mode?: string }) {
         if (authErr) { setError(authErr.message); return; }
         if (data.user) {
           // Create the org row — signing up user becomes the first admin
+          // Industry is chosen during the OnboardingWizard; leave the DB
+          // default in place here and let the wizard overwrite it on launch.
           const { data: org, error: orgErr } = await supabase
             .from('organizations')
-            .insert({ name: form.org || 'My Organisation', industry: 'healthcare' })
+            .insert({ name: form.org || 'My Organisation' })
             .select('id')
             .single();
           if (orgErr) { setError(orgErr.message); return; }
@@ -210,10 +212,12 @@ export function OnboardingWizard() {
 
       const orgId = profile.org_id;
 
-      // Update org industry
+      // Stamp industry + onboarded_at on the org the user created at signup.
+      // Preserve the org name the user typed on the signup form — don't
+      // overwrite it with the demo pack's placeholder.
       await supabase
         .from('organizations')
-        .update({ industry: localIndustry, name: data[localIndustry].org })
+        .update({ industry: localIndustry, onboarded_at: new Date().toISOString() })
         .eq('id', orgId);
 
       // Insert selected values
