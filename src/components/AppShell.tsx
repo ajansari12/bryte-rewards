@@ -7,6 +7,7 @@ import { GiveRecognitionModal } from './GiveModal';
 import { BRYTE_DATA } from '@/lib/data';
 import { Icon } from './Icon';
 import { useNotificationSync } from '@/lib/hooks/useNotificationSync';
+import { useCurrentUser, useCurrentOrg } from '@/lib/queries/users';
 import type { Industry, Theme, Route } from '@/lib/types';
 
 // Lazy-load less-critical page components
@@ -37,6 +38,8 @@ export function AppShell() {
   const app = useApp();
   const navigate = useNavigate();
   const { notifs, unreadCount, markAllRead } = useNotificationSync();
+  const { data: dbUser } = useCurrentUser();
+  const { data: dbOrg } = useCurrentOrg();
 
   const pathname = window.location.pathname;
   const routeSegment = pathname.split('/').pop() || 'feed';
@@ -44,10 +47,28 @@ export function AppShell() {
 
   const setRoute = (r: Route) => navigate(`/app/${r}`);
 
+  const sidebarIndustry = dbOrg?.industry || app.industry;
+  const sidebarUser = dbUser ? {
+    name: dbUser.display_name,
+    displayName: dbUser.display_name,
+    role: dbUser.role,
+    title: dbUser.title || (dbUser.role === 'admin' ? 'Admin' : dbUser.role === 'manager' ? 'Manager' : 'Team member'),
+    points: dbUser.points,
+    initials: (dbUser.display_name || '')
+      .split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]!.toUpperCase()).join('') || '—',
+  } : undefined;
+
   return (
     <Suspense fallback={null}>
     <div className="app">
-      <Sidebar route={route} setRoute={setRoute} industry={app.industry} />
+      <Sidebar
+        route={route}
+        setRoute={setRoute}
+        industry={sidebarIndustry}
+        orgName={dbOrg?.name}
+        orgTag={dbOrg ? `${(BRYTE_DATA.INDUSTRIES[dbOrg.industry]?.name) || 'Team'} · ${dbOrg.plan === 'free' ? 'Free plan' : dbOrg.plan}` : undefined}
+        user={sidebarUser}
+      />
 
       <div className="main">
         <Topbar

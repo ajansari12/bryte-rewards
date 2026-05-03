@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Icon } from './Icon';
 import { SAMPLE_NOTIFS, BRYTE_DATA } from '@/lib/data';
+import { supabase } from '@/lib/supabase';
 import type { Toast, Notification, Route } from '@/lib/types';
 
 // ─── Types ────────────────────────────────────────────
@@ -9,6 +10,8 @@ interface SidebarProps {
   route: Route;
   setRoute: (route: Route) => void;
   industry: string;
+  orgName?: string;
+  orgTag?: string;
   user?: {
     name: string;
     displayName: string;
@@ -39,7 +42,7 @@ interface NotifPanelProps {
 }
 
 // ─── Sidebar ─────────────────────────────────────────
-export function Sidebar({ route, setRoute, industry, user }: SidebarProps) {
+export function Sidebar({ route, setRoute, industry, orgName: orgNameProp, orgTag: orgTagProp, user }: SidebarProps) {
   const data = BRYTE_DATA;
   const me = user || data.CURRENT_USER;
   const [showCtx, setShowCtx] = useState(false);
@@ -55,8 +58,8 @@ export function Sidebar({ route, setRoute, industry, user }: SidebarProps) {
     { id: 'analytics', label: 'Analytics', icon: 'chart' },
     { id: 'admin', label: 'Settings & admin', icon: 'shield' },
   ];
-  const orgName = data.INDUSTRIES[industry]?.org || 'Bryte';
-  const orgTag = data.INDUSTRIES[industry]?.orgTagline || '';
+  const orgName = orgNameProp || data.INDUSTRIES[industry]?.org || 'Bryte';
+  const orgTag = orgTagProp ?? data.INDUSTRIES[industry]?.orgTagline ?? '';
 
   return (
     <aside className="sidebar">
@@ -139,7 +142,11 @@ export function Sidebar({ route, setRoute, industry, user }: SidebarProps) {
                 <Icon name="gift" size={14}/> My rewards
               </button>
               <div style={{height: 1, background: 'var(--b-border-soft)', margin: '8px 0'}}/>
-              <button className="nav-item" style={{width: '100%', margin: 0, color: 'var(--b-terra)', borderRadius: 'var(--r-md)'}}>
+              <button
+                className="nav-item"
+                style={{width: '100%', margin: 0, color: 'var(--b-terra)', borderRadius: 'var(--r-md)'}}
+                onClick={async () => { await supabase.auth.signOut(); }}
+              >
                 <Icon name="arrow" size={14}/> Sign out
               </button>
             </div>
