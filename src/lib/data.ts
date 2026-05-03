@@ -302,8 +302,6 @@ export const BRYTE_DATA: BryteData = {
     { title: 'Headphones-on Friday', points: 1500, icon: '🎧', color: '#6B2737', kind: 'experience', desc: "A full day of zero meetings. We'll block it off." },
   ],
   INTEGRATIONS: [
-    { name: 'Slack', color: '#4A154B', connected: true, desc: 'Recognise teammates with /bryte in any channel. Reactions in Slack sync back to the wall.' },
-    { name: 'Microsoft Teams', color: '#464EB8', connected: false, desc: 'Post recognitions to your Teams channels. Coming soon: adaptive cards.' },
     { name: 'Workday', color: '#F14E1C', connected: false, desc: 'Auto-import your org chart and sync new hires. Enterprise plan only.' },
     { name: 'ADP', color: '#E31837', connected: false, desc: 'Sync payroll data, employee records and org hierarchy. Enterprise plan only.' },
     { name: 'HRIS Sync', color: '#2C5F4A', connected: false, desc: 'Generic SCIM bridge for BambooHR, Rippling, and more.' },

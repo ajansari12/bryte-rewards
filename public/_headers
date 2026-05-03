@@ -1,5 +1,5 @@
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://images.unsplash.com blob:; connect-src 'self' https://bdotcbeocaxonvnsdxus.supabase.co wss://bdotcbeocaxonvnsdxus.supabase.co https://api.stripe.com https://slack.com https://api.resend.com; frame-src https://js.stripe.com; font-src 'self' data: https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://images.unsplash.com blob:; connect-src 'self' https://bdotcbeocaxonvnsdxus.supabase.co wss://bdotcbeocaxonvnsdxus.supabase.co https://api.stripe.com https://api.resend.com; frame-src https://js.stripe.com; font-src 'self' data: https://fonts.gstatic.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff

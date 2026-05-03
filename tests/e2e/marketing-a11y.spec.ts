@@ -6,7 +6,6 @@ const PAGES = [
   { name: 'Product',      path: '/marketing/Product.html' },
   { name: 'Pricing',      path: '/marketing/Pricing.html' },
   { name: 'Customers',    path: '/marketing/Customers.html' },
-  { name: 'Integrations', path: '/marketing/Integrations.html' },
   { name: 'Security',     path: '/marketing/Security.html' },
   { name: 'About',        path: '/marketing/About.html' },
   { name: 'Compare',      path: '/marketing/Compare.html' },

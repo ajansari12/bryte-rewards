@@ -7,7 +7,6 @@ import { useCurrentUser, useCurrentOrg, type NotificationPrefs } from '@/lib/que
 import { useBadges } from '@/lib/queries/badges';
 import { useMyRecognitions, type DbRecognition } from '@/lib/queries/recognitions';
 import { useUpdateNotificationPrefs } from '@/lib/mutations/useUpdateNotificationPrefs';
-import { useIntegrations } from '@/lib/queries/integrations';
 import { useOrgRedemptions } from '@/lib/queries/rewards';
 import { useApproveRedemption } from '@/lib/mutations/useApproveRedemption';
 import { supabase } from '@/lib/supabase';
@@ -919,82 +918,14 @@ function BillingEventsList({ orgId }: { orgId?: string }) {
 
 // ─── IntegrationsPanel ──────────────────────────────────
 export function IntegrationsPanel() {
-  const { data: user } = useCurrentUser();
-  const { data: integrations = [], refetch } = useIntegrations();
-  const [disconnecting, setDisconnecting] = useState(false);
-
-  const slackIntegration = integrations.find(i => i.kind === 'slack');
-  const slackTeamName = (slackIntegration?.config_json as any)?.team_name as string | undefined;
-
-  const slackClientId = import.meta.env.VITE_SLACK_CLIENT_ID;
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const slackRedirectUri = `${supabaseUrl}/functions/v1/slack-oauth-callback`;
-  const slackScopes = 'commands,chat:write,users:read';
-
-  const handleConnectSlack = () => {
-    if (!user?.org_id || !slackClientId) return;
-    const params = new URLSearchParams({
-      client_id: slackClientId,
-      scope: slackScopes,
-      redirect_uri: slackRedirectUri,
-      state: user.org_id,
-    });
-    window.location.href = `https://slack.com/oauth/v2/authorize?${params}`;
-  };
-
-  const handleDisconnectSlack = async () => {
-    if (!user?.org_id) return;
-    setDisconnecting(true);
-    await supabase.from('integrations').delete().eq('org_id', user.org_id).eq('kind', 'slack');
-    await refetch();
-    setDisconnecting(false);
-  };
-
-  const staticApps = BRYTE_DATA.INTEGRATIONS.filter(a => a.name !== 'Slack');
-
   return (
     <div>
       <div className="h3 mb-4">Connected apps</div>
       <div className="muted" style={{ fontSize: 'var(--t-small)', marginBottom: 20, maxWidth: 500 }}>
-        Recognition fits where your team already works. Connect Slack to let people recognise each other with a slash command.
+        HRIS, SSO, and workflow connectors to plug Bryte into the rest of your stack. More landing soon.
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
-        {/* Slack — live */}
-        <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12, border: slackIntegration ? '1px solid var(--b-forest-border, #A8C5A0)' : undefined }}>
-          <div className="row" style={{ gap: 12, alignItems: 'center' }}>
-            <div style={{ width: 40, height: 40, borderRadius: 8, background: '#4A154B', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16 }}>
-              S
-            </div>
-            <div className="grow">
-              <div className="serif" style={{ fontWeight: 600, color: 'var(--b-ink)' }}>Slack</div>
-              {slackIntegration && (
-                <span className="pill forest" style={{ fontSize: 9, marginTop: 2 }}>● Connected{slackTeamName ? ` · ${slackTeamName}` : ''}</span>
-              )}
-            </div>
-          </div>
-          <div className="muted" style={{ fontSize: 'var(--t-xs)', lineHeight: 1.5, minHeight: 30 }}>
-            Recognise teammates with <code style={{ background: 'var(--b-surface)', padding: '1px 4px', borderRadius: 3 }}>/recognize @Name for #value: message</code> in any channel.
-          </div>
-          {slackIntegration ? (
-            <div className="row" style={{ gap: 8, marginTop: 'auto' }}>
-              <button className="btn btn-sm btn-ghost grow" disabled={disconnecting} onClick={handleDisconnectSlack}>
-                {disconnecting ? 'Disconnecting…' : 'Disconnect'}
-              </button>
-            </div>
-          ) : (
-            <button
-              className="btn btn-sm btn-primary"
-              style={{ marginTop: 'auto' }}
-              onClick={handleConnectSlack}
-              disabled={!slackClientId}
-              title={!slackClientId ? 'VITE_SLACK_CLIENT_ID not set' : undefined}
-            >
-              Connect
-            </button>
-          )}
-        </div>
-        {/* Other apps — static */}
-        {staticApps.map(app => (
+        {BRYTE_DATA.INTEGRATIONS.map(app => (
           <div key={app.name} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="row" style={{ gap: 12, alignItems: 'center' }}>
               <div style={{ width: 40, height: 40, borderRadius: 8, background: app.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16 }}>

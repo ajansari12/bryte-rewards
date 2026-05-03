@@ -19,7 +19,6 @@ const pages = [
   { slug: 'product',     title: 'Built for the people doing the work.',   sub: 'Recognition · Badges · Rewards' },
   { slug: 'pricing',     title: 'Straight-up pricing. In CAD.',           sub: 'Per person. Per month. Zero cut on rewards.' },
   { slug: 'customers',   title: 'Canadian teams who switched.',            sub: 'Hospitality · Trades · Healthcare · Retail' },
-  { slug: 'integrations',title: 'Works where your team already does.',    sub: 'Slack · Teams · HRIS · SSO' },
   { slug: 'security',    title: 'Your data stays in Canada.',             sub: 'PIPEDA-compliant. SOC 2 in progress.' },
   { slug: 'about',       title: 'Built in Toronto.',                      sub: 'A small team with a clear mission.' },
   { slug: 'compare',     title: 'Bryte vs the rest — honestly.',         sub: 'Canadian pricing. Canadian data. No commissions.' },

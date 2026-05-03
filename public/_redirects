@@ -5,7 +5,7 @@
 /product           /marketing/Product.html      200
 /pricing           /marketing/Pricing.html      200
 /customers         /marketing/Customers.html    200
-/integrations      /marketing/Integrations.html 200
+/integrations      /product                     301
 /security          /marketing/Security.html     200
 /about             /marketing/About.html        200
 /compare           /marketing/Compare.html      200

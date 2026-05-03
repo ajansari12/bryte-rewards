@@ -45,13 +45,6 @@ const pages = [
     ogTitle: 'Customer Stories — Bryte Rewards',
   },
   {
-    file: 'Integrations.html',
-    slug: 'integrations',
-    title: 'Integrations — Bryte Rewards',
-    description: 'Slack, Microsoft Teams, HRIS, and SSO integrations that meet your team where they already work. No new app to learn.',
-    ogTitle: 'Integrations — Bryte Rewards',
-  },
-  {
     file: 'Security.html',
     slug: 'security',
     title: 'Security & Privacy — Bryte Rewards',
@@ -127,7 +120,6 @@ const SLUG_TO_PATH = {
   product: '/product',
   pricing: '/pricing',
   customers: '/customers',
-  integrations: '/integrations',
   security: '/security',
   about: '/about',
   compare: '/compare',

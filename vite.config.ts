@@ -15,7 +15,6 @@ const marketingRoutes: Record<string, string> = {
   '/product': 'Product.html',
   '/pricing': 'Pricing.html',
   '/customers': 'Customers.html',
-  '/integrations': 'Integrations.html',
   '/security': 'Security.html',
   '/about': 'About.html',
   '/compare': 'Compare.html',

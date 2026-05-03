@@ -25,12 +25,6 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://bryte.app/integrations</loc>
-    <lastmod>2026-04-28</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://bryte.app/security</loc>
     <lastmod>2026-04-28</lastmod>
     <changefreq>monthly</changefreq>
