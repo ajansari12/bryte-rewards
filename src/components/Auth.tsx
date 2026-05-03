@@ -198,30 +198,32 @@ export function OnboardingWizard() {
     setError('');
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData.session?.user;
       if (!user) { navigate('/login'); return; }
 
-      // Get the org the user created at signup
-      const { data: profile } = await supabase
-        .from('users')
-        .select('org_id')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (!profile) { navigate('/login'); return; }
+      // Ensure the caller has a users profile + org. Safe to call repeatedly:
+      // the RPC is idempotent and returns the existing org_id if one exists.
+      // This recovers users whose first signup attempt failed before the
+      // bootstrap RPC was in place.
+      const { data: bootstrappedOrgId, error: bootstrapErr } = await supabase.rpc(
+        'bootstrap_org_and_user',
+        {
+          p_org_name: 'My Organisation',
+          p_display_name: user.user_metadata?.display_name || user.email?.split('@')[0] || '',
+        }
+      );
+      if (bootstrapErr) throw bootstrapErr;
+      const orgId = bootstrappedOrgId as string;
 
-      const orgId = profile.org_id;
-
-      // Stamp industry + onboarded_at on the org the user created at signup.
-      // Preserve the org name the user typed on the signup form — don't
-      // overwrite it with the demo pack's placeholder.
-      await supabase
+      const { error: orgUpdateErr } = await supabase
         .from('organizations')
         .update({ industry: localIndustry, onboarded_at: new Date().toISOString() })
         .eq('id', orgId);
+      if (orgUpdateErr) throw orgUpdateErr;
 
-      // Insert selected values
       if (values && values.length > 0) {
-        await supabase.from('values').insert(
+        const { error: valuesErr } = await supabase.from('values').insert(
           values.map((v, i) => ({
             org_id: orgId,
             name: v.name,
@@ -230,9 +232,9 @@ export function OnboardingWizard() {
             sort_order: i + 1,
           }))
         );
+        if (valuesErr) throw valuesErr;
       }
 
-      // Insert badge definitions from the industry pack (using healthcare defaults as base)
       const industryBadges = [
         { name: 'First Recognition', icon: '✦', category: 'Milestones', criteria: 'Send your first recognition', is_seasonal: false },
         { name: 'Kindness Week', icon: '💛', category: 'Seasonal', criteria: 'Recognise 5 teammates in a week', is_seasonal: true },
@@ -244,14 +246,16 @@ export function OnboardingWizard() {
         { name: 'Heavy Lifter', icon: '💪', category: 'Consistency', criteria: 'Give 30+ recognitions in a quarter', is_seasonal: false },
         { name: 'Q1 Champion', icon: '🏆', category: 'Milestones', criteria: 'Top 10 on leaderboard for a full quarter', is_seasonal: false },
       ];
-      await supabase.from('badges').insert(
+      const { error: badgesErr } = await supabase.from('badges').insert(
         industryBadges.map(b => ({ ...b, org_id: orgId }))
       );
+      if (badgesErr) throw badgesErr;
 
-      setTimeout(() => { setLaunched(true); }, 400);
-      setTimeout(() => { navigate('/app/feed'); }, 2200);
-    } catch {
-      setError('Something went wrong. Please try again.');
+      setLaunched(true);
+      setTimeout(() => { navigate('/app/feed'); }, 1800);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : typeof e === 'object' && e && 'message' in e ? String((e as { message: unknown }).message) : 'Something went wrong. Please try again.';
+      setError(msg);
       setLaunching(false);
     } finally {
       setSaving(false);
