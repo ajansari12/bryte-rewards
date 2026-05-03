@@ -46,28 +46,27 @@ export function AuthPage({ mode = 'login' }: { mode?: string }) {
           options: { data: { display_name: form.name } },
         });
         if (authErr) { setError(authErr.message); return; }
-        if (data.user) {
-          // Create the org row — signing up user becomes the first admin
-          // Industry is chosen during the OnboardingWizard; leave the DB
-          // default in place here and let the wizard overwrite it on launch.
-          const { data: org, error: orgErr } = await supabase
-            .from('organizations')
-            .insert({ name: form.org || 'My Organisation' })
-            .select('id')
-            .single();
-          if (orgErr) { setError(orgErr.message); return; }
-          // Create the user profile row
-          const { error: profileErr } = await supabase
-            .from('users')
-            .insert({
-              id: data.user.id,
-              org_id: org.id,
-              display_name: form.name || form.email.split('@')[0],
-              role: 'admin',
-            });
-          if (profileErr) { setError(profileErr.message); return; }
-          navigate('/onboarding');
+        if (!data.user) return;
+
+        // If the project has email confirmation enabled, signUp() returns no
+        // session. Fall back to an immediate sign-in so the RPC below runs
+        // under an authenticated context.
+        if (!data.session) {
+          const { error: signInErr } = await supabase.auth.signInWithPassword({
+            email: form.email,
+            password: form.password,
+          });
+          if (signInErr) { setError(signInErr.message); return; }
         }
+
+        // Atomically create the org and the caller's admin user profile.
+        // Industry is chosen during the OnboardingWizard.
+        const { error: rpcErr } = await supabase.rpc('bootstrap_org_and_user', {
+          p_org_name: form.org || 'My Organisation',
+          p_display_name: form.name || form.email.split('@')[0],
+        });
+        if (rpcErr) { setError(rpcErr.message); return; }
+        navigate('/onboarding');
       }
     } finally {
       setSubmitting(false);
