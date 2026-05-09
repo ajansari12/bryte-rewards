@@ -109,21 +109,7 @@ export function AppShell() {
           {route === 'admin' && (
             <AdminPage onToast={app.pushToast} onOpenKudos={() => app.setShowKudos(true)} />
           )}
-          {route === 'mobile' && <MobileGalleryPage industry={app.industry} />}
-
-          {/* Footer nav */}
-          <div style={{
-            marginTop: 60, paddingTop: 20,
-            borderTop: '1px solid var(--b-border-soft)',
-            display: 'flex', gap: 24, justifyContent: 'center', flexWrap: 'wrap',
-          }}>
-            <button className="btn-text" onClick={() => setRoute('mobile')}>
-              See mobile story →
-            </button>
-            <button className="btn-text" onClick={() => navigate('/login')}>
-              ← Auth &amp; onboarding
-            </button>
-          </div>
+          {route === 'mobile' && <MobileGalleryPage industry={sidebarIndustry as Industry} />}
         </div>
       </div>
 

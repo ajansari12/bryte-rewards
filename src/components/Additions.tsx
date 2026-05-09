@@ -3,9 +3,13 @@ import { Icon } from './Icon';
 import { BRYTE_DATA } from '@/lib/data';
 import type { Recognition } from '@/lib/types';
 import { useFocusTrap } from './Extras';
-import { useCurrentUser, useCurrentOrg, type NotificationPrefs } from '@/lib/queries/users';
+import { useCurrentUser, useCurrentOrg, useOrgUsers, type NotificationPrefs } from '@/lib/queries/users';
 import { useBadges } from '@/lib/queries/badges';
 import { useMyRecognitions, type DbRecognition } from '@/lib/queries/recognitions';
+import { useComments } from '@/lib/queries/comments';
+import { usePostComment } from '@/lib/mutations/usePostComment';
+import { useAddReaction } from '@/lib/mutations/useAddReaction';
+import { useIntegrations, useToggleIntegration, INTEGRATION_CATALOG } from '@/lib/queries/integrations';
 import { useUpdateNotificationPrefs } from '@/lib/mutations/useUpdateNotificationPrefs';
 import { useOrgRedemptions } from '@/lib/queries/rewards';
 import { useApproveRedemption } from '@/lib/mutations/useApproveRedemption';
@@ -370,16 +374,32 @@ const QUICK_REACTIONS = ['❤️', '🙌', '🔥', '✦', '💛'];
 
 export function RecognitionDetail({ rec, onClose, onRecognize }: { rec: Recognition; onClose: () => void; onRecognize: () => void }) {
   const trapRef = useFocusTrap(true, onClose);
-  const comments = ((BRYTE_DATA as any).SAMPLE_COMMENTS as Array<{ author: string; role: string; text: string; time: string }>);
+  const recognitionId = rec._id ?? null;
+  const { data: dbComments = [] } = useComments(recognitionId);
+  const { data: currentUser } = useCurrentUser();
+  const postComment = usePostComment();
+  const addReaction = useAddReaction();
 
   const [reactions, setReactions] = useState<Record<string, number>>({ ...rec.reactions });
   const [myReactions, setMyReactions] = useState<Set<string>>(new Set());
   const [reply, setReply] = useState('');
 
+  const relTime = (iso: string) => {
+    const diff = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diff / 60_000);
+    if (m < 1) return 'Just now';
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h / 24)}d ago`;
+  };
+
   const toggleReaction = (emoji: string) => {
+    if (!currentUser?.id || !currentUser?.org_id || !recognitionId) return;
+    const wasMine = myReactions.has(emoji);
     setMyReactions(prev => {
       const next = new Set(prev);
-      if (next.has(emoji)) {
+      if (wasMine) {
         next.delete(emoji);
         setReactions(r => ({ ...r, [emoji]: Math.max(0, (r[emoji] || 0) - 1) }));
       } else {
@@ -388,11 +408,27 @@ export function RecognitionDetail({ rec, onClose, onRecognize }: { rec: Recognit
       }
       return next;
     });
+    addReaction.mutate({
+      recognition_id: recognitionId,
+      user_id: currentUser.id,
+      emoji,
+      org_id: currentUser.org_id,
+      toggle: !wasMine,
+    });
+  };
+
+  const sendComment = () => {
+    const body = reply.trim();
+    if (!body || !currentUser?.id || !recognitionId) return;
+    postComment.mutate(
+      { recognition_id: recognitionId, author_id: currentUser.id, body },
+      { onSuccess: () => setReply('') }
+    );
   };
 
   const onReplyKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && reply.trim()) {
-      setReply('');
+      sendComment();
     }
   };
 
@@ -473,18 +509,27 @@ export function RecognitionDetail({ rec, onClose, onRecognize }: { rec: Recognit
           {/* Comments */}
           <div style={{ marginTop: 22 }}>
             <div className="label" style={{ marginBottom: 10 }}>Comments</div>
-            {comments.map((c, i) => (
-              <div key={i} className="row" style={{ gap: 10, padding: '10px 0', borderTop: i > 0 ? '1px solid var(--b-border-soft)' : 'none' }}>
-                <div className={`avatar sm role-${c.role}`}>{initials(c.author)}</div>
-                <div className="grow">
-                  <div className="row" style={{ gap: 6 }}>
-                    <span style={{ fontWeight: 600, fontSize: 'var(--t-sm)' }}>{c.author}</span>
-                    <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>· {c.time}</span>
-                  </div>
-                  <div style={{ fontSize: 'var(--t-sm)', marginTop: 2 }}>{c.text}</div>
-                </div>
+            {dbComments.length === 0 && (
+              <div className="muted" style={{ fontSize: 'var(--t-sm)', padding: '6px 0' }}>
+                Be the first to leave a note.
               </div>
-            ))}
+            )}
+            {dbComments.map((c, i) => {
+              const name = c.author?.display_name ?? 'Teammate';
+              const role = c.author?.role ?? 'employee';
+              return (
+                <div key={c.id} className="row" style={{ gap: 10, padding: '10px 0', borderTop: i > 0 ? '1px solid var(--b-border-soft)' : 'none' }}>
+                  <div className={`avatar sm role-${role}`}>{initials(name)}</div>
+                  <div className="grow">
+                    <div className="row" style={{ gap: 6 }}>
+                      <span style={{ fontWeight: 600, fontSize: 'var(--t-sm)' }}>{name}</span>
+                      <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>· {relTime(c.created_at)}</span>
+                    </div>
+                    <div style={{ fontSize: 'var(--t-sm)', marginTop: 2 }}>{c.body}</div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Reply */}
@@ -509,10 +554,10 @@ export function RecognitionDetail({ rec, onClose, onRecognize }: { rec: Recognit
               <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>{reply.length}/280</span>
               <button
                 className="btn btn-primary btn-sm"
-                disabled={reply.trim().length < 1}
-                onClick={() => setReply('')}
+                disabled={reply.trim().length < 1 || postComment.isPending}
+                onClick={sendComment}
               >
-                Post
+                {postComment.isPending ? 'Posting…' : 'Post'}
               </button>
             </div>
           </div>
@@ -918,27 +963,45 @@ function BillingEventsList({ orgId }: { orgId?: string }) {
 
 // ─── IntegrationsPanel ──────────────────────────────────
 export function IntegrationsPanel() {
+  const { data: user } = useCurrentUser();
+  const { data: connected = [] } = useIntegrations();
+  const toggle = useToggleIntegration();
+  const isAdmin = user?.role === 'admin';
+  const connectedKinds = new Set(connected.map(c => c.kind));
+
   return (
     <div>
       <div className="h3 mb-4">Connected apps</div>
       <div className="muted" style={{ fontSize: 'var(--t-small)', marginBottom: 20, maxWidth: 500 }}>
-        HRIS, SSO, and workflow connectors to plug Bryte into the rest of your stack. More landing soon.
+        HRIS, SSO, and workflow connectors. Admins can toggle which integrations are connected; some require plan upgrades to activate fully.
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
-        {BRYTE_DATA.INTEGRATIONS.map(app => (
-          <div key={app.name} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div className="row" style={{ gap: 12, alignItems: 'center' }}>
-              <div style={{ width: 40, height: 40, borderRadius: 8, background: app.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16 }}>
-                {app.name[0]}
+        {INTEGRATION_CATALOG.map(app => {
+          const isConnected = connectedKinds.has(app.kind);
+          return (
+            <div key={app.kind} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="row" style={{ gap: 12, alignItems: 'center' }}>
+                <div style={{ width: 40, height: 40, borderRadius: 8, background: app.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16 }}>
+                  {app.name[0]}
+                </div>
+                <div className="grow">
+                  <div className="serif" style={{ fontWeight: 600, color: 'var(--b-ink)' }}>{app.name}</div>
+                  {isConnected && <div className="muted" style={{ fontSize: 10, color: 'var(--b-forest)' }}>Connected</div>}
+                </div>
               </div>
-              <div className="grow">
-                <div className="serif" style={{ fontWeight: 600, color: 'var(--b-ink)' }}>{app.name}</div>
-              </div>
+              <div className="muted" style={{ fontSize: 'var(--t-xs)', lineHeight: 1.5, minHeight: 30 }}>{app.desc}</div>
+              <button
+                className={`btn btn-sm ${isConnected ? 'btn-ghost' : 'btn-primary'}`}
+                style={{ marginTop: 'auto' }}
+                disabled={!isAdmin || toggle.isPending}
+                onClick={() => toggle.mutate({ kind: app.kind, connect: !isConnected })}
+                title={!isAdmin ? 'Only admins can change integrations' : undefined}
+              >
+                {isConnected ? 'Disconnect' : 'Connect'}
+              </button>
             </div>
-            <div className="muted" style={{ fontSize: 'var(--t-xs)', lineHeight: 1.5, minHeight: 30 }}>{app.desc}</div>
-            <button className="btn btn-sm btn-ghost" style={{ marginTop: 'auto' }} disabled>Coming soon</button>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -995,22 +1058,53 @@ export function NominationsBanner({ onVote }: { onVote?: (name: string) => void 
 }
 
 // ─── AnniversaryStrip ───────────────────────────────────
+// Shows upcoming work anniversaries based on users.start_date — the anniversary
+// day in the current year, looking 14 days ahead.
 export function AnniversaryStrip({ onCelebrate }: { onCelebrate?: (a: { name: string; years: number; date: string; tenure: string }) => void }) {
-  const A = BRYTE_DATA.ANNIVERSARIES;
+  const { data: users = [] } = useOrgUsers();
+
+  const upcoming = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const horizon = new Date(today);
+    horizon.setDate(horizon.getDate() + 14);
+
+    const items = users
+      .filter(u => !!u.start_date)
+      .map(u => {
+        const start = new Date(u.start_date!);
+        const anniv = new Date(today.getFullYear(), start.getMonth(), start.getDate());
+        if (anniv < today) anniv.setFullYear(anniv.getFullYear() + 1);
+        const years = anniv.getFullYear() - start.getFullYear();
+        return {
+          name: u.display_name,
+          years,
+          date: anniv.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }),
+          tenure: `${years}Y`,
+          when: anniv,
+        };
+      })
+      .filter(a => a.years > 0 && a.when >= today && a.when <= horizon)
+      .sort((a, b) => a.when.getTime() - b.when.getTime());
+    return items;
+  }, [users]);
+
+  if (upcoming.length === 0) return null;
+
   return (
     <div style={{ background: 'var(--b-forest-pale)', border: '1px solid var(--b-forest-border)', borderRadius: 'var(--r-lg)', padding: '16px 22px', marginBottom: 22 }}>
       <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
         <div style={{ flex: '0 0 auto' }}>
-          <div className="serif italic" style={{ fontSize: 'var(--t-xs)', color: 'var(--b-forest)', fontWeight: 600 }}>This week</div>
-          <div className="serif" style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--b-ink)', marginTop: 2 }}>🎂 Anniversaries</div>
+          <div className="serif italic" style={{ fontSize: 'var(--t-xs)', color: 'var(--b-forest)', fontWeight: 600 }}>Next two weeks</div>
+          <div className="serif" style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--b-ink)', marginTop: 2 }}>Anniversaries</div>
         </div>
         <div className="row flex-wrap" style={{ gap: 8, flex: 1, justifyContent: 'flex-end' }}>
-          {A.map(a => (
+          {upcoming.map(a => (
             <div key={a.name} className="row" style={{ gap: 8, background: 'var(--b-card)', padding: '6px 12px', borderRadius: 'var(--r-pill)', border: '1px solid var(--b-forest-border)' }}>
               <span className="mono" style={{ fontSize: 10, fontWeight: 700, color: 'var(--b-forest)' }}>{a.years}Y</span>
               <span style={{ fontSize: '0.8rem', color: 'var(--b-ink)', fontWeight: 500 }}>{a.name}</span>
               <span className="muted" style={{ fontSize: 10 }}>· {a.date}</span>
-              <button className="btn-text" style={{ fontSize: 10 }} onClick={() => onCelebrate?.(a)}>Celebrate →</button>
+              <button className="btn-text" style={{ fontSize: 10 }} onClick={() => onCelebrate?.({ name: a.name, years: a.years, date: a.date, tenure: a.tenure })}>Celebrate →</button>
             </div>
           ))}
         </div>

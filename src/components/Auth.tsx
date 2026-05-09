@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router';
 import { Icon } from './Icon';
 import { BRYTE_DATA } from '@/lib/data';
 import { supabase } from '@/lib/supabase';
+import { badgesForIndustry } from '@/lib/onboardingPresets';
 
 // ─── Auth Pages ──────────────────────────────────────
 export function AuthPage({ mode = 'login' }: { mode?: string }) {
@@ -235,19 +236,8 @@ export function OnboardingWizard() {
         if (valuesErr) throw valuesErr;
       }
 
-      const industryBadges = [
-        { name: 'First Recognition', icon: '✦', category: 'Milestones', criteria: 'Send your first recognition', is_seasonal: false },
-        { name: 'Kindness Week', icon: '💛', category: 'Seasonal', criteria: 'Recognise 5 teammates in a week', is_seasonal: true },
-        { name: 'Mentor', icon: '📖', category: 'Leadership', criteria: 'Onboard a new teammate', is_seasonal: false },
-        { name: '10-Day Streak', icon: '🔥', category: 'Consistency', criteria: 'Recognise someone 10 days in a row', is_seasonal: false },
-        { name: '100 Recognitions', icon: '🎉', category: 'Milestones', criteria: 'Team hits 100 recognitions this month', is_seasonal: false },
-        { name: 'Team Anchor', icon: '⚓', category: 'Leadership', criteria: 'Receive 20+ recognitions for Team values', is_seasonal: false },
-        { name: "Founder's Circle", icon: '✶', category: 'Milestones', criteria: 'First 50 people on your team to join Bryte', is_seasonal: false },
-        { name: 'Heavy Lifter', icon: '💪', category: 'Consistency', criteria: 'Give 30+ recognitions in a quarter', is_seasonal: false },
-        { name: 'Q1 Champion', icon: '🏆', category: 'Milestones', criteria: 'Top 10 on leaderboard for a full quarter', is_seasonal: false },
-      ];
       const { error: badgesErr } = await supabase.from('badges').insert(
-        industryBadges.map(b => ({ ...b, org_id: orgId }))
+        badgesForIndustry(localIndustry).map(b => ({ ...b, org_id: orgId }))
       );
       if (badgesErr) throw badgesErr;
 

@@ -1,36 +1,31 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Icon } from './Icon';
 import { BRYTE_DATA } from '@/lib/data';
 import type { Recognition } from '@/lib/types';
-import { useCurrentUser } from '@/lib/queries/users';
+import { useCurrentUser, useOrgUsers } from '@/lib/queries/users';
 import { useOrgRedemptions } from '@/lib/queries/rewards';
 import { useApproveRedemption } from '@/lib/mutations/useApproveRedemption';
+import { useNotificationSync } from '@/lib/hooks/useNotificationSync';
+import { useMarkNotificationsRead } from '@/lib/mutations/useMarkNotificationsRead';
 import { supabase } from '@/lib/supabase';
 
 // ─── NotificationsPage ──────────────────────────────────
-export function NotificationsPage({ onOpenRec }: { onOpenRec: (rec: Recognition) => void }) {
-  const all = (BRYTE_DATA as any).NOTIFICATIONS as Array<{
-    id: string; kind: string; actor: string; actorRole?: string; text: string; time: string;
-    unread: boolean; value?: string; emoji?: string; snippet?: string; badge?: string; icon?: string;
-  }>;
+export function NotificationsPage({ onOpenRec: _onOpenRec }: { onOpenRec: (rec: Recognition) => void }) {
+  const { notifs, unreadCount } = useNotificationSync();
+  const { data: user } = useCurrentUser();
+  const markRead = useMarkNotificationsRead();
   const [filter, setFilter] = useState<'all' | 'unread' | 'mentions'>('all');
-  const filtered = all.filter(n => filter === 'unread' ? n.unread : filter === 'mentions' ? n.kind === 'comment' : true);
-  const sample = BRYTE_DATA.INDUSTRIES.healthcare.sampleRecs[0] as any;
-
-  const handleClick = (n: typeof all[number]) => {
-    if (n.kind === 'recognition' || n.kind === 'reaction' || n.kind === 'comment') {
-      onOpenRec({ ...sample, _id: 'notif-' + n.id } as Recognition);
-    }
-  };
+  const filtered = notifs.filter(n =>
+    filter === 'unread' ? !n.read : filter === 'mentions' ? n.type === 'comment' : true
+  );
 
   const iconFor = (kind: string) => ({
-    recognition: 'sparkle',
+    received: 'sparkle',
     reaction: 'heart',
     comment: 'pen',
     badge: 'badge',
-    nomination: 'star',
+    milestone: 'star',
     approval: 'check',
-    anniversary: 'gift',
   } as Record<string, string>)[kind] || 'bell';
 
   return (
@@ -40,26 +35,33 @@ export function NotificationsPage({ onOpenRec }: { onOpenRec: (rec: Recognition)
           <h1 className="page-title">Notifications</h1>
           <div className="sub">Quiet by design. We bundle the noise so the good stuff lands.</div>
         </div>
+        {unreadCount > 0 && (
+          <button
+            className="btn-text"
+            onClick={() => user?.id && markRead.mutate(user.id)}
+          >
+            Mark all read
+          </button>
+        )}
       </div>
 
       <div className="row" style={{ gap: 8, marginBottom: 22 }}>
         <button className={'chip' + (filter === 'all' ? ' chip-active' : '')} onClick={() => setFilter('all')}>All</button>
         <button className={'chip' + (filter === 'unread' ? ' chip-active' : '')} onClick={() => setFilter('unread')}>
-          Unread <span className="mono" style={{ marginLeft: 4 }}>{all.filter(n => n.unread).length}</span>
+          Unread <span className="mono" style={{ marginLeft: 4 }}>{unreadCount}</span>
         </button>
         <button className={'chip' + (filter === 'mentions' ? ' chip-active' : '')} onClick={() => setFilter('mentions')}>Mentions</button>
       </div>
 
       <div className="card" style={{ overflow: 'hidden' }}>
         {filtered.map((n, i) => (
-          <button
+          <div
             key={n.id}
-            onClick={() => handleClick(n)}
             className="row"
             style={{
-              width: '100%', padding: 16, gap: 14, background: n.unread ? 'var(--b-cream-2)' : 'transparent',
-              border: 'none', borderBottom: i < filtered.length - 1 ? '1px solid var(--b-border-soft)' : 'none',
-              cursor: 'pointer', textAlign: 'left', color: 'var(--b-ink)',
+              width: '100%', padding: 16, gap: 14, background: !n.read ? 'var(--b-cream-2)' : 'transparent',
+              borderBottom: i < filtered.length - 1 ? '1px solid var(--b-border-soft)' : 'none',
+              textAlign: 'left', color: 'var(--b-ink)',
             }}
           >
             <div style={{
@@ -67,19 +69,15 @@ export function NotificationsPage({ onOpenRec }: { onOpenRec: (rec: Recognition)
               background: 'var(--b-cream)', display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: 'var(--b-gold)',
             }}>
-              <Icon name={iconFor(n.kind)} size={16} />
+              <Icon name={iconFor(n.type)} size={16} />
             </div>
             <div className="grow">
-              <div style={{ fontSize: 'var(--t-sm)', lineHeight: 1.4 }}>
-                <strong>{n.actor}</strong> {n.text}
-                {n.value && <span className="chip-mini" style={{ marginLeft: 6 }}>{n.value}</span>}
-              </div>
-              {n.snippet && <div className="muted" style={{ fontSize: 'var(--t-xs)', fontStyle: 'italic', marginTop: 4 }}>"{n.snippet}"</div>}
-              {n.badge && <div className="muted" style={{ fontSize: 'var(--t-xs)', marginTop: 4 }}>{n.icon || ''} {n.badge}</div>}
+              <div style={{ fontSize: 'var(--t-sm)', lineHeight: 1.4 }}>{n.msg}</div>
+              {n.sub && <div className="muted" style={{ fontSize: 'var(--t-xs)', marginTop: 4 }}>{n.sub}</div>}
               <div className="muted" style={{ fontSize: 'var(--t-xs)', marginTop: 4 }}>{n.time}</div>
             </div>
-            {n.unread && <span style={{ width: 8, height: 8, background: 'var(--b-gold)', borderRadius: '50%', flexShrink: 0 }} />}
-          </button>
+            {!n.read && <span style={{ width: 8, height: 8, background: 'var(--b-gold)', borderRadius: '50%', flexShrink: 0 }} />}
+          </div>
         ))}
         {filtered.length === 0 && (
           <div className="muted" style={{ padding: 40, textAlign: 'center' }}>You're all caught up. ✦</div>
@@ -555,22 +553,91 @@ export function ApprovalQueuePanel({ onToast }: { onToast?: (t: { kind?: 'succes
 }
 
 // ─── OrgChartPanel ──────────────────────────────────────
-type OrgNode = { name: string; role: string; title: string; tenure: string; points: number; isMe?: boolean; reports: OrgNode[] };
+// Builds a reporting tree from users.manager_id. Users whose manager isn't in
+// the current org (or is null) are treated as roots.
+interface OrgUserRow {
+  id: string;
+  display_name: string;
+  role: string;
+  title: string;
+  manager_id: string | null;
+  points: number;
+  start_date: string | null;
+}
+
+interface OrgNode {
+  id: string;
+  name: string;
+  role: string;
+  title: string;
+  tenure: string;
+  points: number;
+  isMe: boolean;
+  reports: OrgNode[];
+}
+
+function tenureFor(start: string | null): string {
+  if (!start) return '—';
+  const years = (Date.now() - new Date(start).getTime()) / (365.25 * 86_400_000);
+  if (years < 1) return `${Math.max(1, Math.round(years * 12))}mo`;
+  return `${Math.round(years)}Y`;
+}
+
+function buildTree(users: OrgUserRow[], meId: string | undefined): OrgNode[] {
+  const byId = new Map<string, OrgNode>();
+  const roots: OrgNode[] = [];
+
+  users.forEach(u => {
+    byId.set(u.id, {
+      id: u.id,
+      name: u.display_name,
+      role: u.role,
+      title: u.title || (u.role === 'admin' ? 'Admin' : u.role === 'manager' ? 'Manager' : 'Team member'),
+      tenure: tenureFor(u.start_date),
+      points: u.points,
+      isMe: u.id === meId,
+      reports: [],
+    });
+  });
+
+  byId.forEach(node => {
+    const parent = users.find(u => u.id === node.id)?.manager_id;
+    if (parent && byId.has(parent)) byId.get(parent)!.reports.push(node);
+    else roots.push(node);
+  });
+
+  return roots;
+}
 
 export function OrgChartPanel() {
-  const tree = BRYTE_DATA.ORG_TREE as OrgNode;
-  const [expanded, setExpanded] = useState(new Set(['Dr. James Morrison', 'Alex Thibodeau', 'Sofia Alvarez']));
-  const toggle = (name: string) => setExpanded(s => {
+  const { data: users = [], isLoading } = useOrgUsers();
+  const { data: me } = useCurrentUser();
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setExpanded(s => {
     const n = new Set(s);
-    if (n.has(name)) n.delete(name); else n.add(name);
+    if (n.has(id)) n.delete(id); else n.add(id);
     return n;
   });
 
+  const roots = useMemo(() => buildTree(users as unknown as OrgUserRow[], me?.id), [users, me?.id]);
+
+  // Auto-expand first two levels on first load
+  useEffect(() => {
+    if (expanded.size === 0 && roots.length > 0) {
+      const s = new Set<string>();
+      roots.forEach(r => {
+        s.add(r.id);
+        r.reports.forEach(c => s.add(c.id));
+      });
+      setExpanded(s);
+    }
+  }, [roots, expanded.size]);
+
   const renderNode = (n: OrgNode, depth = 0): React.ReactElement => {
-    const isOpen = expanded.has(n.name);
+    const isOpen = expanded.has(n.id);
     const hasReports = n.reports && n.reports.length > 0;
     return (
-      <div key={n.name} style={{ marginLeft: depth * 28, position: 'relative' }}>
+      <div key={n.id} style={{ marginLeft: depth * 28, position: 'relative' }}>
         {depth > 0 && <div style={{ position: 'absolute', left: -18, top: 0, bottom: 20, width: 1, background: 'var(--b-border)' }} />}
         {depth > 0 && <div style={{ position: 'absolute', left: -18, top: 24, width: 14, height: 1, background: 'var(--b-border)' }} />}
         <div style={{
@@ -581,7 +648,7 @@ export function OrgChartPanel() {
           borderRadius: 'var(--r-md)', position: 'relative',
         }}>
           {hasReports ? (
-            <button onClick={() => toggle(n.name)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--b-ink-3)', fontSize: 10, transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 200ms var(--ease)' }}>▶</button>
+            <button onClick={() => toggle(n.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--b-ink-3)', fontSize: 10, transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 200ms var(--ease)' }}>▶</button>
           ) : <span />}
           <div className={`avatar sm role-${n.role}`}>{_initE(n.name)}</div>
           <div style={{ overflow: 'hidden' }}>
@@ -593,10 +660,9 @@ export function OrgChartPanel() {
           </div>
           <div className="row" style={{ gap: 10 }}>
             <div className="mono" style={{ fontSize: 'var(--t-xs)', color: 'var(--b-gold)', fontWeight: 600 }}>{n.points.toLocaleString()} pts</div>
-            {!n.isMe && <button className="btn-text" style={{ fontSize: 'var(--t-xs)' }}>Recognise →</button>}
           </div>
         </div>
-        {hasReports && isOpen && <div style={{ marginLeft: 18 }}>{n.reports.map((r: OrgNode) => renderNode(r, depth + 1))}</div>}
+        {hasReports && isOpen && <div style={{ marginLeft: 18 }}>{n.reports.map(r => renderNode(r, depth + 1))}</div>}
       </div>
     );
   };
@@ -606,11 +672,21 @@ export function OrgChartPanel() {
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
           <div className="h3">Reporting tree</div>
-          <div className="muted" style={{ fontSize: 'var(--t-small)', marginTop: 4 }}>Your team and the wider chain — click any teammate to recognise them.</div>
+          <div className="muted" style={{ fontSize: 'var(--t-small)', marginTop: 4 }}>Your team and the wider chain.</div>
         </div>
-        <button className="btn-text" style={{ fontSize: 'var(--t-xs)' }} onClick={() => setExpanded(new Set())}>Collapse all</button>
+        {roots.length > 0 && (
+          <button className="btn-text" style={{ fontSize: 'var(--t-xs)' }} onClick={() => setExpanded(new Set())}>Collapse all</button>
+        )}
       </div>
-      {renderNode(tree)}
+      {isLoading ? (
+        <div className="muted" style={{ padding: 40, textAlign: 'center' }}>Loading team…</div>
+      ) : roots.length === 0 ? (
+        <div className="muted" style={{ padding: 40, textAlign: 'center' }}>
+          No teammates yet. Invite someone from Admin → Team.
+        </div>
+      ) : (
+        roots.map(r => renderNode(r))
+      )}
     </div>
   );
 }

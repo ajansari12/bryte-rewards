@@ -132,6 +132,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const fireConfetti = useCallback(() => setConfetti(c => c + 1), []);
 
+  // Global toast bus — listens for CustomEvent('bryte:toast') from mutation errors
+  useEffect(() => {
+    const h = (e: Event) => {
+      const detail = (e as CustomEvent).detail as Omit<Toast, 'id'> | undefined;
+      if (detail?.msg) pushToast(detail);
+    };
+    window.addEventListener('bryte:toast', h);
+    return () => window.removeEventListener('bryte:toast', h);
+  }, [pushToast]);
+
   return (
     <AppContext.Provider value={{
       industry, theme, showModal, toasts, confetti,

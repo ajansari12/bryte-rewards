@@ -2,13 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { Icon } from './Icon';
 import { BillingPanel, IntegrationsPanel } from './Additions';
 import { ApprovalQueuePanel, OrgChartPanel } from './Extras';
-import { useCurrentUser } from '@/lib/queries/users';
+import { useCurrentUser, useCurrentOrg } from '@/lib/queries/users';
 import { useLeaderboard } from '@/lib/queries/leaderboard';
 import { useBadges } from '@/lib/queries/badges';
 import { useRewards } from '@/lib/queries/rewards';
 import { useWeeklyActivity, useValueBreakdown } from '@/lib/queries/analytics';
 import { useOrgValues } from '@/lib/queries/values';
 import { useRequestRedemption } from '@/lib/mutations/useRequestRedemption';
+import { useQuarterlySpend, QUARTERLY_POOL } from '@/lib/queries/budget';
 
 type Toast = { kind?: 'success' | 'error' | 'info'; msg: string };
 
@@ -631,6 +632,48 @@ export function AnalyticsPage() {
   );
 }
 
+// ─── BudgetPanel ────────────────────────────────────────
+function BudgetPanel() {
+  const { data: spent = 0, isLoading } = useQuarterlySpend();
+  const pool = QUARTERLY_POOL;
+  const remaining = Math.max(0, pool - spent);
+  const pct = pool > 0 ? Math.min(100, Math.round((spent / pool) * 100)) : 0;
+
+  const now = new Date();
+  const qMonth = Math.floor(now.getMonth() / 3) * 3;
+  const qEnd = new Date(now.getFullYear(), qMonth + 3, 0);
+  const daysLeft = Math.max(0, Math.ceil((qEnd.getTime() - now.getTime()) / 86_400_000));
+  const qLabel = `Q${Math.floor(now.getMonth() / 3) + 1}`;
+
+  return (
+    <div className="card" style={{ padding: 22 }}>
+      <h3 className="serif" style={{ fontWeight: 600, marginBottom: 12 }}>Recognition budget</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 22 }}>
+        <div>
+          <div className="label">Quarterly pool</div>
+          <div className="mono" style={{ fontSize: '1.4rem', fontWeight: 700, marginTop: 4 }}>CA${pool.toLocaleString()}</div>
+        </div>
+        <div>
+          <div className="label">Spent</div>
+          <div className="mono" style={{ fontSize: '1.4rem', fontWeight: 700, marginTop: 4, color: 'var(--b-forest)' }}>
+            {isLoading ? '…' : `CA$${spent.toLocaleString()}`}
+          </div>
+        </div>
+        <div>
+          <div className="label">Remaining</div>
+          <div className="mono" style={{ fontSize: '1.4rem', fontWeight: 700, marginTop: 4, color: 'var(--b-gold)' }}>
+            {isLoading ? '…' : `CA$${remaining.toLocaleString()}`}
+          </div>
+        </div>
+      </div>
+      <div style={{ height: 14, background: 'var(--b-cream-2)', borderRadius: 7, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: 'var(--b-forest)', transition: 'width 400ms var(--ease)' }} />
+      </div>
+      <div className="muted" style={{ fontSize: 'var(--t-xs)', marginTop: 8 }}>{pct}% spent · {daysLeft} days remaining in {qLabel}</div>
+    </div>
+  );
+}
+
 // ─── AdminPage ──────────────────────────────────────────
 export function AdminPage({ onToast, onOpenKudos }: { onToast: (t: Toast) => void; onOpenKudos: () => void }) {
   const { data: orgValues = [] } = useOrgValues();
@@ -677,29 +720,7 @@ export function AdminPage({ onToast, onOpenKudos }: { onToast: (t: Toast) => voi
         </div>
       )}
 
-      {tab === 'budget' && (
-        <div className="card" style={{ padding: 22 }}>
-          <h3 className="serif" style={{ fontWeight: 600, marginBottom: 12 }}>Recognition budget</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 22 }}>
-            <div>
-              <div className="label">Quarterly pool</div>
-              <div className="mono" style={{ fontSize: '1.4rem', fontWeight: 700, marginTop: 4 }}>CA$24,000</div>
-            </div>
-            <div>
-              <div className="label">Spent</div>
-              <div className="mono" style={{ fontSize: '1.4rem', fontWeight: 700, marginTop: 4, color: 'var(--b-forest)' }}>CA$8,420</div>
-            </div>
-            <div>
-              <div className="label">Remaining</div>
-              <div className="mono" style={{ fontSize: '1.4rem', fontWeight: 700, marginTop: 4, color: 'var(--b-gold)' }}>CA$15,580</div>
-            </div>
-          </div>
-          <div style={{ height: 14, background: 'var(--b-cream-2)', borderRadius: 7, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: '35%', background: 'var(--b-forest)' }} />
-          </div>
-          <div className="muted" style={{ fontSize: 'var(--t-xs)', marginTop: 8 }}>35% spent · 62 days remaining in Q2</div>
-        </div>
-      )}
+      {tab === 'budget' && <BudgetPanel />}
 
       {tab === 'export' && (
         <div className="card" style={{ padding: 22 }}>

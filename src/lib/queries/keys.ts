@@ -14,4 +14,6 @@ export const qk = {
   currentOrg: (orgId: string) => ['org', orgId] as const,
   weeklyActivity: (orgId: string) => ['analytics', 'weekly', orgId] as const,
   valueBreakdown: (orgId: string) => ['analytics', 'values', orgId] as const,
+  comments: (recognitionId: string) => ['comments', recognitionId] as const,
+  nominations: (orgId: string) => ['nominations', orgId] as const,
 };
