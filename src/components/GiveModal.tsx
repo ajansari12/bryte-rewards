@@ -206,11 +206,10 @@ export function GiveRecognitionModal({ onClose, onDone }: GiveRecognitionModalPr
               <textarea id="give-message" className="textarea quoted"
                 placeholder="Describe what happened. Be specific — this is what makes recognition meaningful."
                 value={message} onChange={e => setMessage(e.target.value)} maxLength={500} />
-              <div className="row" style={{ justifyContent: 'space-between', marginTop: 6 }}>
+              <div className="row" style={{ justifyContent: 'flex-end', marginTop: 6 }}>
                 <span style={{ fontSize: 'var(--t-xs)', color: message.length > 420 ? 'var(--b-gold)' : 'var(--b-ink-4)' }}>
                   {message.length}/500
                 </span>
-                <button className="btn-text" style={{ fontSize: 'var(--t-xs)' }}>✦ Enhance with AI</button>
               </div>
             </div>
 

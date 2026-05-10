@@ -27,7 +27,6 @@ const CoachmarksTour = React.lazy(() => import('./Extras').then(m => ({ default:
 const KudosPrintView = React.lazy(() => import('./Extras2').then(m => ({ default: m.KudosPrintView })));
 const BadgeNominationModal = React.lazy(() => import('./Extras').then(m => ({ default: m.BadgeNominationModal })));
 const DarkModeStyles = React.lazy(() => import('./Extras2').then(m => ({ default: m.DarkModeStyles })));
-const ManagerNudgeModal = React.lazy(() => import('./Additions').then(m => ({ default: m.ManagerNudgeModal })));
 
 const titleFor: Record<string, string> = {
   feed: 'Feed', profile: 'My profile', notifications: 'Notifications',
@@ -111,7 +110,7 @@ export function AppShell() {
           {route === 'admin' && (
             <AdminPage onToast={app.pushToast} onOpenKudos={() => app.setShowKudos(true)} />
           )}
-          {route === 'mobile' && <MobileGalleryPage industry={sidebarIndustry as Industry} />}
+          {route === 'mobile' && <MobileGalleryPage />}
         </div>
       </div>
 
@@ -165,17 +164,6 @@ export function AppShell() {
         />
       )}
       <DarkModeStyles />
-      {app.nudgePerson && (
-        <ManagerNudgeModal
-          person={app.nudgePerson}
-          onClose={() => app.setNudgePerson(null)}
-          onSend={(p: string) => {
-            app.setNudgePerson(null);
-            app.pushToast({ kind: 'success', msg: `Note sent to ${p.split(' ')[0]} ✦` });
-            app.fireConfetti();
-          }}
-        />
-      )}
 
       <ToastRack toasts={app.toasts} />
       <Confetti burst={app.confetti} />
@@ -247,7 +235,7 @@ function TweaksPanel({ industry, onIndustry, theme, onTheme, onClose }: TweaksPa
 // ─── Mobile Gallery page ─────────────────────────────────
 import { MobilePreview, MobileGiveSheet } from './Mobile';
 
-function MobileGalleryPage({ industry }: { industry: Industry }) {
+function MobileGalleryPage() {
   return (
     <div>
       <div className="page-head">
@@ -259,11 +247,11 @@ function MobileGalleryPage({ industry }: { industry: Industry }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 48, justifyItems: 'center', paddingTop: 20 }}>
         <div style={{ textAlign: 'center' }}>
           <div className="label" style={{ marginBottom: 16 }}>Feed · bottom tab navigation</div>
-          <MobilePreview industry={industry} />
+          <MobilePreview />
         </div>
         <div style={{ textAlign: 'center' }}>
           <div className="label" style={{ marginBottom: 16 }}>Give recognition · bottom sheet</div>
-          <MobileGiveSheet industry={industry} />
+          <MobileGiveSheet />
         </div>
       </div>
     </div>

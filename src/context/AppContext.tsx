@@ -14,7 +14,6 @@ interface AppState {
   showSearch: boolean;
   detailRec: Recognition | null;
   showDigest: boolean;
-  nudgePerson: string | null;
   showTour: boolean;
   showKudos: boolean;
   nominateBadge: { id: string; name: string; icon: string; criteria?: string } | null;
@@ -29,7 +28,6 @@ interface AppActions {
   setShowSearch: (v: boolean) => void;
   setDetailRec: (r: Recognition | null) => void;
   setShowDigest: (v: boolean) => void;
-  setNudgePerson: (p: string | null) => void;
   setShowTour: (v: boolean) => void;
   setShowKudos: (v: boolean) => void;
   setNominateBadge: (b: { id: string; name: string; icon: string; criteria?: string } | null) => void;
@@ -50,7 +48,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [showSearch, setShowSearch] = useState(false);
   const [detailRec, setDetailRec] = useState<Recognition | null>(null);
   const [showDigest, setShowDigest] = useState(false);
-  const [nudgePerson, setNudgePerson] = useState<string | null>(null);
   const [showTour, setShowTour] = useState(false);
   const [showKudos, setShowKudos] = useState(false);
   const [nominateBadge, setNominateBadge] = useState<{ id: string; name: string; icon: string; criteria?: string } | null>(null);
@@ -146,10 +143,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       industry, theme, showModal, toasts, confetti,
       showNotifPanel, showTweaks, showSearch, detailRec, showDigest,
-      nudgePerson, showTour, showKudos, nominateBadge,
+      showTour, showKudos, nominateBadge,
       setIndustry, toggleTheme, setShowModal,
       setShowNotifPanel, setShowTweaks, setShowSearch, setDetailRec,
-      setShowDigest, setNudgePerson, setShowTour, setShowKudos, setNominateBadge,
+      setShowDigest, setShowTour, setShowKudos, setNominateBadge,
       pushToast, fireConfetti,
     }}>
       {children}

@@ -1,19 +1,39 @@
 // Mobile.tsx — phone frame preview of the feed
 
-import React from 'react';
 import { Icon } from './Icon';
-import { BRYTE_DATA } from '@/lib/data';
 import { IOSDevice } from './IosFrame';
+import { useRecognitions } from '@/lib/queries/recognitions';
+import { useCurrentOrg, useOrgUsers } from '@/lib/queries/users';
+import { useOrgValues } from '@/lib/queries/values';
+import { useFeedStats } from '@/lib/queries/analytics';
 
-export function MobilePreview({ industry }: { industry: string }) {
-  const pack = BRYTE_DATA.INDUSTRIES[industry];
-  const recs = pack.sampleRecs.slice(0, 3);
-  const initials = (n: string) => n.split(' ').map((w: string) => w[0]).slice(0,2).join('');
+const initials = (n: string) => n.split(' ').map(w => w[0]).slice(0, 2).join('');
+
+function formatRelTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60_000);
+  if (m < 1) return 'Just now';
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+}
+
+export function MobilePreview() {
+  const { data: org } = useCurrentOrg();
+  const { data: dbRecs = [] } = useRecognitions();
+  const { data: stats } = useFeedStats();
+  const recs = dbRecs.slice(0, 3);
+
+  const statStrip = stats ? [
+    { label: 'This month', num: String(stats.recognitionsThisMonth) },
+    { label: 'Participation', num: `${stats.participationPct}%` },
+    { label: 'Points', num: stats.pointsGivenThisMonth >= 1000 ? `${(stats.pointsGivenThisMonth / 1000).toFixed(1)}k` : String(stats.pointsGivenThisMonth) },
+  ] : [];
 
   return (
     <IOSDevice width={360} height={720}>
       <div style={{background: 'var(--b-canvas)', minHeight: '100%', paddingBottom: 100}}>
-        {/* Topbar */}
         <div style={{
           padding: '50px 20px 12px',
           background: 'var(--b-canvas)',
@@ -25,7 +45,7 @@ export function MobilePreview({ industry }: { industry: string }) {
               Bryte<span style={{color: 'var(--b-gold)'}}>.</span>
             </div>
             <div style={{fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', color: 'var(--b-ink-3)', textTransform: 'uppercase', marginTop: 2}}>
-              {pack.org}
+              {org?.name ?? 'Your org'}
             </div>
           </div>
           <div style={{width: 36, height: 36, borderRadius: 10, background: 'var(--b-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--b-ink-3)'}}>
@@ -33,19 +53,15 @@ export function MobilePreview({ industry }: { industry: string }) {
           </div>
         </div>
 
-        {/* Page title */}
         <div style={{padding: '18px 20px 8px'}}>
           <h1 className="page-title" style={{fontSize: '1.6rem'}}>Recognition feed</h1>
-          <div className="sub muted" style={{fontSize: 12, marginTop: 2}}>Today · Monday, April 20</div>
+          <div className="sub muted" style={{fontSize: 12, marginTop: 2}}>
+            {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+          </div>
         </div>
 
-        {/* Stat strip */}
         <div style={{display: 'flex', gap: 10, padding: '12px 20px 16px', overflowX: 'auto'}}>
-          {[
-            {label: 'This month', num: '49'},
-            {label: 'Participation', num: '92%'},
-            {label: 'Points', num: '14.3k'},
-          ].map((s, i) => (
+          {statStrip.map((s, i) => (
             <div key={i} className="stat-card" style={{minWidth: 108, padding: '12px 14px'}}>
               <div className="label" style={{fontSize: 9}}>{s.label}</div>
               <div className="mono" style={{fontSize: '1.15rem', fontWeight: 700, color: 'var(--b-gold)', marginTop: 2}}>{s.num}</div>
@@ -53,36 +69,45 @@ export function MobilePreview({ industry }: { industry: string }) {
           ))}
         </div>
 
-        {/* Feed cards */}
         <div style={{padding: '0 16px'}}>
-          {recs.map((r: any, i: number) => (
-            <article key={i} className={`rec-card ${r.type === 'milestone' ? 'type-milestone' : r.type === 'spotlight' ? 'type-spotlight' : ''}`} style={{marginBottom: 14}}>
-              <div className="strip"/>
-              <div className="rec-body" style={{padding: '14px 16px'}}>
-                <div className="rec-header" style={{marginBottom: 10}}>
-                  <div className={`avatar sm role-${r.senderRole || 'employee'}`}>{initials(r.sender)}</div>
-                  <div className="rec-names" style={{fontSize: '0.8rem'}}>
-                    <span className="rec-sender">{r.sender.split(' ')[0]}</span>{' '}
-                    <span className="rec-verb" style={{fontSize: '0.72rem'}}>recognised</span>{' '}
-                    <span className="rec-recipient">{r.recipient.split(' ')[0]}</span>
+          {recs.length === 0 && (
+            <div className="muted" style={{ padding: 40, textAlign: 'center', fontSize: 12 }}>
+              No recognitions yet. Be the first.
+            </div>
+          )}
+          {recs.map(r => {
+            const sender = (r.sender as any)?.display_name ?? 'Someone';
+            const senderRole = (r.sender as any)?.role ?? 'employee';
+            const recipient = (r.recipient as any)?.display_name ?? 'a teammate';
+            const value = (r.value as any)?.name ?? '';
+            return (
+              <article key={r.id} className={`rec-card ${r.type === 'milestone' ? 'type-milestone' : r.type === 'spotlight' ? 'type-spotlight' : ''}`} style={{marginBottom: 14}}>
+                <div className="strip"/>
+                <div className="rec-body" style={{padding: '14px 16px'}}>
+                  <div className="rec-header" style={{marginBottom: 10}}>
+                    <div className={`avatar sm role-${senderRole}`}>{initials(sender)}</div>
+                    <div className="rec-names" style={{fontSize: '0.8rem'}}>
+                      <span className="rec-sender">{sender.split(' ')[0]}</span>{' '}
+                      <span className="rec-verb" style={{fontSize: '0.72rem'}}>recognised</span>{' '}
+                      <span className="rec-recipient">{recipient.split(' ')[0]}</span>
+                    </div>
+                    <span className="rec-time" style={{fontSize: 10}}>{formatRelTime(r.created_at)}</span>
                   </div>
-                  <span className="rec-time" style={{fontSize: 10}}>{r.time}</span>
+                  <p className="rec-message" style={{fontSize: '0.82rem', lineHeight: 1.55, margin: '8px 0 10px'}}>
+                    "{r.message.length > 140 ? r.message.slice(0, 140) + '…' : r.message}"
+                  </p>
+                  <div className="rec-footer-left" style={{gap: 6}}>
+                    {value && <span className="value-seal" style={{fontSize: 10}}><span className="star">★</span> {value}</span>}
+                    <span className="dot"/>
+                    <span className="points-badge" style={{fontSize: 10}}>+{r.points} pts</span>
+                  </div>
                 </div>
-                <p className="rec-message" style={{fontSize: '0.82rem', lineHeight: 1.55, margin: '8px 0 10px'}}>
-                  "{r.message.length > 140 ? r.message.slice(0, 140) + '…' : r.message}"
-                </p>
-                <div className="rec-footer-left" style={{gap: 6}}>
-                  <span className="value-seal" style={{fontSize: 10}}><span className="star">★</span> {r.value}</span>
-                  <span className="dot"/>
-                  <span className="points-badge" style={{fontSize: 10}}>+{r.points} pts</span>
-                </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       </div>
 
-      {/* Bottom tab bar */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
         background: 'var(--b-card)',
@@ -125,9 +150,15 @@ export function MobilePreview({ industry }: { industry: string }) {
   );
 }
 
-// Mobile Give Sheet (bottom-sheet)
-export function MobileGiveSheet({ industry }: { industry: string }) {
-  const pack = BRYTE_DATA.INDUSTRIES[industry];
+export function MobileGiveSheet() {
+  const { data: values = [] } = useOrgValues();
+  const { data: users = [] } = useOrgUsers();
+  const firstValue = values[0];
+  const sampleRecipient = users[0];
+  const recentRec = useRecognitions().data?.[0];
+  const message = recentRec?.message ?? 'Write about what they did specifically. What did it make possible?';
+  const pointsPreview = firstValue?.points ?? 40;
+
   return (
     <IOSDevice width={360} height={720}>
       <div style={{background: 'rgba(28,20,16,0.3)', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end'}}>
@@ -147,16 +178,16 @@ export function MobileGiveSheet({ industry }: { industry: string }) {
             background: 'var(--b-gold-pale)', border: '1px solid var(--b-gold-border)',
             borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14
           }}>
-            <div className="avatar sm role-employee">SA</div>
+            <div className="avatar sm role-employee">{sampleRecipient ? initials(sampleRecipient.display_name) : '—'}</div>
             <div style={{flex: 1}}>
-              <div style={{fontWeight: 600, color: 'var(--b-ink)', fontSize: 13}}>Sofia Alvarez</div>
-              <div style={{fontSize: 10, color: 'var(--b-ink-3)'}}>Floor Lead</div>
+              <div style={{fontWeight: 600, color: 'var(--b-ink)', fontSize: 13}}>{sampleRecipient?.display_name ?? 'A teammate'}</div>
+              <div style={{fontSize: 10, color: 'var(--b-ink-3)'}}>{sampleRecipient?.title ?? '—'}</div>
             </div>
           </div>
 
           <label className="form-label">Value</label>
           <div style={{display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 14, paddingBottom: 4}}>
-            {pack.values.slice(0, 4).map((v: any, i: number) => (
+            {values.slice(0, 4).map((v, i) => (
               <div key={v.id} style={{
                 flexShrink: 0,
                 padding: '8px 12px',
@@ -179,14 +210,14 @@ export function MobileGiveSheet({ industry }: { industry: string }) {
             borderRadius: 10, padding: '12px 14px', minHeight: 110,
             fontSize: 13, fontStyle: 'italic', color: 'var(--b-ink-2)', lineHeight: 1.6,
           }}>
-            Caught a medication error on the 3pm round — caught it, flagged it, and walked Lily through the protocol again. Exactly the kind of steady judgment that keeps us safe.
+            {message}
           </div>
 
           <div style={{
             background: 'var(--b-forest-pale)', border: '1px solid var(--b-forest-border)',
             borderRadius: 10, padding: '10px 14px', fontSize: 12, marginTop: 14, marginBottom: 16,
           }}>
-            Sofia will receive <span className="mono" style={{fontWeight: 700, color: 'var(--b-forest)'}}>40</span> Bryte Points ✦
+            {sampleRecipient?.display_name?.split(' ')[0] ?? 'They'} will receive <span className="mono" style={{fontWeight: 700, color: 'var(--b-forest)'}}>{pointsPreview}</span> Bryte Points ✦
           </div>
 
           <button className="btn btn-celebrate btn-block btn-lg" style={{fontSize: 14}}>
