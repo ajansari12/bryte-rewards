@@ -259,6 +259,7 @@ export function SearchPalette({ onClose, onJump }: { onClose: () => void; onJump
   const [q, setQ] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const { data: orgUsers = [] } = useOrgUsers();
 
   useEffect(() => { inputRef.current?.focus(); }, []);
   useEffect(() => {
@@ -267,18 +268,33 @@ export function SearchPalette({ onClose, onJump }: { onClose: () => void; onJump
     return () => window.removeEventListener('keydown', h);
   }, [onClose]);
 
-  const ALL_ITEMS = useMemo(() => [
-    { kind: 'action' as const, label: 'Recognise someone', icon: 'sparkle', route: '__recognize' },
-    { kind: 'page' as const, label: 'Recognition feed', icon: 'feed', route: 'feed' },
-    { kind: 'page' as const, label: 'My profile', icon: 'users', route: 'profile' },
-    { kind: 'page' as const, label: 'Notifications', icon: 'bell', route: 'notifications' },
-    { kind: 'page' as const, label: 'Leaderboard', icon: 'trophy', route: 'leaderboard' },
-    { kind: 'page' as const, label: 'Badges', icon: 'badge', route: 'badges' },
-    { kind: 'page' as const, label: 'Rewards', icon: 'gift', route: 'rewards' },
-    { kind: 'page' as const, label: 'Team pulse', icon: 'users', route: 'manager' },
-    { kind: 'page' as const, label: 'Analytics', icon: 'chart', route: 'analytics' },
-    { kind: 'page' as const, label: 'Admin', icon: 'shield', route: 'admin' },
+  type Item = { kind: 'action' | 'page' | 'person'; label: string; icon: string; route: string; sub?: string };
+
+  const BASE_ITEMS: Item[] = useMemo(() => [
+    { kind: 'action', label: 'Recognise someone', icon: 'sparkle', route: '__recognize' },
+    { kind: 'page', label: 'Recognition feed', icon: 'feed', route: 'feed' },
+    { kind: 'page', label: 'My profile', icon: 'users', route: 'profile' },
+    { kind: 'page', label: 'Notifications', icon: 'bell', route: 'notifications' },
+    { kind: 'page', label: 'Leaderboard', icon: 'trophy', route: 'leaderboard' },
+    { kind: 'page', label: 'Badges', icon: 'badge', route: 'badges' },
+    { kind: 'page', label: 'Rewards', icon: 'gift', route: 'rewards' },
+    { kind: 'page', label: 'Team pulse', icon: 'users', route: 'manager' },
+    { kind: 'page', label: 'Analytics', icon: 'chart', route: 'analytics' },
+    { kind: 'page', label: 'Admin', icon: 'shield', route: 'admin' },
   ], []);
+
+  const PEOPLE_ITEMS: Item[] = useMemo(
+    () => orgUsers.map(u => ({
+      kind: 'person' as const,
+      label: u.display_name,
+      icon: 'users',
+      route: '__recognize',
+      sub: u.title || u.role,
+    })),
+    [orgUsers],
+  );
+
+  const ALL_ITEMS = useMemo(() => [...BASE_ITEMS, ...PEOPLE_ITEMS], [BASE_ITEMS, PEOPLE_ITEMS]);
 
   const scored = useMemo(() => {
     if (!q) return ALL_ITEMS.map(i => ({ ...i, score: 0, ranges: [] as [number, number][] }));
@@ -290,7 +306,8 @@ export function SearchPalette({ onClose, onJump }: { onClose: () => void; onJump
 
   const actions = scored.filter(item => item.kind === 'action');
   const pages = scored.filter(item => item.kind === 'page');
-  const flatItems = q ? scored : [...actions, ...pages];
+  const people = scored.filter(item => item.kind === 'person');
+  const flatItems = q ? scored : [...actions, ...pages, ...people];
 
   const [active, setActive] = useState(0);
   useEffect(() => { setActive(0); }, [q]);
@@ -360,6 +377,12 @@ export function SearchPalette({ onClose, onJump }: { onClose: () => void; onJump
             <>
               <div className="label" style={{ padding: '10px 14px 4px', fontSize: 10 }}>Pages</div>
               {pages.map((item, i) => renderItem(item, actions.length + i))}
+            </>
+          )}
+          {!q && people.length > 0 && (
+            <>
+              <div className="label" style={{ padding: '10px 14px 4px', fontSize: 10 }}>Teammates</div>
+              {people.slice(0, 8).map((item, i) => renderItem(item, actions.length + pages.length + i))}
             </>
           )}
           {q && flatItems.map((item, i) => renderItem(item, i))}

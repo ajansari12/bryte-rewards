@@ -185,8 +185,6 @@ export function AppShell() {
           theme={app.theme}
           onTheme={app.toggleTheme}
           onClose={() => app.setShowTweaks(false)}
-          onGoAuth={() => navigate('/login')}
-          onGoOnboarding={() => navigate('/onboarding')}
         />
       )}
     </div>
@@ -201,11 +199,9 @@ interface TweaksPanelProps {
   theme: Theme;
   onTheme: () => void;
   onClose: () => void;
-  onGoAuth: () => void;
-  onGoOnboarding: () => void;
 }
 
-function TweaksPanel({ industry, onIndustry, theme, onTheme, onClose, onGoAuth, onGoOnboarding }: TweaksPanelProps) {
+function TweaksPanel({ industry, onIndustry, theme, onTheme, onClose }: TweaksPanelProps) {
   const inds = Object.entries(BRYTE_DATA.INDUSTRIES);
   return (
     <div className="tweaks-panel">
@@ -238,16 +234,8 @@ function TweaksPanel({ industry, onIndustry, theme, onTheme, onClose, onGoAuth, 
             </button>
           </div>
         </div>
-        <div className="group">
-          <label className="group-label">Preview screens</label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <button className="tweak-chip" onClick={onGoAuth}>
-              <Icon name="arrow" size={13} /> Auth &amp; onboarding
-            </button>
-          </div>
-        </div>
         <div style={{ fontSize: 'var(--t-xs)', color: 'var(--b-ink-4)', marginTop: 12, lineHeight: 1.5 }}>
-          Switching industry reseeds the wall, values, org name, and empty state.
+          Theme and industry preferences are remembered on this device.
         </div>
       </div>
     </div>

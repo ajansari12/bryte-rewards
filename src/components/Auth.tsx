@@ -175,13 +175,21 @@ export function AuthPage({ mode = 'login' }: { mode?: string }) {
 }
 
 // ─── Onboarding Wizard ───────────────────────────────
-const ONBOARDING_STEPS = ['Welcome', 'Industry', 'Values', 'Launch'];
+const ONBOARDING_STEPS = ['Welcome', 'Industry', 'Values', 'Profile', 'Invite'];
 
 export function OnboardingWizard() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [localIndustry, setLocalIndustry] = useState('healthcare');
   const [values, setValues] = useState<Array<{ id: string; name: string; icon: string; points: number }> | null>(null);
+  const [title, setTitle] = useState('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [invites, setInvites] = useState<Array<{ email: string; role: 'employee' | 'manager' }>>([
+    { email: '', role: 'employee' },
+    { email: '', role: 'employee' },
+    { email: '', role: 'employee' },
+  ]);
   const [launching, setLaunching] = useState(false);
   const [launched, setLaunched] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -193,6 +201,16 @@ export function OnboardingWizard() {
       setValues(data[localIndustry].values.map((v: { id: string; name: string; icon: string; points: number }) => ({ ...v })));
     }
   }, [localIndustry]);
+
+  const onAvatarPick = (file: File | null) => {
+    if (!file) { setAvatarFile(null); setAvatarPreview(null); return; }
+    if (file.size > 5 * 1024 * 1024) { setError('Avatar must be under 5MB.'); return; }
+    setError('');
+    setAvatarFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setAvatarPreview(typeof reader.result === 'string' ? reader.result : null);
+    reader.readAsDataURL(file);
+  };
 
   const launch = async () => {
     setLaunching(true);
@@ -223,6 +241,27 @@ export function OnboardingWizard() {
         .eq('id', orgId);
       if (orgUpdateErr) throw orgUpdateErr;
 
+      // Upload avatar first (if any) so we can save URL with user profile update
+      let avatarUrl: string | null = null;
+      if (avatarFile) {
+        const ext = avatarFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+        const { error: uploadErr } = await supabase.storage
+          .from('avatars')
+          .upload(path, avatarFile, { upsert: true, cacheControl: '3600' });
+        if (uploadErr) throw uploadErr;
+        const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+        avatarUrl = pub.publicUrl;
+      }
+
+      const userUpdate: Record<string, string> = {};
+      if (title.trim()) userUpdate.title = title.trim();
+      if (avatarUrl) userUpdate.avatar_url = avatarUrl;
+      if (Object.keys(userUpdate).length > 0) {
+        const { error: userUpdErr } = await supabase.from('users').update(userUpdate).eq('id', user.id);
+        if (userUpdErr) throw userUpdErr;
+      }
+
       if (values && values.length > 0) {
         const { error: valuesErr } = await supabase.from('values').insert(
           values.map((v, i) => ({
@@ -240,6 +279,22 @@ export function OnboardingWizard() {
         badgesForIndustry(localIndustry).map(b => ({ ...b, org_id: orgId }))
       );
       if (badgesErr) throw badgesErr;
+
+      // Send invites (best-effort, don't block launch if one fails)
+      const pending = invites.filter(i => i.email.trim() && /.+@.+\..+/.test(i.email.trim()));
+      if (pending.length > 0) {
+        const { data: { session } } = await supabase.auth.getSession();
+        await Promise.all(pending.map(inv =>
+          fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-teammate`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.access_token}`,
+            },
+            body: JSON.stringify({ email: inv.email.trim(), org_id: orgId, role: inv.role }),
+          }).catch(() => null)
+        ));
+      }
 
       setLaunched(true);
       setTimeout(() => { navigate('/app/feed'); }, 1800);
@@ -279,7 +334,7 @@ export function OnboardingWizard() {
               <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: i === step ? 'var(--b-gold)' : 'var(--b-ink-4)' }}>{s}</span>
             </div>
             {i < ONBOARDING_STEPS.length - 1 && (
-              <div style={{ width: 64, height: 2, background: i < step ? 'var(--b-forest)' : 'var(--b-border-heavy)', margin: '-18px 0 0', transition: 'background 300ms var(--ease)' }} />
+              <div style={{ width: 48, height: 2, background: i < step ? 'var(--b-forest)' : 'var(--b-border-heavy)', margin: '-18px 0 0', transition: 'background 300ms var(--ease)' }} />
             )}
           </div>
         ))}
@@ -289,7 +344,7 @@ export function OnboardingWizard() {
         {/* Step 0 — Welcome */}
         {step === 0 && (
           <div style={{ animation: 'page-in 300ms var(--ease)' }}>
-            <div className="serif" style={{ fontSize: '0.95rem', fontStyle: 'italic', fontWeight: 400, color: 'var(--b-gold)', marginBottom: 10, fontVariationSettings: '"opsz" 18' }}>Step 1 of 4</div>
+            <div className="serif" style={{ fontSize: '0.95rem', fontStyle: 'italic', fontWeight: 400, color: 'var(--b-gold)', marginBottom: 10, fontVariationSettings: '"opsz" 18' }}>Step 1 of 5</div>
             <h1 className="page-hero" style={{ marginBottom: 18 }}>Let&apos;s set up<br />your workspace.</h1>
             <p style={{ fontSize: '1rem', color: 'var(--b-ink-3)', lineHeight: 1.7, maxWidth: 440, marginBottom: 36 }}>
               Takes about three minutes. We&apos;ll pick your industry pack, set your values, and you&apos;ll be ready to recognise your team today.
@@ -316,7 +371,7 @@ export function OnboardingWizard() {
         {/* Step 1 — Industry selection */}
         {step === 1 && (
           <div style={{ animation: 'page-in 300ms var(--ease)' }}>
-            <div className="serif" style={{ fontSize: '0.95rem', fontStyle: 'italic', fontWeight: 400, color: 'var(--b-gold)', marginBottom: 10 }}>Step 2 of 4</div>
+            <div className="serif" style={{ fontSize: '0.95rem', fontStyle: 'italic', fontWeight: 400, color: 'var(--b-gold)', marginBottom: 10 }}>Step 2 of 5</div>
             <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', fontWeight: 700, color: 'var(--b-ink)', letterSpacing: '-0.03em', marginBottom: 8, fontVariationSettings: '"opsz" 72' }}>
               What&apos;s your industry?
             </h1>
@@ -378,7 +433,7 @@ export function OnboardingWizard() {
         {/* Step 2 — Values editor */}
         {step === 2 && values && (
           <div style={{ animation: 'page-in 300ms var(--ease)' }}>
-            <div className="serif" style={{ fontSize: '0.95rem', fontStyle: 'italic', fontWeight: 400, color: 'var(--b-gold)', marginBottom: 10 }}>Step 3 of 4</div>
+            <div className="serif" style={{ fontSize: '0.95rem', fontStyle: 'italic', fontWeight: 400, color: 'var(--b-gold)', marginBottom: 10 }}>Step 3 of 5</div>
             <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', fontWeight: 700, color: 'var(--b-ink)', letterSpacing: '-0.03em', marginBottom: 8, fontVariationSettings: '"opsz" 72' }}>
               Your recognition values
             </h1>
@@ -432,22 +487,97 @@ export function OnboardingWizard() {
           </div>
         )}
 
-        {/* Step 3 — Launch */}
+        {/* Step 3 — Admin profile */}
         {step === 3 && (
-          <div style={{ animation: 'page-in 300ms var(--ease)', textAlign: 'center', paddingTop: 20 }}>
-            <div className="serif" style={{ fontSize: '0.95rem', fontStyle: 'italic', fontWeight: 400, color: 'var(--b-gold)', marginBottom: 16 }}>Step 4 of 4 · Final step</div>
-            <h1 className="page-hero" style={{ marginBottom: 20, lineHeight: 1 }}>
-              Everything&apos;s ready.
+          <div style={{ animation: 'page-in 300ms var(--ease)' }}>
+            <div className="serif" style={{ fontSize: '0.95rem', fontStyle: 'italic', fontWeight: 400, color: 'var(--b-gold)', marginBottom: 10 }}>Step 4 of 5</div>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', fontWeight: 700, color: 'var(--b-ink)', letterSpacing: '-0.03em', marginBottom: 8, fontVariationSettings: '"opsz" 72' }}>
+              A little about you
             </h1>
-            <p style={{ color: 'var(--b-ink-3)', lineHeight: 1.7, maxWidth: 440, margin: '0 auto 36px' }}>
-              Your workspace is configured. Values are set. Your team will see their first recognition wall the moment you invite them.
+            <p style={{ color: 'var(--b-ink-3)', lineHeight: 1.7, marginBottom: 28 }}>
+              Your teammates will see this on recognitions. Both fields are optional.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, maxWidth: 520, margin: '0 auto 40px' }}>
+            <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', marginBottom: 28 }}>
+              <div style={{ textAlign: 'center' }}>
+                <label htmlFor="avatar-input" style={{ cursor: 'pointer', display: 'inline-block' }}>
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="Avatar preview"
+                      style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--b-border)' }} />
+                  ) : (
+                    <div style={{
+                      width: 96, height: 96, borderRadius: '50%',
+                      background: 'var(--b-surface)', border: '2px dashed var(--b-border-heavy)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'var(--b-ink-4)',
+                    }}>
+                      <Icon name="plus" size={24} />
+                    </div>
+                  )}
+                </label>
+                <input id="avatar-input" type="file" accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={e => onAvatarPick(e.target.files?.[0] ?? null)} />
+                <div style={{ fontSize: 'var(--t-xs)', color: 'var(--b-ink-4)', marginTop: 8 }}>Add photo</div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="onb-title">Your title</label>
+                  <input id="onb-title" className="input" placeholder="Director of People &amp; Culture"
+                    value={title} onChange={e => setTitle(e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <p style={{ fontSize: 'var(--t-xs)', color: 'var(--b-terra)', marginBottom: 16 }}>{error}</p>
+            )}
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button className="btn btn-ghost" onClick={() => setStep(2)}>← Back</button>
+              <button className="btn btn-primary btn-lg" onClick={() => setStep(4)}>
+                Continue →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4 — Invite + Launch */}
+        {step === 4 && (
+          <div style={{ animation: 'page-in 300ms var(--ease)' }}>
+            <div className="serif" style={{ fontSize: '0.95rem', fontStyle: 'italic', fontWeight: 400, color: 'var(--b-gold)', marginBottom: 10 }}>Step 5 of 5 · Final step</div>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', fontWeight: 700, color: 'var(--b-ink)', letterSpacing: '-0.03em', marginBottom: 8, fontVariationSettings: '"opsz" 72' }}>
+              Invite your first teammates
+            </h1>
+            <p style={{ color: 'var(--b-ink-3)', lineHeight: 1.7, marginBottom: 24 }}>
+              Add a few people now so recognitions start flowing on day one. You can always invite more later.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+              {invites.map((inv, i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 150px', gap: 10 }}>
+                  <input className="input" type="email" placeholder="teammate@company.com"
+                    value={inv.email}
+                    onChange={e => setInvites(xs => xs.map((x, ii) => ii === i ? { ...x, email: e.target.value } : x))} />
+                  <select className="select"
+                    value={inv.role}
+                    onChange={e => setInvites(xs => xs.map((x, ii) => ii === i ? { ...x, role: e.target.value as 'employee' | 'manager' } : x))}>
+                    <option value="employee">Employee</option>
+                    <option value="manager">Manager</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+            <button className="btn btn-ghost btn-sm" style={{ marginBottom: 28 }}
+              onClick={() => setInvites(xs => [...xs, { email: '', role: 'employee' }])}>
+              <Icon name="plus" size={14} /> Add another
+            </button>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, maxWidth: 520, marginBottom: 32 }}>
               {[
                 { label: 'Values', value: values?.length || 5 },
-                { label: 'Badges ready', value: '9' },
-                { label: 'Reward brands', value: '12' },
+                { label: 'Badges ready', value: String(badgesForIndustry(localIndustry).length) },
+                { label: 'Invites ready', value: String(invites.filter(i => i.email.trim()).length) },
               ].map(s => (
                 <div key={s.label} className="stat-card" style={{ textAlign: 'center', padding: '20px 16px' }}>
                   <div className="stat-number">{s.value}</div>
@@ -460,8 +590,8 @@ export function OnboardingWizard() {
               <p style={{ fontSize: 'var(--t-xs)', color: 'var(--b-terra)', marginBottom: 16 }}>{error}</p>
             )}
 
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button className="btn btn-ghost" onClick={() => setStep(2)}>← Back</button>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button className="btn btn-ghost" onClick={() => setStep(3)}>← Back</button>
               <button className="btn btn-celebrate btn-lg" onClick={launch} disabled={launching || saving}
                 style={{ minWidth: 200, fontSize: '1rem', animation: 'pulse-celebrate 6s ease-in-out infinite' }}>
                 {launching ? 'Launching…' : 'Launch Bryte ✦'}

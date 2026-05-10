@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Icon } from './Icon';
 import { BillingPanel, IntegrationsPanel } from './Additions';
-import { ApprovalQueuePanel, OrgChartPanel } from './Extras';
+import { ApprovalQueuePanel, NominationApprovalsPanel, OrgChartPanel } from './Extras';
 import { useCurrentUser, useCurrentOrg } from '@/lib/queries/users';
 import { useLeaderboard } from '@/lib/queries/leaderboard';
 import { useBadges } from '@/lib/queries/badges';
@@ -698,7 +698,12 @@ export function AdminPage({ onToast, onOpenKudos }: { onToast: (t: Toast) => voi
 
       {tab === 'integrations' && <IntegrationsPanel />}
       {tab === 'billing' && <BillingPanel />}
-      {tab === 'approvals' && <ApprovalQueuePanel onToast={onToast} />}
+      {tab === 'approvals' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>
+          <ApprovalQueuePanel onToast={onToast} />
+          <NominationApprovalsPanel onToast={onToast} />
+        </div>
+      )}
 
       {tab === 'values' && (
         <div className="card" style={{ padding: 22 }}>

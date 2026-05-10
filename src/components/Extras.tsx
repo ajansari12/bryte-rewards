@@ -5,6 +5,7 @@ import type { Recognition } from '@/lib/types';
 import { useCurrentUser, useOrgUsers } from '@/lib/queries/users';
 import { useOrgRedemptions } from '@/lib/queries/rewards';
 import { useApproveRedemption } from '@/lib/mutations/useApproveRedemption';
+import { useNominations, useReviewNomination } from '@/lib/queries/nominations';
 import { useNotificationSync } from '@/lib/hooks/useNotificationSync';
 import { useMarkNotificationsRead } from '@/lib/mutations/useMarkNotificationsRead';
 import { supabase } from '@/lib/supabase';
@@ -541,6 +542,125 @@ export function ApprovalQueuePanel({ onToast }: { onToast?: (t: { kind?: 'succes
                   <span className={statusPill.cls} style={{ ...statusPill.style, width: 'fit-content' }}>{r.status}</span>
                   <span className="muted mono" style={{ fontSize: 'var(--t-xs)' }}>
                     {r.processed_at ? new Date(r.processed_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }) : ''}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── NominationApprovalsPanel ───────────────────────────
+export function NominationApprovalsPanel({ onToast }: { onToast?: (t: { kind?: 'success' | 'error' | 'info'; msg: string }) => void }) {
+  const { data: nominations = [], isLoading } = useNominations();
+  const review = useReviewNomination();
+  const [actioningId, setActioningId] = useState<string | null>(null);
+
+  const pending = nominations.filter(n => n.status === 'pending');
+  const processed = nominations.filter(n => n.status !== 'pending').slice(0, 8);
+
+  const handleReview = async (n: typeof pending[number], status: 'approved' | 'rejected') => {
+    setActioningId(n.id);
+    try {
+      await review.mutateAsync({
+        nomination_id: n.id,
+        status,
+        nominee_id: n.nominee_id,
+        badge_id: n.badge_id,
+      });
+      onToast?.({
+        kind: status === 'approved' ? 'success' : 'info',
+        msg: status === 'approved' ? 'Badge awarded ✦' : 'Nomination declined',
+      });
+    } catch (e) {
+      onToast?.({ kind: 'error', msg: e instanceof Error ? e.message : 'Failed' });
+    } finally {
+      setActioningId(null);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div>
+        <div className="h3" style={{ marginBottom: 8 }}>Badge nominations</div>
+        <div className="muted" style={{ fontSize: 'var(--t-small)', marginTop: 16 }}>Loading…</div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
+        <div>
+          <div className="h3">Badge nominations</div>
+          <div className="muted" style={{ fontSize: 'var(--t-small)', marginTop: 4 }}>Approve peer nominations to award badges.</div>
+        </div>
+        <span className="pill gold">{pending.length} pending</span>
+      </div>
+
+      {pending.length === 0 && (
+        <div className="card" style={{ padding: '28px 24px', textAlign: 'center', marginTop: 18 }}>
+          <div className="muted" style={{ fontSize: 'var(--t-small)' }}>No pending nominations.</div>
+        </div>
+      )}
+
+      {pending.length > 0 && (
+        <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {pending.map(n => {
+            const nominatorName = n.nominator?.display_name ?? 'Someone';
+            const nomineeName = n.nominee?.display_name ?? 'a teammate';
+            const badgeName = n.badge?.name ?? 'a badge';
+            const badgeIcon = n.badge?.icon ?? '✦';
+            const isActioning = actioningId === n.id;
+            return (
+              <div key={n.id} className="card" style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: '36px 1fr auto', gap: 14, alignItems: 'center', opacity: isActioning ? 0.6 : 1 }}>
+                <div className="avatar sm role-employee">{_initE(nominatorName)}</div>
+                <div>
+                  <div style={{ fontSize: '0.88rem', marginBottom: 3 }}>
+                    <span className="serif" style={{ fontWeight: 600, color: 'var(--b-ink)' }}>{nominatorName}</span>
+                    <span className="muted" style={{ fontSize: '0.82rem' }}> nominated </span>
+                    <span style={{ fontWeight: 600, color: 'var(--b-ink)' }}>{nomineeName}</span>
+                    <span className="muted" style={{ fontSize: '0.82rem' }}> for </span>
+                    <span style={{ fontWeight: 600, color: 'var(--b-ink)' }}>{badgeIcon} {badgeName}</span>
+                  </div>
+                  {n.reason && (
+                    <div style={{ fontSize: 'var(--t-xs)', color: 'var(--b-ink-3)', fontStyle: 'italic', lineHeight: 1.5 }}>
+                      &ldquo;{n.reason}&rdquo;
+                    </div>
+                  )}
+                </div>
+                <div className="row" style={{ gap: 6 }}>
+                  <button className="btn btn-ghost btn-sm" disabled={isActioning} onClick={() => handleReview(n, 'rejected')}>Decline</button>
+                  <button className="btn btn-primary btn-sm" disabled={isActioning} onClick={() => handleReview(n, 'approved')}>
+                    {isActioning ? '…' : 'Award →'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {processed.length > 0 && (
+        <div style={{ marginTop: 28 }}>
+          <div className="label" style={{ marginBottom: 10 }}>Recently processed</div>
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            {processed.map((n, i) => {
+              const pill = n.status === 'approved'
+                ? { cls: 'pill forest' }
+                : { cls: 'pill', style: { background: 'var(--b-terra-pale)', color: 'var(--b-terra)' } as React.CSSProperties };
+              return (
+                <div key={n.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 14, padding: '12px 18px', borderBottom: i < processed.length - 1 ? '1px solid var(--b-border-soft)' : 'none', alignItems: 'center', fontSize: 'var(--t-small)' }}>
+                  <span>
+                    <span className="serif" style={{ fontWeight: 600 }}>{n.nominee?.display_name ?? 'Unknown'}</span>
+                    <span className="muted"> · {n.badge?.icon} {n.badge?.name}</span>
+                  </span>
+                  <span className={pill.cls} style={{ ...(pill.style ?? {}), width: 'fit-content' }}>{n.status}</span>
+                  <span className="muted mono" style={{ fontSize: 'var(--t-xs)' }}>
+                    {new Date(n.created_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}
                   </span>
                 </div>
               );
