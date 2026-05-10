@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Icon } from './Icon';
-import { BRYTE_DATA } from '@/lib/data';
 import { supabase } from '@/lib/supabase';
 import { useBadges } from '@/lib/queries/badges';
 import { useMyRecognitions } from '@/lib/queries/recognitions';
@@ -44,9 +43,8 @@ interface NotifPanelProps {
 }
 
 // ─── Sidebar ─────────────────────────────────────────
-export function Sidebar({ route, setRoute, industry, orgName: orgNameProp, orgTag: orgTagProp, user }: SidebarProps) {
-  const data = BRYTE_DATA;
-  const me = user || data.CURRENT_USER;
+export function Sidebar({ route, setRoute, orgName: orgNameProp, orgTag: orgTagProp, user }: SidebarProps) {
+  const me = user;
   const [showCtx, setShowCtx] = useState(false);
   const { data: allBadges = [] } = useBadges();
   const { data: myRecs = [] } = useMyRecognitions();
@@ -80,8 +78,8 @@ export function Sidebar({ route, setRoute, industry, orgName: orgNameProp, orgTa
     { id: 'analytics', label: 'Analytics', icon: 'chart' },
     { id: 'admin', label: 'Settings & admin', icon: 'shield' },
   ];
-  const orgName = orgNameProp || data.INDUSTRIES[industry]?.org || 'Bryte';
-  const orgTag = orgTagProp ?? data.INDUSTRIES[industry]?.orgTagline ?? '';
+  const orgName = orgNameProp || 'Bryte';
+  const orgTag = orgTagProp ?? '';
 
   return (
     <aside className="sidebar">
@@ -116,6 +114,7 @@ export function Sidebar({ route, setRoute, industry, orgName: orgNameProp, orgTa
       </div>
 
       <div className="sidebar-foot">
+        {me && (
         <div className="sidebar-user" style={{cursor: 'pointer', position: 'relative'}}
           onClick={() => setShowCtx(s => !s)}
           onMouseLeave={() => setShowCtx(false)}>
@@ -173,6 +172,7 @@ export function Sidebar({ route, setRoute, industry, orgName: orgNameProp, orgTa
             </div>
           )}
         </div>
+        )}
       </div>
     </aside>
   );

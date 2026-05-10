@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Icon } from './Icon';
 import { supabase } from '@/lib/supabase';
 import { useRecognitions } from '@/lib/queries/recognitions';
+import { useFeedStats } from '@/lib/queries/analytics';
 import type { DbRecognition } from '@/lib/queries/recognitions';
 import { useCurrentUser, useCurrentOrg } from '@/lib/queries/users';
 import { useAddReaction } from '@/lib/mutations/useAddReaction';
@@ -243,6 +244,7 @@ export function FeedPage({ onRecognize, onOpenRec, onCelebrate, onVote }: FeedPa
   const { data: currentUser } = useCurrentUser();
   const { data: org } = useCurrentOrg();
   const { data: dbRecs, isLoading } = useRecognitions();
+  const { data: feedStats } = useFeedStats();
   const addReaction = useAddReaction();
 
   const today = new Date().toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -302,11 +304,32 @@ export function FeedPage({ onRecognize, onOpenRec, onCelebrate, onVote }: FeedPa
   });
 
   const totalPoints = recs.reduce((s, r) => s + r.points, 0);
-  const stats = [
-    { label: 'Recognitions this month', rawValue: recs.length, trend: '+18%', dir: 'up' },
-    { label: 'Team participation', rawValue: '92%', trend: '+4%', dir: 'up' },
-    { label: 'Points given', rawValue: totalPoints, trend: '+22%', dir: 'up' },
-  ];
+  const fmtTrend = (n: number) => (n > 0 ? `+${n}%` : n < 0 ? `${n}%` : '—');
+  const stats = feedStats
+    ? [
+        {
+          label: 'Recognitions this month',
+          rawValue: feedStats.recognitionsThisMonth,
+          trend: fmtTrend(feedStats.recognitionsTrendPct),
+          dir: feedStats.recognitionsTrendPct >= 0 ? 'up' : 'down',
+        },
+        {
+          label: 'Team participation',
+          rawValue: `${feedStats.participationPct}%`,
+          trend: fmtTrend(feedStats.participationTrendPct),
+          dir: feedStats.participationTrendPct >= 0 ? 'up' : 'down',
+        },
+        {
+          label: 'Points given',
+          rawValue: feedStats.pointsGivenThisMonth,
+          trend: fmtTrend(feedStats.pointsTrendPct),
+          dir: feedStats.pointsTrendPct >= 0 ? 'up' : 'down',
+        },
+      ]
+    : [
+        { label: 'Recognitions this month', rawValue: recs.length, trend: '—', dir: 'up' },
+        { label: 'Points given', rawValue: totalPoints, trend: '—', dir: 'up' },
+      ];
 
   const industry = org?.industry ?? 'healthcare';
   const emptyState = EMPTY_STATES[industry] ?? 'Be the first to recognise someone on your team.';
@@ -366,16 +389,6 @@ export function FeedPage({ onRecognize, onOpenRec, onCelebrate, onVote }: FeedPa
 
       <NominationsBanner onVote={onVote} />
       <AnniversaryStrip onCelebrate={onCelebrate} />
-
-      {/* Team spaces */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 16, fontSize: 'var(--t-small)', overflowX: 'auto' }}>
-        <span className="muted" style={{ paddingTop: 6, marginRight: 4 }}>Space:</span>
-        {['All company', 'Nursing', 'Admin', 'Lab', 'Management'].map((s, i) => (
-          <button key={s} className={'btn btn-sm ' + (i === 0 ? 'btn-primary' : 'btn-ghost')} style={{ whiteSpace: 'nowrap' }}>
-            {i === 0 && '🌿 '}{s}
-          </button>
-        ))}
-      </div>
 
       <div className="stat-strip" style={{ marginBottom: 22 }}>
         {stats.map((s, i) => <StatCardAnimated key={i} {...s} />)}

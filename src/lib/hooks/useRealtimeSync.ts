@@ -1,0 +1,63 @@
+import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { useCurrentUser } from '@/lib/queries/users';
+import { qk } from '@/lib/queries/keys';
+
+// Subscribes to postgres_changes across content tables and invalidates the
+// matching query keys so the UI stays fresh without manual refetches.
+export function useRealtimeSync() {
+  const { data: user } = useCurrentUser();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!user?.org_id || !user?.id) return;
+    const orgId = user.org_id;
+    const userId = user.id;
+
+    const channel = supabase
+      .channel(`org-realtime:${orgId}`)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'comments' },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as { recognition_id?: string } | null;
+          if (row?.recognition_id) {
+            queryClient.invalidateQueries({ queryKey: qk.comments(row.recognition_id) });
+          }
+          queryClient.invalidateQueries({ queryKey: qk.recognitions(orgId) });
+        },
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'reactions' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: qk.recognitions(orgId) });
+        },
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'redemptions' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: qk.redemptions(userId) });
+          queryClient.invalidateQueries({ queryKey: qk.orgRedemptions(orgId) });
+        },
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'nominations' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: qk.nominations(orgId) });
+        },
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'recognitions' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: qk.recognitions(orgId) });
+          queryClient.invalidateQueries({ queryKey: qk.feedStats(orgId) });
+          queryClient.invalidateQueries({ queryKey: qk.leaderboard(orgId, 'week') });
+          queryClient.invalidateQueries({ queryKey: qk.leaderboard(orgId, 'month') });
+          queryClient.invalidateQueries({ queryKey: qk.leaderboard(orgId, 'quarter') });
+        },
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.org_id, user?.id, queryClient]);
+}

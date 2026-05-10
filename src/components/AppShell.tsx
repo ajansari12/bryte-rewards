@@ -7,6 +7,7 @@ import { GiveRecognitionModal } from './GiveModal';
 import { BRYTE_DATA } from '@/lib/data';
 import { Icon } from './Icon';
 import { useNotificationSync } from '@/lib/hooks/useNotificationSync';
+import { useRealtimeSync } from '@/lib/hooks/useRealtimeSync';
 import { useCurrentUser, useCurrentOrg } from '@/lib/queries/users';
 import type { Industry, Theme, Route } from '@/lib/types';
 
@@ -38,6 +39,7 @@ export function AppShell() {
   const app = useApp();
   const navigate = useNavigate();
   const { notifs, unreadCount, markAllRead } = useNotificationSync();
+  useRealtimeSync();
   const { data: dbUser } = useCurrentUser();
   const { data: dbOrg } = useCurrentOrg();
 

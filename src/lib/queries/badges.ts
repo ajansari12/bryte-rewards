@@ -14,6 +14,35 @@ export interface DbBadge {
   awarded_at: string | null;
 }
 
+export interface DbBadgeAdmin {
+  id: string;
+  org_id: string;
+  name: string;
+  icon: string;
+  category: string;
+  criteria: string;
+  is_seasonal: boolean;
+}
+
+export function useAllBadges() {
+  const { data: user } = useCurrentUser();
+  return useQuery({
+    queryKey: ['badges', 'all', user?.org_id ?? ''] as const,
+    queryFn: async () => {
+      if (!user?.org_id) return [];
+      const { data, error } = await supabase
+        .from('badges')
+        .select('id, org_id, name, icon, category, criteria, is_seasonal')
+        .eq('org_id', user.org_id)
+        .order('category');
+      if (error) throw error;
+      return (data ?? []) as DbBadgeAdmin[];
+    },
+    enabled: !!user?.org_id && user.role === 'admin',
+    staleTime: 60_000,
+  });
+}
+
 export function useBadges() {
   const { data: user } = useCurrentUser();
   return useQuery({

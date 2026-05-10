@@ -48,6 +48,25 @@ export function useRewards() {
   });
 }
 
+export function useAllRewards() {
+  const { data: user } = useCurrentUser();
+  return useQuery({
+    queryKey: ['rewards', 'all', user?.org_id ?? ''] as const,
+    queryFn: async () => {
+      if (!user?.org_id) return [];
+      const { data, error } = await supabase
+        .from('rewards')
+        .select('*')
+        .eq('org_id', user.org_id)
+        .order('points');
+      if (error) throw error;
+      return (data ?? []) as DbReward[];
+    },
+    enabled: !!user?.org_id && user.role === 'admin',
+    staleTime: 60_000,
+  });
+}
+
 export function useMyRedemptions() {
   const { data: user } = useCurrentUser();
   return useQuery({

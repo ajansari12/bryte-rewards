@@ -1,7 +1,8 @@
 // Extras2.tsx — Dark mode styles + Kudos print view
 
 import { Icon } from './Icon';
-import { BRYTE_DATA } from '@/lib/data';
+import { useRecognitions } from '@/lib/queries/recognitions';
+import { useCurrentOrg } from '@/lib/queries/users';
 
 // Injects dark-mode CSS variables when data-theme="dark"
 export function DarkModeStyles() {
@@ -35,8 +36,16 @@ export function DarkModeStyles() {
 
 // Kudos board print view — printable 11x8.5 sheet of recent recognitions
 export function KudosPrintView({ onClose }: { onClose?: () => void }) {
-  const recs = BRYTE_DATA.INDUSTRIES.healthcare.sampleRecs.slice(0, 6);
+  const { data: dbRecs = [] } = useRecognitions();
+  const { data: org } = useCurrentOrg();
+  const recs = dbRecs.slice(0, 6).map(r => ({
+    value: (r.value as any)?.name ?? '',
+    message: r.message,
+    sender: (r.sender as any)?.display_name ?? '',
+    recipient: (r.recipient as any)?.display_name ?? '',
+  }));
   const printNow = () => { window.print(); };
+  const headline = org?.name ? `${org.name} · this week` : 'This week';
 
   return (
     <div className="modal-backdrop" onClick={onClose} style={{background: 'rgba(28,20,16,0.85)'}}>
@@ -54,11 +63,16 @@ export function KudosPrintView({ onClose }: { onClose?: () => void }) {
         <div style={{overflow: 'auto', flex: 1, padding: 24, background: 'var(--b-ink)'}}>
           <div id="print-sheet" style={{background: '#FAF6EF', padding: '48px 56px', borderRadius: 6, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', margin: '0 auto', maxWidth: 820, aspectRatio: '11 / 8.5', display: 'flex', flexDirection: 'column'}}>
             <div style={{textAlign: 'center', marginBottom: 28, paddingBottom: 18, borderBottom: '2px solid #1F1815'}}>
-              <div style={{fontFamily: 'Fraunces', fontStyle: 'italic', fontSize: 16, color: '#C2882D', marginBottom: 4}}>Mapleview Medical · this week</div>
+              <div style={{fontFamily: 'Fraunces', fontStyle: 'italic', fontSize: 16, color: '#C2882D', marginBottom: 4}}>{headline}</div>
               <div style={{fontFamily: 'Fraunces', fontSize: 42, fontWeight: 700, letterSpacing: '-0.03em', color: '#1F1815', lineHeight: 1, fontVariationSettings: '"opsz" 144'}}>Kudos, team.</div>
             </div>
             <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, flex: 1}}>
-              {recs.map((r: any, i: number) => (
+              {recs.length === 0 && (
+                <div style={{gridColumn: '1 / -1', textAlign: 'center', padding: 40, color: '#6F6558', fontStyle: 'italic'}}>
+                  No recognitions to print yet.
+                </div>
+              )}
+              {recs.map((r, i) => (
                 <div key={i} style={{background: 'white', border: '1px solid #DED4C3', borderRadius: 6, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8}}>
                   <div style={{fontFamily: 'Fraunces', fontStyle: 'italic', fontSize: 11, color: '#C2882D'}}>{r.value}</div>
                   <div style={{fontFamily: 'Fraunces', fontSize: 13, color: '#1F1815', lineHeight: 1.5, fontStyle: 'italic', flex: 1}}>"{r.message.length > 120 ? r.message.slice(0,120) + '…' : r.message}"</div>

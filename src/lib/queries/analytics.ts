@@ -75,6 +75,81 @@ function getISOWeekLabel(d: Date): string {
   return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
+export interface FeedStats {
+  recognitionsThisMonth: number;
+  recognitionsTrendPct: number;
+  pointsGivenThisMonth: number;
+  pointsTrendPct: number;
+  participationPct: number;
+  participationTrendPct: number;
+}
+
+export function useFeedStats() {
+  const { data: user } = useCurrentUser();
+  return useQuery({
+    queryKey: qk.feedStats(user?.org_id ?? ''),
+    queryFn: async (): Promise<FeedStats> => {
+      const empty: FeedStats = {
+        recognitionsThisMonth: 0, recognitionsTrendPct: 0,
+        pointsGivenThisMonth: 0, pointsTrendPct: 0,
+        participationPct: 0, participationTrendPct: 0,
+      };
+      if (!user?.org_id) return empty;
+
+      const now = new Date();
+      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+      const { data: recs, error } = await supabase
+        .from('recognitions')
+        .select('sender_id, recipient_id, points, created_at')
+        .eq('org_id', user.org_id)
+        .gte('created_at', prevMonthStart.toISOString());
+      if (error) throw error;
+
+      const { count: orgUserCount } = await supabase
+        .from('users')
+        .select('id', { count: 'exact', head: true })
+        .eq('org_id', user.org_id);
+      const totalUsers = orgUserCount ?? 0;
+
+      const thisMonth = (recs ?? []).filter(r => new Date(r.created_at) >= thisMonthStart);
+      const prevMonth = (recs ?? []).filter(r => new Date(r.created_at) < thisMonthStart);
+
+      const pointsThis = thisMonth.reduce((s, r) => s + (r.points ?? 0), 0);
+      const pointsPrev = prevMonth.reduce((s, r) => s + (r.points ?? 0), 0);
+
+      const activeThis = new Set<string>();
+      for (const r of thisMonth) {
+        activeThis.add(r.sender_id);
+        activeThis.add(r.recipient_id);
+      }
+      const activePrev = new Set<string>();
+      for (const r of prevMonth) {
+        activePrev.add(r.sender_id);
+        activePrev.add(r.recipient_id);
+      }
+
+      const pct = (cur: number, prev: number) =>
+        prev === 0 ? (cur > 0 ? 100 : 0) : Math.round(((cur - prev) / prev) * 100);
+
+      const participationThis = totalUsers > 0 ? Math.round((activeThis.size / totalUsers) * 100) : 0;
+      const participationPrev = totalUsers > 0 ? Math.round((activePrev.size / totalUsers) * 100) : 0;
+
+      return {
+        recognitionsThisMonth: thisMonth.length,
+        recognitionsTrendPct: pct(thisMonth.length, prevMonth.length),
+        pointsGivenThisMonth: pointsThis,
+        pointsTrendPct: pct(pointsThis, pointsPrev),
+        participationPct: participationThis,
+        participationTrendPct: participationThis - participationPrev,
+      };
+    },
+    enabled: !!user?.org_id,
+    staleTime: 300_000,
+  });
+}
+
 export function useValueBreakdown() {
   const { data: user } = useCurrentUser();
   return useQuery({

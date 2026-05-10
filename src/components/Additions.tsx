@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Icon } from './Icon';
-import { BRYTE_DATA } from '@/lib/data';
 import type { Recognition } from '@/lib/types';
 import { useFocusTrap } from './Extras';
 import { useCurrentUser, useCurrentOrg, useOrgUsers, type NotificationPrefs } from '@/lib/queries/users';
 import { useBadges } from '@/lib/queries/badges';
 import { useLeaderboard } from '@/lib/queries/leaderboard';
+import { useCastVote, useMonthlyVotes } from '@/lib/mutations/useCastVote';
 import { useRecognitions, useMyRecognitions, type DbRecognition } from '@/lib/queries/recognitions';
 import { useComments } from '@/lib/queries/comments';
 import { usePostComment } from '@/lib/mutations/usePostComment';
@@ -616,8 +616,7 @@ export function DigestPreview({ onClose, onToast }: { onClose: () => void; onToa
     sender: (r.sender as any)?.display_name ?? 'Someone',
     recipient: (r.recipient as any)?.display_name ?? 'a teammate',
   }));
-  const fallback = BRYTE_DATA.INDUSTRIES.healthcare.sampleRecs.slice(0, 3);
-  const display = recs.length > 0 ? recs : fallback;
+  const display = recs;
 
   const stats = {
     recognitions: weekRecs.length,
@@ -1088,17 +1087,29 @@ export function IntegrationsPanel() {
 }
 
 // ─── NominationsBanner ──────────────────────────────────
-// Shows this month's top contributors drawn from recognitions points. Acts as
-// a "teammate of the month" shortlist — voting is local UI only (no votes table).
 export function NominationsBanner({ onVote }: { onVote?: (name: string) => void }) {
   const { data: leaderboard = [] } = useLeaderboard('month');
+  const { data: currentUser } = useCurrentUser();
+  const { data: votes = [] } = useMonthlyVotes();
+  const castVote = useCastVote();
   const top = useMemo(() => leaderboard.slice(0, 3).map(l => ({
+    id: l.user_id,
     name: l.display_name,
     role: l.role,
     points: l.points,
     quote: `${l.points.toLocaleString()} pts recognised this month.`,
   })), [leaderboard]);
-  const [votedFor, setVotedFor] = useState<string | null>(null);
+
+  const voteCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const v of votes) counts[v.nominee_id] = (counts[v.nominee_id] ?? 0) + 1;
+    return counts;
+  }, [votes]);
+
+  const myVote = useMemo(
+    () => votes.find(v => v.voter_id === currentUser?.id)?.nominee_id ?? null,
+    [votes, currentUser?.id],
+  );
 
   if (top.length === 0) return null;
   return (
@@ -1119,28 +1130,37 @@ export function NominationsBanner({ onVote }: { onVote?: (name: string) => void 
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, flex: '2 1 400px', flexWrap: 'wrap' }}>
-          {top.map(n => (
-            <button key={n.name} onClick={() => { setVotedFor(n.name); onVote?.(n.name); }} style={{
-              background: votedFor === n.name ? 'var(--b-gold)' : 'rgba(255,255,255,0.06)',
-              border: '1px solid ' + (votedFor === n.name ? 'var(--b-gold)' : 'rgba(255,255,255,0.12)'),
+          {top.map(n => {
+            const voted = myVote === n.id;
+            const count = voteCounts[n.id] ?? 0;
+            return (
+            <button key={n.id} disabled={castVote.isPending} onClick={async () => {
+              try {
+                await castVote.mutateAsync(n.id);
+                onVote?.(n.name);
+              } catch {/* ignore */}
+            }} style={{
+              background: voted ? 'var(--b-gold)' : 'rgba(255,255,255,0.06)',
+              border: '1px solid ' + (voted ? 'var(--b-gold)' : 'rgba(255,255,255,0.12)'),
               borderRadius: 'var(--r-md)', padding: '12px 14px',
-              cursor: 'pointer', flex: '1 1 140px',
+              cursor: castVote.isPending ? 'wait' : 'pointer', flex: '1 1 140px',
               textAlign: 'left', transition: 'all 200ms var(--ease)',
-              color: votedFor === n.name ? '#FAF6EF' : 'var(--b-canvas)',
+              color: voted ? '#FAF6EF' : 'var(--b-canvas)',
             }}
-            onMouseEnter={e => { if (votedFor !== n.name) e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
-            onMouseLeave={e => { if (votedFor !== n.name) e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}>
+            onMouseEnter={e => { if (!voted) e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
+            onMouseLeave={e => { if (!voted) e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}>
               <div className="row" style={{ gap: 8, marginBottom: 6 }}>
                 <div className={`avatar sm role-${n.role}`} style={{ border: '2px solid rgba(255,255,255,0.2)' }}>{initials(n.name)}</div>
                 <div>
                   <div className="serif" style={{ fontSize: '0.8rem', fontWeight: 600 }}>{n.name}</div>
-                  <div style={{ fontSize: 9, opacity: 0.7 }}>{n.points.toLocaleString()} pts</div>
+                  <div style={{ fontSize: 9, opacity: 0.7 }}>{n.points.toLocaleString()} pts · {count} vote{count === 1 ? '' : 's'}</div>
                 </div>
               </div>
               <div style={{ fontSize: 'var(--t-xs)', opacity: 0.8, fontStyle: 'italic', lineHeight: 1.4 }}>"{n.quote}"</div>
-              {votedFor === n.name && <div style={{ fontSize: 10, fontWeight: 700, marginTop: 8, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="check" size={10} stroke={3} /> VOTED</div>}
+              {voted && <div style={{ fontSize: 10, fontWeight: 700, marginTop: 8, display: 'flex', alignItems: 'center', gap: 4 }}><Icon name="check" size={10} stroke={3} /> VOTED</div>}
             </button>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

@@ -4,8 +4,10 @@ import { BillingPanel, IntegrationsPanel } from './Additions';
 import { ApprovalQueuePanel, NominationApprovalsPanel, OrgChartPanel } from './Extras';
 import { useCurrentUser, useCurrentOrg } from '@/lib/queries/users';
 import { useLeaderboard } from '@/lib/queries/leaderboard';
-import { useBadges } from '@/lib/queries/badges';
-import { useRewards } from '@/lib/queries/rewards';
+import { useBadges, useAllBadges } from '@/lib/queries/badges';
+import { useRewards, useAllRewards } from '@/lib/queries/rewards';
+import { useUpdateRewards, type RewardDraft } from '@/lib/mutations/useUpdateRewards';
+import { useUpdateBadges, type BadgeDraft } from '@/lib/mutations/useUpdateBadges';
 import { useWeeklyActivity, useValueBreakdown } from '@/lib/queries/analytics';
 import { useOrgValues } from '@/lib/queries/values';
 import { useUpdateValues } from '@/lib/mutations/useUpdateValues';
@@ -794,6 +796,297 @@ function ValuesEditor({ onToast }: { onToast: (t: Toast) => void }) {
   );
 }
 
+// ─── RewardsEditor ──────────────────────────────────────
+const REWARD_KINDS = ['gift', 'experience', 'donate'] as const;
+const REWARD_COLORS = ['#4A90A4', '#E8836A', '#6BA886', '#C68B3B', '#8B5A3C', '#5D7BA0'];
+
+function RewardsEditor({ onToast }: { onToast: (t: Toast) => void }) {
+  const { data: rewards = [], isLoading } = useAllRewards();
+  const { data: currentUser } = useCurrentUser();
+  const updateRewards = useUpdateRewards();
+  const [drafts, setDrafts] = useState<(RewardDraft & { _key: string })[]>([]);
+  const [deletedIds, setDeletedIds] = useState<string[]>([]);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    if (!dirty) {
+      setDrafts(rewards.map(r => ({
+        _key: r.id,
+        id: r.id, title: r.title, brand: r.brand, denom: r.denom,
+        points: r.points, color: r.color, kind: r.kind, active: r.active,
+      })));
+      setDeletedIds([]);
+    }
+  }, [rewards, dirty]);
+
+  const update = (i: number, patch: Partial<RewardDraft>) => {
+    setDirty(true);
+    setDrafts(arr => arr.map((v, idx) => idx === i ? { ...v, ...patch } : v));
+  };
+
+  const add = () => {
+    setDirty(true);
+    setDrafts(arr => [...arr, {
+      _key: `new-${Date.now()}-${arr.length}`,
+      title: 'New reward', brand: '', denom: '', points: 500,
+      color: REWARD_COLORS[arr.length % REWARD_COLORS.length],
+      kind: 'gift', active: true,
+    }]);
+  };
+
+  const remove = (i: number) => {
+    setDirty(true);
+    const item = drafts[i];
+    if (item.id) setDeletedIds(ids => [...ids, item.id!]);
+    setDrafts(arr => arr.filter((_, idx) => idx !== i));
+  };
+
+  const save = async () => {
+    if (!currentUser?.org_id) return;
+    const clean = drafts
+      .map(({ _key, ...r }) => ({ ...r, title: r.title.trim() }))
+      .filter(r => r.title.length > 0);
+    try {
+      await updateRewards.mutateAsync({
+        org_id: currentUser.org_id,
+        rewards: clean,
+        deletedIds,
+      });
+      setDirty(false);
+      setDeletedIds([]);
+      onToast({ kind: 'success', msg: 'Rewards saved' });
+    } catch (err) {
+      onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Failed to save' });
+    }
+  };
+
+  const cancel = () => {
+    setDirty(false);
+    setDeletedIds([]);
+    setDrafts(rewards.map(r => ({
+      _key: r.id,
+      id: r.id, title: r.title, brand: r.brand, denom: r.denom,
+      points: r.points, color: r.color, kind: r.kind, active: r.active,
+    })));
+  };
+
+  return (
+    <div className="card" style={{ padding: 22 }}>
+      <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+        <div>
+          <h3 className="serif" style={{ fontWeight: 600 }}>Rewards catalog</h3>
+          <div className="muted" style={{ fontSize: 'var(--t-sm)', marginTop: 4 }}>Gift cards, experiences, and donations your team can redeem points for.</div>
+        </div>
+        {dirty && (
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={cancel} disabled={updateRewards.isPending}>Cancel</button>
+            <button className="btn btn-primary btn-sm" onClick={save} disabled={updateRewards.isPending}>
+              {updateRewards.isPending ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        )}
+      </div>
+      {isLoading ? (
+        <div className="muted" style={{ padding: 20, textAlign: 'center' }}>Loading…</div>
+      ) : (
+        <>
+          {drafts.length === 0 && (
+            <div className="muted" style={{ padding: 20, textAlign: 'center' }}>No rewards yet. Add one below.</div>
+          )}
+          {drafts.map((r, i) => (
+            <div key={r._key} style={{ padding: '12px 0', borderBottom: '1px solid var(--b-border-soft)', display: 'grid', gridTemplateColumns: '1fr 1fr 90px 110px 90px auto', gap: 8, alignItems: 'center' }}>
+              <input
+                value={r.title}
+                onChange={e => update(i, { title: e.target.value })}
+                placeholder="Title"
+                style={{ padding: '8px 10px', border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)', background: 'var(--b-cream-2)', fontSize: 'var(--t-sm)' }}
+              />
+              <input
+                value={r.brand}
+                onChange={e => update(i, { brand: e.target.value })}
+                placeholder="Brand / description"
+                style={{ padding: '8px 10px', border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)', background: 'var(--b-cream-2)', fontSize: 'var(--t-sm)' }}
+              />
+              <input
+                value={r.denom}
+                onChange={e => update(i, { denom: e.target.value })}
+                placeholder="$25"
+                style={{ padding: '8px 10px', border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)', background: 'var(--b-cream-2)', fontSize: 'var(--t-sm)' }}
+              />
+              <select
+                value={r.kind}
+                onChange={e => update(i, { kind: e.target.value })}
+                style={{ padding: '8px 10px', border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)', background: 'var(--b-cream-2)', fontSize: 'var(--t-sm)' }}
+              >
+                {REWARD_KINDS.map(k => <option key={k} value={k}>{k}</option>)}
+              </select>
+              <input
+                type="number"
+                value={r.points}
+                onChange={e => update(i, { points: Math.max(0, parseInt(e.target.value) || 0) })}
+                style={{ padding: '8px 10px', border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)', background: 'var(--b-cream-2)', textAlign: 'right', fontFamily: 'var(--f-mono)' }}
+              />
+              <div className="row" style={{ gap: 6 }}>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => update(i, { active: !r.active })}
+                  title={r.active ? 'Active' : 'Inactive'}
+                  style={{ opacity: r.active ? 1 : 0.5 }}
+                >
+                  {r.active ? 'On' : 'Off'}
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => remove(i)} title="Remove">
+                  <Icon name="close" size={12} />
+                </button>
+              </div>
+            </div>
+          ))}
+          <button className="btn btn-text btn-sm" style={{ marginTop: 14 }} onClick={add}>+ Add reward</button>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── BadgesEditor ───────────────────────────────────────
+function BadgesEditor({ onToast }: { onToast: (t: Toast) => void }) {
+  const { data: badges = [], isLoading } = useAllBadges();
+  const { data: currentUser } = useCurrentUser();
+  const updateBadges = useUpdateBadges();
+  const [drafts, setDrafts] = useState<(BadgeDraft & { _key: string })[]>([]);
+  const [deletedIds, setDeletedIds] = useState<string[]>([]);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    if (!dirty) {
+      setDrafts(badges.map(b => ({
+        _key: b.id,
+        id: b.id, name: b.name, icon: b.icon, category: b.category,
+        criteria: b.criteria, is_seasonal: b.is_seasonal,
+      })));
+      setDeletedIds([]);
+    }
+  }, [badges, dirty]);
+
+  const update = (i: number, patch: Partial<BadgeDraft>) => {
+    setDirty(true);
+    setDrafts(arr => arr.map((v, idx) => idx === i ? { ...v, ...patch } : v));
+  };
+
+  const add = () => {
+    setDirty(true);
+    setDrafts(arr => [...arr, {
+      _key: `new-${Date.now()}-${arr.length}`,
+      name: 'New badge', icon: '✦', category: 'Milestones',
+      criteria: '', is_seasonal: false,
+    }]);
+  };
+
+  const remove = (i: number) => {
+    setDirty(true);
+    const item = drafts[i];
+    if (item.id) setDeletedIds(ids => [...ids, item.id!]);
+    setDrafts(arr => arr.filter((_, idx) => idx !== i));
+  };
+
+  const save = async () => {
+    if (!currentUser?.org_id) return;
+    const clean = drafts
+      .map(({ _key, ...b }) => ({ ...b, name: b.name.trim() }))
+      .filter(b => b.name.length > 0);
+    try {
+      await updateBadges.mutateAsync({
+        org_id: currentUser.org_id,
+        badges: clean,
+        deletedIds,
+      });
+      setDirty(false);
+      setDeletedIds([]);
+      onToast({ kind: 'success', msg: 'Badges saved' });
+    } catch (err) {
+      onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Failed to save' });
+    }
+  };
+
+  const cancel = () => {
+    setDirty(false);
+    setDeletedIds([]);
+    setDrafts(badges.map(b => ({
+      _key: b.id,
+      id: b.id, name: b.name, icon: b.icon, category: b.category,
+      criteria: b.criteria, is_seasonal: b.is_seasonal,
+    })));
+  };
+
+  return (
+    <div className="card" style={{ padding: 22 }}>
+      <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+        <div>
+          <h3 className="serif" style={{ fontWeight: 600 }}>Badges</h3>
+          <div className="muted" style={{ fontSize: 'var(--t-sm)', marginTop: 4 }}>Milestones and recognitions your team can earn and nominate each other for.</div>
+        </div>
+        {dirty && (
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={cancel} disabled={updateBadges.isPending}>Cancel</button>
+            <button className="btn btn-primary btn-sm" onClick={save} disabled={updateBadges.isPending}>
+              {updateBadges.isPending ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        )}
+      </div>
+      {isLoading ? (
+        <div className="muted" style={{ padding: 20, textAlign: 'center' }}>Loading…</div>
+      ) : (
+        <>
+          {drafts.length === 0 && (
+            <div className="muted" style={{ padding: 20, textAlign: 'center' }}>No badges yet. Add one below.</div>
+          )}
+          {drafts.map((b, i) => (
+            <div key={b._key} style={{ padding: '12px 0', borderBottom: '1px solid var(--b-border-soft)', display: 'grid', gridTemplateColumns: '46px 1fr 140px 1fr auto auto', gap: 8, alignItems: 'center' }}>
+              <input
+                value={b.icon}
+                onChange={e => update(i, { icon: e.target.value })}
+                maxLength={3}
+                style={{ padding: '8px 10px', border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)', background: 'var(--b-cream-2)', textAlign: 'center', fontSize: 18 }}
+              />
+              <input
+                value={b.name}
+                onChange={e => update(i, { name: e.target.value })}
+                placeholder="Badge name"
+                style={{ padding: '8px 10px', border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)', background: 'var(--b-cream-2)', fontSize: 'var(--t-sm)' }}
+              />
+              <input
+                value={b.category}
+                onChange={e => update(i, { category: e.target.value })}
+                placeholder="Category"
+                style={{ padding: '8px 10px', border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)', background: 'var(--b-cream-2)', fontSize: 'var(--t-sm)' }}
+              />
+              <input
+                value={b.criteria}
+                onChange={e => update(i, { criteria: e.target.value })}
+                placeholder="Criteria"
+                style={{ padding: '8px 10px', border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)', background: 'var(--b-cream-2)', fontSize: 'var(--t-sm)' }}
+              />
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => update(i, { is_seasonal: !b.is_seasonal })}
+                title={b.is_seasonal ? 'Seasonal' : 'Permanent'}
+                style={{ opacity: b.is_seasonal ? 1 : 0.5 }}
+              >
+                {b.is_seasonal ? 'Seasonal' : 'Standard'}
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => remove(i)} title="Remove">
+                <Icon name="close" size={12} />
+              </button>
+            </div>
+          ))}
+          <button className="btn btn-text btn-sm" style={{ marginTop: 14 }} onClick={add}>+ Add badge</button>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── CSV Export helper ──────────────────────────────────
 function toCsvCell(v: unknown): string {
   const s = v === null || v === undefined ? '' : String(v);
@@ -803,7 +1096,7 @@ function toCsvCell(v: unknown): string {
 
 // ─── AdminPage ──────────────────────────────────────────
 export function AdminPage({ onToast, onOpenKudos }: { onToast: (t: Toast) => void; onOpenKudos: () => void }) {
-  const [tab, setTab] = useState<'integrations' | 'billing' | 'approvals' | 'values' | 'budget' | 'export'>('integrations');
+  const [tab, setTab] = useState<'integrations' | 'billing' | 'approvals' | 'values' | 'rewards' | 'badges' | 'budget' | 'export'>('integrations');
   const { data: recs = [] } = useRecognitions();
   const { data: currentUser } = useCurrentUser();
   const [exporting, setExporting] = useState(false);
@@ -872,7 +1165,9 @@ export function AdminPage({ onToast, onOpenKudos }: { onToast: (t: Toast) => voi
       </div>
 
       <div className="row" style={{ gap: 8, marginBottom: 22, flexWrap: 'wrap' }}>
-        {(['integrations', 'billing', 'approvals', 'values', 'budget', 'export'] as const).map(t => (
+        {(['integrations', 'billing', 'approvals', 'values', 'rewards', 'badges', 'budget', 'export'] as const)
+          .filter(t => (t === 'rewards' || t === 'badges') ? currentUser?.role === 'admin' : true)
+          .map(t => (
           <button key={t} className={'chip' + (tab === t ? ' chip-active' : '')} onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
@@ -889,6 +1184,9 @@ export function AdminPage({ onToast, onOpenKudos }: { onToast: (t: Toast) => voi
       )}
 
       {tab === 'values' && <ValuesEditor onToast={onToast} />}
+
+      {tab === 'rewards' && currentUser?.role === 'admin' && <RewardsEditor onToast={onToast} />}
+      {tab === 'badges' && currentUser?.role === 'admin' && <BadgesEditor onToast={onToast} />}
 
       {tab === 'budget' && <BudgetPanel />}
 
