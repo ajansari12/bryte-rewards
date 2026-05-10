@@ -17,7 +17,7 @@ interface AppState {
   nudgePerson: string | null;
   showTour: boolean;
   showKudos: boolean;
-  nominateBadge: { name: string; icon: string; criteria?: string } | null;
+  nominateBadge: { id: string; name: string; icon: string; criteria?: string } | null;
 }
 
 interface AppActions {
@@ -32,7 +32,7 @@ interface AppActions {
   setNudgePerson: (p: string | null) => void;
   setShowTour: (v: boolean) => void;
   setShowKudos: (v: boolean) => void;
-  setNominateBadge: (b: { name: string; icon: string; criteria?: string } | null) => void;
+  setNominateBadge: (b: { id: string; name: string; icon: string; criteria?: string } | null) => void;
   pushToast: (t: Omit<Toast, 'id'>) => void;
   fireConfetti: () => void;
 }
@@ -53,7 +53,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [nudgePerson, setNudgePerson] = useState<string | null>(null);
   const [showTour, setShowTour] = useState(false);
   const [showKudos, setShowKudos] = useState(false);
-  const [nominateBadge, setNominateBadge] = useState<{ name: string; icon: string; criteria?: string } | null>(null);
+  const [nominateBadge, setNominateBadge] = useState<{ id: string; name: string; icon: string; criteria?: string } | null>(null);
 
   // Load persisted prefs on mount
   useEffect(() => {

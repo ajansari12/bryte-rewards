@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Icon } from './Icon';
-import { SAMPLE_NOTIFS, BRYTE_DATA } from '@/lib/data';
+import { BRYTE_DATA } from '@/lib/data';
 import { supabase } from '@/lib/supabase';
+import { useBadges } from '@/lib/queries/badges';
+import { useMyRecognitions } from '@/lib/queries/recognitions';
 import type { Toast, Notification, Route } from '@/lib/types';
 
 // ─── Types ────────────────────────────────────────────
@@ -46,12 +48,32 @@ export function Sidebar({ route, setRoute, industry, orgName: orgNameProp, orgTa
   const data = BRYTE_DATA;
   const me = user || data.CURRENT_USER;
   const [showCtx, setShowCtx] = useState(false);
+  const { data: allBadges = [] } = useBadges();
+  const { data: myRecs = [] } = useMyRecognitions();
+
+  const earnedBadgesCount = allBadges.filter(b => b.awarded_at !== null).length;
+
+  const streakDays = useMemo(() => {
+    if (myRecs.length === 0) return 0;
+    const days = new Set(
+      myRecs.map(r => new Date(r.created_at).toISOString().slice(0, 10))
+    );
+    let streak = 0;
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+    while (days.has(cursor.toISOString().slice(0, 10))) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+  }, [myRecs]);
+
   const navItems = [
     { id: 'feed', label: 'Recognition feed', icon: 'feed' },
     { id: 'profile', label: 'My profile', icon: 'users' },
     { id: 'leaderboard', label: 'Leaderboard', icon: 'trophy' },
     { id: 'badges', label: 'Badges', icon: 'badge' },
-    { id: 'rewards', label: 'Rewards', icon: 'gift', badge: true },
+    { id: 'rewards', label: 'Rewards', icon: 'gift' },
   ];
   const teamItems = [
     { id: 'manager', label: 'Team pulse', icon: 'users' },
@@ -79,7 +101,6 @@ export function Sidebar({ route, setRoute, industry, orgName: orgNameProp, orgTa
             onClick={() => setRoute(item.id as Route)}>
             <Icon name={item.icon} />
             <span>{item.label}</span>
-            {item.badge && <span className="badge-ct">3</span>}
           </div>
         ))}
 
@@ -126,11 +147,11 @@ export function Sidebar({ route, setRoute, industry, orgName: orgNameProp, orgTa
                     <div className="label" style={{fontSize: 9}}>pts</div>
                   </div>
                   <div style={{textAlign: 'center'}}>
-                    <div className="mono" style={{fontWeight: 700, color: 'var(--b-forest)', fontSize: '1.1rem'}}>6</div>
+                    <div className="mono" style={{fontWeight: 700, color: 'var(--b-forest)', fontSize: '1.1rem'}}>{earnedBadgesCount}</div>
                     <div className="label" style={{fontSize: 9}}>badges</div>
                   </div>
                   <div style={{textAlign: 'center'}}>
-                    <div className="mono" style={{fontWeight: 700, color: 'var(--b-ink)', fontSize: '1.1rem'}}>12d</div>
+                    <div className="mono" style={{fontWeight: 700, color: 'var(--b-ink)', fontSize: '1.1rem'}}>{streakDays}d</div>
                     <div className="label" style={{fontSize: 9}}>streak</div>
                   </div>
                 </div>

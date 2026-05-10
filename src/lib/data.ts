@@ -1,13 +1,3 @@
-import type { Notification } from './types';
-
-export const SAMPLE_NOTIFS: Notification[] = [
-  { id: 1, type: 'received', msg: 'Marcus Chen recognised you', sub: '"Incredibly steady under pressure this week." · +50 pts', time: '2h ago', read: false },
-  { id: 2, type: 'reaction', msg: 'Sofia Alvarez reacted to your post', sub: '❤️ on your recognition of Devon Park', time: '4h ago', read: false },
-  { id: 3, type: 'badge', msg: "You earned a new badge", sub: '🔥 10-Day Streak — consistency pays off', time: '1d ago', read: true },
-  { id: 4, type: 'milestone', msg: "Team hit 100 recognitions this month", sub: 'A new record for Mapleview Medical ✦', time: '1d ago', read: true },
-  { id: 5, type: 'received', msg: 'Amélie Tremblay recognised you', sub: '"Three years of clinical excellence." · +100 pts', time: '3d ago', read: true },
-];
-
 interface Industry {
   name: string;
   icon: string;

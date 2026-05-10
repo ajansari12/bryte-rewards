@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Icon } from './Icon';
-import { BRYTE_DATA } from '@/lib/data';
 import type { Recognition } from '@/lib/types';
 import { useCurrentUser, useOrgUsers } from '@/lib/queries/users';
 import { useOrgRedemptions } from '@/lib/queries/rewards';
 import { useApproveRedemption } from '@/lib/mutations/useApproveRedemption';
 import { useNominations, useReviewNomination } from '@/lib/queries/nominations';
+import { useNominateBadge } from '@/lib/mutations/useNominateBadge';
 import { useNotificationSync } from '@/lib/hooks/useNotificationSync';
 import { useMarkNotificationsRead } from '@/lib/mutations/useMarkNotificationsRead';
 import { supabase } from '@/lib/supabase';
@@ -269,15 +269,24 @@ export function CoachmarksTour({ onDone }: { onDone: () => void }) {
 export function BadgeNominationModal({
   badge,
   onClose,
-  onSend,
+  onSent,
 }: {
-  badge: { name: string; icon: string; criteria?: string };
+  badge: { id: string; name: string; icon: string; criteria?: string };
   onClose: () => void;
-  onSend: (person: string) => void;
+  onSent?: (payload: { nominee_name: string; badge_name: string }) => void;
 }) {
-  const people = ((BRYTE_DATA as any).LEADERBOARD as Array<{ name: string; role: string; title: string }>);
+  const { data: me } = useCurrentUser();
+  const { data: orgUsers = [] } = useOrgUsers();
+  const nominateBadge = useNominateBadge();
+  const people = useMemo(
+    () => orgUsers.filter(u => u.id !== me?.id).map(u => ({ id: u.id, name: u.display_name, role: u.role, title: u.title })),
+    [orgUsers, me?.id]
+  );
   const [pick, setPick] = useState<string>('');
+  const [pickedId, setPickedId] = useState<string | null>(null);
   const [why, setWhy] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
@@ -288,12 +297,26 @@ export function BadgeNominationModal({
   }, [onClose]);
 
   const matches = pick ? people.filter(p => p.name.toLowerCase().includes(pick.toLowerCase())).slice(0, 5) : [];
-  const isPicked = people.some(p => p.name === pick);
+  const isPicked = !!pickedId && people.some(p => p.id === pickedId && p.name === pick);
 
-  const handleSend = () => {
-    if (!isPicked || why.trim().length < 10) return;
-    onSend(pick);
-    onClose();
+  const handleSend = async () => {
+    if (!isPicked || why.trim().length < 10 || !me?.org_id || !pickedId) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await nominateBadge.mutateAsync({
+        org_id: me.org_id,
+        badge_id: badge.id,
+        nominee_id: pickedId,
+        reason: why.trim(),
+      });
+      onSent?.({ nominee_name: pick, badge_name: badge.name });
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to submit nomination');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -314,7 +337,7 @@ export function BadgeNominationModal({
             <input
               ref={inputRef}
               value={pick}
-              onChange={e => setPick(e.target.value)}
+              onChange={e => { setPick(e.target.value); setPickedId(null); }}
               placeholder="Start typing a name…"
               style={{
                 width: '100%', padding: '10px 14px', border: '1px solid var(--b-border)',
@@ -325,7 +348,7 @@ export function BadgeNominationModal({
             {matches.length > 0 && !isPicked && (
               <div className="card" style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, zIndex: 10, overflow: 'hidden' }}>
                 {matches.map(p => (
-                  <button key={p.name} onClick={() => setPick(p.name)} className="row" style={{
+                  <button key={p.id} onClick={() => { setPick(p.name); setPickedId(p.id); }} className="row" style={{
                     width: '100%', padding: 10, gap: 10, background: 'transparent', border: 'none',
                     cursor: 'pointer', textAlign: 'left', color: 'var(--b-ink)',
                   }}>
@@ -355,13 +378,18 @@ export function BadgeNominationModal({
           <div className="muted" style={{ fontSize: 'var(--t-xs)', marginTop: 8, lineHeight: 1.5 }}>
             Nominations are reviewed by a small committee. Recipients hear from us within a week.
           </div>
+          {error && (
+            <div style={{ marginTop: 10, padding: '8px 12px', background: 'var(--b-terra-pale)', color: 'var(--b-terra)', borderRadius: 'var(--r-sm)', fontSize: 'var(--t-xs)' }}>
+              {error}
+            </div>
+          )}
         </div>
 
         <div className="row" style={{ padding: 14, borderTop: '1px solid var(--b-border-soft)', gap: 8 }}>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>Cancel</button>
           <span className="grow" />
-          <button className="btn btn-primary btn-sm" onClick={handleSend} disabled={!isPicked || why.trim().length < 10}>
-            Send nomination
+          <button className="btn btn-primary btn-sm" onClick={handleSend} disabled={!isPicked || why.trim().length < 10 || submitting}>
+            {submitting ? 'Sending…' : 'Send nomination'}
           </button>
         </div>
       </div>

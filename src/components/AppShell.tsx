@@ -152,14 +152,14 @@ export function AppShell() {
           onRecognize={() => app.setShowModal(true)}
         />
       )}
-      {app.showDigest && <DigestPreview onClose={() => app.setShowDigest(false)} />}
+      {app.showDigest && <DigestPreview onClose={() => app.setShowDigest(false)} onToast={app.pushToast} />}
       {app.showTour && <CoachmarksTour onDone={() => app.setShowTour(false)} />}
       {app.showKudos && <KudosPrintView onClose={() => app.setShowKudos(false)} />}
       {app.nominateBadge && (
         <BadgeNominationModal
           badge={app.nominateBadge}
           onClose={() => app.setNominateBadge(null)}
-          onSend={(p: string) => app.pushToast({ kind: 'success', msg: `Nomination sent for ${p.split(' ')[0]} ✦` })}
+          onSent={({ nominee_name }) => app.pushToast({ kind: 'success', msg: `Nomination sent for ${nominee_name.split(' ')[0]} ✦` })}
         />
       )}
       <DarkModeStyles />

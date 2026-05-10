@@ -8,8 +8,11 @@ import { useBadges } from '@/lib/queries/badges';
 import { useRewards } from '@/lib/queries/rewards';
 import { useWeeklyActivity, useValueBreakdown } from '@/lib/queries/analytics';
 import { useOrgValues } from '@/lib/queries/values';
+import { useUpdateValues } from '@/lib/mutations/useUpdateValues';
+import { useRecognitions } from '@/lib/queries/recognitions';
 import { useRequestRedemption } from '@/lib/mutations/useRequestRedemption';
 import { useQuarterlySpend, QUARTERLY_POOL } from '@/lib/queries/budget';
+import { supabase } from '@/lib/supabase';
 
 type Toast = { kind?: 'success' | 'error' | 'info'; msg: string };
 
@@ -328,7 +331,7 @@ export function LeaderboardPage() {
 }
 
 // ─── BadgesPage ─────────────────────────────────────────
-export function BadgesPage({ onNominate }: { onNominate: (b: { name: string; icon: string; criteria?: string }) => void }) {
+export function BadgesPage({ onNominate }: { onNominate: (b: { id: string; name: string; icon: string; criteria?: string }) => void }) {
   const { data: badges = [], isLoading } = useBadges();
   const [filter, setFilter] = useState<string>('All');
   const cats = ['All', ...Array.from(new Set(badges.map(b => b.category)))];
@@ -371,7 +374,7 @@ export function BadgesPage({ onNominate }: { onNominate: (b: { name: string; ico
                 Earned · {new Date(b.awarded_at).toLocaleDateString()}
               </div>
             ) : (
-              <button className="btn btn-ghost btn-sm btn-block" style={{ marginTop: 10 }} onClick={() => onNominate({ name: b.name, icon: b.icon, criteria: b.criteria })}>
+              <button className="btn btn-ghost btn-sm btn-block" style={{ marginTop: 10 }} onClick={() => onNominate({ id: b.id, name: b.name, icon: b.icon, criteria: b.criteria })}>
                 Nominate someone
               </button>
             )}
@@ -674,10 +677,190 @@ function BudgetPanel() {
   );
 }
 
+// ─── ValuesEditor ───────────────────────────────────────
+interface DraftValue {
+  id?: string;
+  name: string;
+  icon: string;
+  points: number;
+  sort_order: number;
+}
+
+function ValuesEditor({ onToast }: { onToast: (t: Toast) => void }) {
+  const { data: orgValues = [], isLoading } = useOrgValues();
+  const { data: currentUser } = useCurrentUser();
+  const updateValues = useUpdateValues();
+  const [drafts, setDrafts] = useState<DraftValue[]>([]);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    if (!dirty) {
+      setDrafts(orgValues.map((v, i) => ({
+        id: v.id, name: v.name, icon: v.icon, points: v.points, sort_order: v.sort_order ?? i,
+      })));
+    }
+  }, [orgValues, dirty]);
+
+  const update = (i: number, patch: Partial<DraftValue>) => {
+    setDirty(true);
+    setDrafts(arr => arr.map((v, idx) => idx === i ? { ...v, ...patch } : v));
+  };
+
+  const add = () => {
+    setDirty(true);
+    setDrafts(arr => [...arr, { name: 'New value', icon: '✦', points: 30, sort_order: arr.length }]);
+  };
+
+  const remove = (i: number) => {
+    setDirty(true);
+    setDrafts(arr => arr.filter((_, idx) => idx !== i));
+  };
+
+  const save = async () => {
+    if (!currentUser?.org_id) return;
+    const clean = drafts
+      .map((v, i) => ({ ...v, name: v.name.trim(), sort_order: i }))
+      .filter(v => v.name.length > 0);
+    try {
+      await updateValues.mutateAsync({ org_id: currentUser.org_id, values: clean });
+      setDirty(false);
+      onToast({ kind: 'success', msg: 'Values saved ✦' });
+    } catch (err) {
+      onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Failed to save' });
+    }
+  };
+
+  const cancel = () => {
+    setDirty(false);
+    setDrafts(orgValues.map((v, i) => ({
+      id: v.id, name: v.name, icon: v.icon, points: v.points, sort_order: v.sort_order ?? i,
+    })));
+  };
+
+  return (
+    <div className="card" style={{ padding: 22 }}>
+      <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+        <div>
+          <h3 className="serif" style={{ fontWeight: 600 }}>Company values</h3>
+          <div className="muted" style={{ fontSize: 'var(--t-sm)', marginTop: 4 }}>The behaviours your team gets recognised for. Each one carries a point value.</div>
+        </div>
+        {dirty && (
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={cancel} disabled={updateValues.isPending}>Cancel</button>
+            <button className="btn btn-primary btn-sm" onClick={save} disabled={updateValues.isPending}>
+              {updateValues.isPending ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="muted" style={{ padding: 20, textAlign: 'center' }}>Loading…</div>
+      ) : (
+        <>
+          {drafts.length === 0 && (
+            <div className="muted" style={{ padding: 20, textAlign: 'center' }}>No values yet. Add one below.</div>
+          )}
+          {drafts.map((v, i) => (
+            <div key={v.id ?? `new-${i}`} className="row" style={{ padding: '10px 0', borderBottom: '1px solid var(--b-border-soft)', gap: 10 }}>
+              <input
+                value={v.icon}
+                onChange={e => update(i, { icon: e.target.value })}
+                maxLength={3}
+                style={{ width: 46, padding: '8px 10px', border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)', background: 'var(--b-cream-2)', textAlign: 'center', fontSize: 18 }}
+              />
+              <input
+                value={v.name}
+                onChange={e => update(i, { name: e.target.value })}
+                placeholder="Value name"
+                style={{ flex: 1, padding: '8px 10px', border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)', background: 'var(--b-cream-2)', fontSize: 'var(--t-sm)' }}
+              />
+              <input
+                type="number"
+                value={v.points}
+                onChange={e => update(i, { points: Math.max(0, parseInt(e.target.value) || 0) })}
+                style={{ width: 80, padding: '8px 10px', border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)', background: 'var(--b-cream-2)', textAlign: 'right', fontFamily: 'var(--f-mono)' }}
+              />
+              <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>pts</span>
+              <button className="btn btn-ghost btn-sm" onClick={() => remove(i)} title="Remove">
+                <Icon name="close" size={12} />
+              </button>
+            </div>
+          ))}
+          <button className="btn btn-text btn-sm" style={{ marginTop: 14 }} onClick={add}>+ Add value</button>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── CSV Export helper ──────────────────────────────────
+function toCsvCell(v: unknown): string {
+  const s = v === null || v === undefined ? '' : String(v);
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
 // ─── AdminPage ──────────────────────────────────────────
 export function AdminPage({ onToast, onOpenKudos }: { onToast: (t: Toast) => void; onOpenKudos: () => void }) {
-  const { data: orgValues = [] } = useOrgValues();
   const [tab, setTab] = useState<'integrations' | 'billing' | 'approvals' | 'values' | 'budget' | 'export'>('integrations');
+  const { data: recs = [] } = useRecognitions();
+  const { data: currentUser } = useCurrentUser();
+  const [exporting, setExporting] = useState(false);
+
+  const exportRecognitionsCsv = async () => {
+    if (!recs.length) {
+      onToast({ kind: 'info', msg: 'Nothing to export yet.' });
+      return;
+    }
+    const header = ['Date', 'Sender', 'Recipient', 'Value', 'Points', 'Type'];
+    const rows = recs.map(r => [
+      new Date(r.created_at).toISOString(),
+      (r.sender as any)?.display_name ?? '',
+      (r.recipient as any)?.display_name ?? '',
+      (r.value as any)?.name ?? '',
+      r.points,
+      r.type,
+    ]);
+    const csv = [header, ...rows].map(row => row.map(toCsvCell).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `recognitions-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    onToast({ kind: 'success', msg: `Exported ${rows.length} recognitions ✦` });
+  };
+
+  const exportTeamCsv = async () => {
+    if (!currentUser?.org_id) return;
+    setExporting(true);
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('display_name, title, role, points, start_date')
+        .eq('org_id', currentUser.org_id)
+        .order('points', { ascending: false });
+      if (error) throw error;
+      const rows = (data ?? []).map(u => [u.display_name, u.title, u.role, u.points, u.start_date ?? '']);
+      const csv = [['Name', 'Title', 'Role', 'Points', 'Start date'], ...rows].map(r => r.map(toCsvCell).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `team-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      onToast({ kind: 'success', msg: 'Team roster downloaded ✦' });
+    } catch (err) {
+      onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Export failed' });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div>
@@ -705,25 +888,7 @@ export function AdminPage({ onToast, onOpenKudos }: { onToast: (t: Toast) => voi
         </div>
       )}
 
-      {tab === 'values' && (
-        <div className="card" style={{ padding: 22 }}>
-          <h3 className="serif" style={{ fontWeight: 600, marginBottom: 12 }}>Company values</h3>
-          <div className="muted" style={{ fontSize: 'var(--t-sm)', marginBottom: 18 }}>The behaviours your team gets recognised for. Each one carries a point value.</div>
-          {orgValues.length === 0 ? (
-            <div className="muted" style={{ padding: 20, textAlign: 'center' }}>No values configured yet.</div>
-          ) : orgValues.map(v => (
-            <div key={v.id} className="row" style={{ padding: '12px 0', borderBottom: '1px solid var(--b-border-soft)', gap: 14 }}>
-              <span style={{ fontSize: 22 }}>{v.icon}</span>
-              <div className="grow">
-                <div className="serif" style={{ fontWeight: 600 }}>{v.name}</div>
-                <div className="muted" style={{ fontSize: 'var(--t-xs)' }}>+{v.points} points per recognition</div>
-              </div>
-              <button className="btn btn-ghost btn-sm">Edit</button>
-            </div>
-          ))}
-          <button className="btn btn-text btn-sm" style={{ marginTop: 14 }}>+ Add value</button>
-        </div>
-      )}
+      {tab === 'values' && <ValuesEditor onToast={onToast} />}
 
       {tab === 'budget' && <BudgetPanel />}
 
@@ -735,11 +900,11 @@ export function AdminPage({ onToast, onOpenKudos }: { onToast: (t: Toast) => voi
             <button className="btn btn-ghost" onClick={onOpenKudos}>
               <Icon name="pen" size={14} /> Print kudos cards
             </button>
-            <button className="btn btn-ghost" onClick={() => onToast({ kind: 'success', msg: 'CSV downloaded ✦' })}>
+            <button className="btn btn-ghost" onClick={exportRecognitionsCsv}>
               <Icon name="arrow" size={14} /> Export recognitions (CSV)
             </button>
-            <button className="btn btn-ghost" onClick={() => onToast({ kind: 'success', msg: 'PDF report queued ✦' })}>
-              <Icon name="arrow" size={14} /> Quarterly PDF report
+            <button className="btn btn-ghost" onClick={exportTeamCsv} disabled={exporting}>
+              <Icon name="arrow" size={14} /> {exporting ? 'Exporting…' : 'Export team roster (CSV)'}
             </button>
           </div>
         </div>

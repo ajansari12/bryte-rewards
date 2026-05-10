@@ -5,7 +5,8 @@ import type { Recognition } from '@/lib/types';
 import { useFocusTrap } from './Extras';
 import { useCurrentUser, useCurrentOrg, useOrgUsers, type NotificationPrefs } from '@/lib/queries/users';
 import { useBadges } from '@/lib/queries/badges';
-import { useMyRecognitions, type DbRecognition } from '@/lib/queries/recognitions';
+import { useLeaderboard } from '@/lib/queries/leaderboard';
+import { useRecognitions, useMyRecognitions, type DbRecognition } from '@/lib/queries/recognitions';
 import { useComments } from '@/lib/queries/comments';
 import { usePostComment } from '@/lib/mutations/usePostComment';
 import { useAddReaction } from '@/lib/mutations/useAddReaction';
@@ -599,9 +600,63 @@ export function RecognitionDetail({ rec, onClose, onRecognize }: { rec: Recognit
 }
 
 // ─── DigestPreview ──────────────────────────────────────
-export function DigestPreview({ onClose }: { onClose: () => void }) {
+export function DigestPreview({ onClose, onToast }: { onClose: () => void; onToast?: (t: { kind?: 'success' | 'error' | 'info'; msg: string }) => void }) {
   const trapRef = useFocusTrap(true, onClose);
-  const recs = BRYTE_DATA.INDUSTRIES.healthcare.sampleRecs.slice(0, 3);
+  const { data: org } = useCurrentOrg();
+  const { data: currentUser } = useCurrentUser();
+  const { data: dbRecs = [] } = useRecognitions();
+  const [sending, setSending] = useState(false);
+
+  const since = Date.now() - 7 * 86_400_000;
+  const weekRecs = dbRecs.filter(r => new Date(r.created_at).getTime() >= since);
+  const recs = weekRecs.slice(0, 3).map(r => ({
+    value: (r.value as any)?.name ?? '',
+    time: new Date(r.created_at).toLocaleDateString(),
+    message: r.message,
+    sender: (r.sender as any)?.display_name ?? 'Someone',
+    recipient: (r.recipient as any)?.display_name ?? 'a teammate',
+  }));
+  const fallback = BRYTE_DATA.INDUSTRIES.healthcare.sampleRecs.slice(0, 3);
+  const display = recs.length > 0 ? recs : fallback;
+
+  const stats = {
+    recognitions: weekRecs.length,
+    teammates: new Set(weekRecs.map(r => (r.recipient as any)?.id).filter(Boolean)).size,
+    points: weekRecs.reduce((s, r) => s + (r.points ?? 0), 0),
+  };
+
+  const orgName = org?.name ?? 'Your Organisation';
+  const firstName = currentUser?.display_name?.split(' ')[0] ?? 'there';
+
+  const handleSend = async () => {
+    if (!currentUser) return;
+    setSending(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/weekly-digest`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+        }
+      );
+      if (res.ok) {
+        onToast?.({ kind: 'success', msg: 'Digest sent — check your inbox ✦' });
+        onClose();
+      } else {
+        onToast?.({ kind: 'info', msg: 'Digest is sent automatically each Monday at 9am.' });
+        onClose();
+      }
+    } catch {
+      onToast?.({ kind: 'info', msg: 'Digest is sent automatically each Monday at 9am.' });
+      onClose();
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -634,8 +689,8 @@ export function DigestPreview({ onClose }: { onClose: () => void }) {
                 Bryte<span style={{ color: 'var(--b-gold)' }}>.</span>
                 <span style={{ fontStyle: 'italic', fontWeight: 300, fontSize: '1.1rem', color: 'rgba(250,246,239,0.6)', marginLeft: 4 }}>Weekly Digest</span>
               </div>
-              <div style={{ marginTop: 6, fontSize: 'var(--t-xs)', color: 'rgba(250,246,239,0.5)', letterSpacing: '0.04em' }}>
-                MAPLEVIEW MEDICAL · April 19 – April 25, 2026
+              <div style={{ marginTop: 6, fontSize: 'var(--t-xs)', color: 'rgba(250,246,239,0.5)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                {orgName} · Past 7 days
               </div>
             </div>
             {/* Gold separator */}
@@ -643,15 +698,15 @@ export function DigestPreview({ onClose }: { onClose: () => void }) {
 
             <div style={{ padding: '24px 32px' }}>
               <p style={{ fontSize: '1rem', color: 'var(--b-ink)', lineHeight: 1.6, margin: '0 0 24px' }}>
-                Hi Alex — here's what happened on your team wall this week. ✦
+                Hi {firstName} — here's what happened on your team wall this week. ✦
               </p>
 
               {/* Stats row */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
                 {[
-                  { v: '34', l: 'recognitions', c: 'var(--b-gold)' },
-                  { v: '21', l: 'teammates', c: 'var(--b-forest)' },
-                  { v: '2,140', l: 'points given', c: 'var(--b-ink)' },
+                  { v: stats.recognitions.toString(), l: 'recognitions', c: 'var(--b-gold)' },
+                  { v: stats.teammates.toString(), l: 'teammates', c: 'var(--b-forest)' },
+                  { v: stats.points.toLocaleString(), l: 'points given', c: 'var(--b-ink)' },
                 ].map(s => (
                   <div key={s.l} style={{ textAlign: 'center', padding: '14px 10px', background: 'var(--b-surface)', borderRadius: 'var(--r-md)' }}>
                     <div className="mono" style={{ fontSize: '1.4rem', fontWeight: 700, color: s.c }}>{s.v}</div>
@@ -667,7 +722,7 @@ export function DigestPreview({ onClose }: { onClose: () => void }) {
                 <div style={{ flex: 1, height: 1, background: 'var(--b-border-soft)' }} />
               </div>
 
-              {recs.map((r, i) => (
+              {display.map((r, i) => (
                 <div key={i} style={{ padding: '14px 16px', marginBottom: 10, background: 'var(--b-surface)', borderRadius: 'var(--r-md)', borderLeft: '3px solid var(--b-gold)' }}>
                   <div className="row" style={{ gap: 6, marginBottom: 6 }}>
                     <span className="chip-mini">{r.value}</span>
@@ -688,8 +743,8 @@ export function DigestPreview({ onClose }: { onClose: () => void }) {
                   View full wall →
                 </span>
                 <div className="muted" style={{ fontSize: 'var(--t-xs)', marginTop: 12, lineHeight: 1.6 }}>
-                  You're receiving this because you're an admin at Mapleview Medical.<br />
-                  Unsubscribe · Email preferences
+                  You're receiving this because weekly digest is enabled.<br />
+                  Manage preferences in your profile.
                 </div>
               </div>
             </div>
@@ -699,7 +754,9 @@ export function DigestPreview({ onClose }: { onClose: () => void }) {
         <div className="row" style={{ padding: 14, borderTop: '1px solid var(--b-border-soft)', gap: 8 }}>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
           <span className="grow" />
-          <button className="btn btn-primary btn-sm">Send to me now</button>
+          <button className="btn btn-primary btn-sm" onClick={handleSend} disabled={sending}>
+            {sending ? 'Sending…' : 'Send to me now'}
+          </button>
         </div>
       </div>
     </div>
@@ -1031,9 +1088,19 @@ export function IntegrationsPanel() {
 }
 
 // ─── NominationsBanner ──────────────────────────────────
+// Shows this month's top contributors drawn from recognitions points. Acts as
+// a "teammate of the month" shortlist — voting is local UI only (no votes table).
 export function NominationsBanner({ onVote }: { onVote?: (name: string) => void }) {
-  const N = BRYTE_DATA.NOMINEES;
+  const { data: leaderboard = [] } = useLeaderboard('month');
+  const top = useMemo(() => leaderboard.slice(0, 3).map(l => ({
+    name: l.display_name,
+    role: l.role,
+    points: l.points,
+    quote: `${l.points.toLocaleString()} pts recognised this month.`,
+  })), [leaderboard]);
   const [votedFor, setVotedFor] = useState<string | null>(null);
+
+  if (top.length === 0) return null;
   return (
     <div style={{
       background: 'linear-gradient(135deg, var(--b-ink) 0%, var(--b-ink-2) 100%)',
@@ -1052,7 +1119,7 @@ export function NominationsBanner({ onVote }: { onVote?: (name: string) => void 
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, flex: '2 1 400px', flexWrap: 'wrap' }}>
-          {N.map(n => (
+          {top.map(n => (
             <button key={n.name} onClick={() => { setVotedFor(n.name); onVote?.(n.name); }} style={{
               background: votedFor === n.name ? 'var(--b-gold)' : 'rgba(255,255,255,0.06)',
               border: '1px solid ' + (votedFor === n.name ? 'var(--b-gold)' : 'rgba(255,255,255,0.12)'),
@@ -1067,7 +1134,7 @@ export function NominationsBanner({ onVote }: { onVote?: (name: string) => void 
                 <div className={`avatar sm role-${n.role}`} style={{ border: '2px solid rgba(255,255,255,0.2)' }}>{initials(n.name)}</div>
                 <div>
                   <div className="serif" style={{ fontSize: '0.8rem', fontWeight: 600 }}>{n.name}</div>
-                  <div style={{ fontSize: 9, opacity: 0.7 }}>{n.votes} votes</div>
+                  <div style={{ fontSize: 9, opacity: 0.7 }}>{n.points.toLocaleString()} pts</div>
                 </div>
               </div>
               <div style={{ fontSize: 'var(--t-xs)', opacity: 0.8, fontStyle: 'italic', lineHeight: 1.4 }}>"{n.quote}"</div>

@@ -6,6 +6,7 @@ import { Icon } from './Icon';
 import { BRYTE_DATA } from '@/lib/data';
 import { supabase } from '@/lib/supabase';
 import { badgesForIndustry } from '@/lib/onboardingPresets';
+import { useInviteTeammate } from '@/lib/mutations/useInviteTeammate';
 
 // ─── Auth Pages ──────────────────────────────────────
 export function AuthPage({ mode = 'login' }: { mode?: string }) {
@@ -194,6 +195,7 @@ export function OnboardingWizard() {
   const [launched, setLaunched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const inviteTeammate = useInviteTeammate();
   const data = BRYTE_DATA.INDUSTRIES;
 
   useEffect(() => {
@@ -283,16 +285,8 @@ export function OnboardingWizard() {
       // Send invites (best-effort, don't block launch if one fails)
       const pending = invites.filter(i => i.email.trim() && /.+@.+\..+/.test(i.email.trim()));
       if (pending.length > 0) {
-        const { data: { session } } = await supabase.auth.getSession();
         await Promise.all(pending.map(inv =>
-          fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-teammate`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session?.access_token}`,
-            },
-            body: JSON.stringify({ email: inv.email.trim(), org_id: orgId, role: inv.role }),
-          }).catch(() => null)
+          inviteTeammate.mutateAsync({ email: inv.email.trim(), org_id: orgId, role: inv.role }).catch(() => null)
         ));
       }
 
