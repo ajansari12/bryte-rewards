@@ -5,7 +5,7 @@ import {
   requireSessionSkipIfOnboarded,
   redirectIfAuthenticated,
 } from '@/lib/auth/requireSession';
-import { RouteError } from '@/components/RouteError';
+import { RouteError, ErrorBoundary } from '@/components/RouteError';
 
 const AuthPage = React.lazy(() =>
   import('@/components/Auth').then(m => ({ default: m.AuthPage }))
@@ -63,9 +63,11 @@ export const router = createBrowserRouter([
     loader: requireOnboardedSession,
     errorElement: <RouteError />,
     element: (
-      <SuspenseWrap>
-        <AppShell />
-      </SuspenseWrap>
+      <ErrorBoundary>
+        <SuspenseWrap>
+          <AppShell />
+        </SuspenseWrap>
+      </ErrorBoundary>
     ),
     children: [
       { index: true, loader: async () => { throw redirect('/app/feed'); } },

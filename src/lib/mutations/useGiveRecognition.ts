@@ -75,6 +75,11 @@ export function useGiveRecognition() {
     },
     onSettled: (_data, _err, input) => {
       queryClient.invalidateQueries({ queryKey: qk.recognitions(input.org_id) });
+      queryClient.invalidateQueries({ queryKey: qk.currentUser() });
+      queryClient.invalidateQueries({ queryKey: qk.orgUsers(input.org_id) });
+      queryClient.invalidateQueries({ queryKey: qk.leaderboard(input.org_id, 'week') });
+      queryClient.invalidateQueries({ queryKey: qk.leaderboard(input.org_id, 'month') });
+      queryClient.invalidateQueries({ queryKey: qk.leaderboard(input.org_id, 'quarter') });
     },
   });
 }
