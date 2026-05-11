@@ -27,6 +27,7 @@ export interface DbOrg {
   industry: string;
   plan: string;
   points_pool_remaining: number;
+  quarterly_pool: number;
 }
 
 export function useCurrentUser() {

@@ -1,13 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { Icon } from './Icon';
-import { supabase } from '@/lib/supabase';
 import { useRecognitions } from '@/lib/queries/recognitions';
 import { useFeedStats } from '@/lib/queries/analytics';
 import type { DbRecognition } from '@/lib/queries/recognitions';
 import { useCurrentUser, useCurrentOrg } from '@/lib/queries/users';
 import { useAddReaction } from '@/lib/mutations/useAddReaction';
-import { qk } from '@/lib/queries/keys';
 import type { Recognition } from '@/lib/types';
 import { NominationsBanner, AnniversaryStrip } from './Additions';
 
@@ -240,7 +237,6 @@ interface FeedPageProps {
 }
 
 export function FeedPage({ onRecognize, onOpenRec, onCelebrate, onVote }: FeedPageProps) {
-  const queryClient = useQueryClient();
   const { data: currentUser } = useCurrentUser();
   const { data: org } = useCurrentOrg();
   const { data: dbRecs, isLoading } = useRecognitions();
@@ -249,20 +245,6 @@ export function FeedPage({ onRecognize, onOpenRec, onCelebrate, onVote }: FeedPa
 
   const today = new Date().toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' });
   const [filter, setFilter] = useState('All');
-
-  // Real-time subscription — invalidate on new recognition inserts in this org
-  useEffect(() => {
-    if (!currentUser?.org_id) return;
-    const channel = supabase
-      .channel(`recognitions:${currentUser.org_id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'recognitions', filter: `org_id=eq.${currentUser.org_id}` },
-        () => { queryClient.invalidateQueries({ queryKey: qk.recognitions(currentUser.org_id) }); }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [currentUser?.org_id, queryClient]);
 
   const recs = (dbRecs ?? []).map(toRec);
 

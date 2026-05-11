@@ -189,13 +189,14 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Mark redemption as fulfilled
+    // Mark redemption as fulfilled and persist the fulfillment code
     const { error: updateErr } = await supabase
       .from("redemptions")
       .update({
         status: "fulfilled",
         processed_at: new Date().toISOString(),
         processed_by: callerUser.id,
+        fulfillment_code: fulfillmentCode,
       })
       .eq("id", redemption_id);
 

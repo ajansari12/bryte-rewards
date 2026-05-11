@@ -27,6 +27,7 @@ export function useNominateBadge() {
     },
     onSettled: (_data, _err, input) => {
       queryClient.invalidateQueries({ queryKey: qk.badges(input.org_id) });
+      queryClient.invalidateQueries({ queryKey: qk.nominations(input.org_id) });
     },
   });
 }

@@ -10,6 +10,7 @@ import { useRecognitions, useMyRecognitions, type DbRecognition } from '@/lib/qu
 import { useComments } from '@/lib/queries/comments';
 import { usePostComment } from '@/lib/mutations/usePostComment';
 import { useAddReaction } from '@/lib/mutations/useAddReaction';
+import { useGiveRecognition } from '@/lib/mutations/useGiveRecognition';
 import { useIntegrations, useToggleIntegration, INTEGRATION_CATALOG } from '@/lib/queries/integrations';
 import { useUpdateNotificationPrefs } from '@/lib/mutations/useUpdateNotificationPrefs';
 import { useOrgRedemptions } from '@/lib/queries/rewards';
@@ -606,6 +607,15 @@ export function DigestPreview({ onClose, onToast }: { onClose: () => void; onToa
   const { data: currentUser } = useCurrentUser();
   const { data: dbRecs = [] } = useRecognitions();
   const [sending, setSending] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState<string>('');
+
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getUser().then(({ data }) => {
+      if (active) setRecipientEmail(data.user?.email ?? '');
+    });
+    return () => { active = false; };
+  }, []);
 
   const since = Date.now() - 7 * 86_400_000;
   const weekRecs = dbRecs.filter(r => new Date(r.created_at).getTime() >= since);
@@ -673,7 +683,7 @@ export function DigestPreview({ onClose, onToast }: { onClose: () => void; onToa
           <div>
             <div className="serif" style={{ fontWeight: 600, fontSize: '1.05rem' }}>Weekly digest preview</div>
             <div className="muted" style={{ fontSize: 'var(--t-xs)' }}>
-              Sent every Monday, 9am local · <span style={{ fontFamily: 'var(--font-mono)' }}>alex@mapleviewmedical.ca</span>
+              Sent every Monday, 9am local{recipientEmail ? <> · <span style={{ fontFamily: 'var(--font-mono)' }}>{recipientEmail}</span></> : null}
             </div>
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="close" size={14} /></button>
@@ -1000,6 +1010,17 @@ export function NominationsBanner({ onVote }: { onVote?: (name: string) => void 
   );
 
   if (top.length === 0) return null;
+
+  const now = new Date();
+  const monthName = now.toLocaleString(undefined, { month: 'long' });
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const daysLeft = Math.max(0, Math.ceil((monthEnd.getTime() - now.getTime()) / 86_400_000));
+  const endsLabel = daysLeft === 0
+    ? 'Ends today'
+    : daysLeft === 1
+      ? 'Ends tomorrow'
+      : `Ends in ${daysLeft} days`;
+
   return (
     <div style={{
       background: 'linear-gradient(135deg, var(--b-ink) 0%, var(--b-ink-2) 100%)',
@@ -1009,9 +1030,9 @@ export function NominationsBanner({ onVote }: { onVote?: (name: string) => void 
       <div style={{ position: 'absolute', right: -20, top: -40, fontSize: 200, color: 'rgba(194,136,45,0.08)', fontFamily: 'Fraunces', lineHeight: 1 }}>★</div>
       <div style={{ position: 'relative', display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 200px', minWidth: 200 }}>
-          <div className="serif italic" style={{ fontSize: '0.85rem', color: 'var(--b-gold-light)', marginBottom: 6 }}>Ends Friday</div>
+          <div className="serif italic" style={{ fontSize: '0.85rem', color: 'var(--b-gold-light)', marginBottom: 6 }}>{endsLabel}</div>
           <div className="serif" style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--b-canvas)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-            Teammate of April
+            Teammate of {monthName}
           </div>
           <div style={{ fontSize: 'var(--t-small)', color: 'rgba(250,246,239,0.7)', marginTop: 6, lineHeight: 1.5 }}>
             Vote for who lit up the wall this month. Winner gets CA$200 + their name on the lobby wall.
@@ -1060,6 +1081,9 @@ export function NominationsBanner({ onVote }: { onVote?: (name: string) => void 
 // day in the current year, looking 14 days ahead.
 export function AnniversaryStrip({ onCelebrate }: { onCelebrate?: (a: { name: string; years: number; date: string; tenure: string }) => void }) {
   const { data: users = [] } = useOrgUsers();
+  const { data: currentUser } = useCurrentUser();
+  const giveRecognition = useGiveRecognition();
+  const [celebratedIds, setCelebratedIds] = useState<Set<string>>(new Set());
 
   const upcoming = useMemo(() => {
     const today = new Date();
@@ -1075,6 +1099,7 @@ export function AnniversaryStrip({ onCelebrate }: { onCelebrate?: (a: { name: st
         if (anniv < today) anniv.setFullYear(anniv.getFullYear() + 1);
         const years = anniv.getFullYear() - start.getFullYear();
         return {
+          id: u.id,
           name: u.display_name,
           years,
           date: anniv.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }),
@@ -1089,6 +1114,34 @@ export function AnniversaryStrip({ onCelebrate }: { onCelebrate?: (a: { name: st
 
   if (upcoming.length === 0) return null;
 
+  const handleCelebrate = async (a: typeof upcoming[number]) => {
+    if (!currentUser || a.id === currentUser.id || celebratedIds.has(a.id)) return;
+    setCelebratedIds(prev => new Set(prev).add(a.id));
+    try {
+      await giveRecognition.mutateAsync({
+        org_id: currentUser.org_id,
+        sender_id: currentUser.id,
+        recipient_id: a.id,
+        value_id: null,
+        message: `Happy ${a.years}-year anniversary, ${a.name.split(' ')[0]}. Thank you for everything you bring to this team.`,
+        points: Math.max(50, a.years * 10),
+        type: 'milestone',
+        _senderName: currentUser.display_name,
+        _senderRole: currentUser.role,
+        _recipientName: a.name,
+        _valueName: null,
+        _valueIcon: null,
+      });
+      onCelebrate?.({ name: a.name, years: a.years, date: a.date, tenure: a.tenure });
+    } catch {
+      setCelebratedIds(prev => {
+        const next = new Set(prev);
+        next.delete(a.id);
+        return next;
+      });
+    }
+  };
+
   return (
     <div style={{ background: 'var(--b-forest-pale)', border: '1px solid var(--b-forest-border)', borderRadius: 'var(--r-lg)', padding: '16px 22px', marginBottom: 22 }}>
       <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
@@ -1097,14 +1150,27 @@ export function AnniversaryStrip({ onCelebrate }: { onCelebrate?: (a: { name: st
           <div className="serif" style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--b-ink)', marginTop: 2 }}>Anniversaries</div>
         </div>
         <div className="row flex-wrap" style={{ gap: 8, flex: 1, justifyContent: 'flex-end' }}>
-          {upcoming.map(a => (
-            <div key={a.name} className="row" style={{ gap: 8, background: 'var(--b-card)', padding: '6px 12px', borderRadius: 'var(--r-pill)', border: '1px solid var(--b-forest-border)' }}>
-              <span className="mono" style={{ fontSize: 10, fontWeight: 700, color: 'var(--b-forest)' }}>{a.years}Y</span>
-              <span style={{ fontSize: '0.8rem', color: 'var(--b-ink)', fontWeight: 500 }}>{a.name}</span>
-              <span className="muted" style={{ fontSize: 10 }}>· {a.date}</span>
-              <button className="btn-text" style={{ fontSize: 10 }} onClick={() => onCelebrate?.({ name: a.name, years: a.years, date: a.date, tenure: a.tenure })}>Celebrate →</button>
-            </div>
-          ))}
+          {upcoming.map(a => {
+            const done = celebratedIds.has(a.id);
+            const isSelf = a.id === currentUser?.id;
+            return (
+              <div key={a.id} className="row" style={{ gap: 8, background: 'var(--b-card)', padding: '6px 12px', borderRadius: 'var(--r-pill)', border: '1px solid var(--b-forest-border)' }}>
+                <span className="mono" style={{ fontSize: 10, fontWeight: 700, color: 'var(--b-forest)' }}>{a.years}Y</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--b-ink)', fontWeight: 500 }}>{a.name}</span>
+                <span className="muted" style={{ fontSize: 10 }}>· {a.date}</span>
+                {!isSelf && (
+                  <button
+                    className="btn-text"
+                    style={{ fontSize: 10, opacity: done ? 0.6 : 1 }}
+                    disabled={done || giveRecognition.isPending}
+                    onClick={() => handleCelebrate(a)}
+                  >
+                    {done ? 'Celebrated ✦' : 'Celebrate →'}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

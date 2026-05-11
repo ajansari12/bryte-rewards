@@ -13,7 +13,7 @@ import { useOrgValues } from '@/lib/queries/values';
 import { useUpdateValues } from '@/lib/mutations/useUpdateValues';
 import { useRecognitions } from '@/lib/queries/recognitions';
 import { useRequestRedemption } from '@/lib/mutations/useRequestRedemption';
-import { useQuarterlySpend, QUARTERLY_POOL } from '@/lib/queries/budget';
+import { useQuarterlySpend, useQuarterlyPool } from '@/lib/queries/budget';
 import { supabase } from '@/lib/supabase';
 
 type Toast = { kind?: 'success' | 'error' | 'info'; msg: string };
@@ -640,7 +640,7 @@ export function AnalyticsPage() {
 // ─── BudgetPanel ────────────────────────────────────────
 function BudgetPanel() {
   const { data: spent = 0, isLoading } = useQuarterlySpend();
-  const pool = QUARTERLY_POOL;
+  const pool = useQuarterlyPool();
   const remaining = Math.max(0, pool - spent);
   const pct = pool > 0 ? Math.min(100, Math.round((spent / pool) * 100)) : 0;
 
