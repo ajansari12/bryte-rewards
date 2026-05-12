@@ -18,4 +18,5 @@ export const qk = {
   nominations: (orgId: string) => ['nominations', orgId] as const,
   feedStats: (orgId: string) => ['analytics', 'feedStats', orgId] as const,
   monthlyVotes: (orgId: string, month: string) => ['monthlyVotes', orgId, month] as const,
+  onboardingStatus: (orgId: string) => ['onboardingStatus', orgId] as const,
 };

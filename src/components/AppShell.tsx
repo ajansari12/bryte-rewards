@@ -46,6 +46,7 @@ export function AppShell() {
   const { data: dbUser } = useCurrentUser();
   const { data: dbOrg } = useCurrentOrg();
   const needsOnboarding = !!dbOrg && !dbOrg.onboarded_at;
+  const isAdmin = dbUser?.role === 'admin';
   const { data: allRecs = [] } = useRecognitions();
   const queryClient = useQueryClient();
 
@@ -107,21 +108,21 @@ export function AppShell() {
       .split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]!.toUpperCase()).join('') || '—',
   } : undefined;
 
-  if (needsOnboarding) {
+  if (needsOnboarding && !isAdmin) {
     return (
       <div className="app" style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', padding: 24 }}>
         <div className="card" style={{ padding: 36, textAlign: 'center', maxWidth: 480 }}>
           <Icon name="sparkle" size={28} />
           <h2 className="serif" style={{ fontWeight: 600, fontSize: '1.3rem', margin: '12px 0 8px' }}>
-            Finish setting up {dbOrg?.name ?? 'your workspace'}
+            {dbOrg?.name ?? 'Your workspace'} isn&rsquo;t ready yet
           </h2>
           <p className="muted" style={{ fontSize: 'var(--t-sm)', marginBottom: 18, lineHeight: 1.55 }}>
             Your admin hasn&rsquo;t completed onboarding yet. Company values, badges, and rewards
             need to be configured before anyone can recognise a teammate.
           </p>
-          <button className="btn btn-primary btn-sm" onClick={() => navigate('/onboarding')}>
-            Complete setup
-          </button>
+          <p className="muted" style={{ fontSize: 'var(--t-xs)', lineHeight: 1.55 }}>
+            Check back soon — we&rsquo;ll let you know as soon as it&rsquo;s live.
+          </p>
         </div>
       </div>
     );
@@ -152,6 +153,17 @@ export function AppShell() {
         />
 
         <div className="content" key={route}>
+          {needsOnboarding && isAdmin && route !== 'admin' && (
+            <div role="status" style={{ margin: '0 0 16px', padding: '12px 16px', background: 'var(--b-gold-pale)', border: '1px solid var(--b-gold-border)', borderRadius: 'var(--r-md)', display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 'var(--t-sm)', color: 'var(--b-ink-2)', lineHeight: 1.5 }}>
+                <strong style={{ color: 'var(--b-ink)' }}>Onboarding incomplete.</strong>{' '}
+                Finish the setup checklist so your team can start recognising each other.
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={() => setRoute('admin')}>
+                Open setup checklist
+              </button>
+            </div>
+          )}
           {route === 'feed' && (
             <FeedPage
               onRecognize={() => app.setShowModal(true)}

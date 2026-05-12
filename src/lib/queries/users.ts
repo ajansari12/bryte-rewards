@@ -35,6 +35,7 @@ export interface DbOrg {
   payment_method_last4: string | null;
   onboarded_at: string | null;
   is_demo: boolean;
+  invites_skipped_at: string | null;
 }
 
 export function useCurrentUser() {

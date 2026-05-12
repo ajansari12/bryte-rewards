@@ -55,3 +55,23 @@ const INDUSTRY_BADGES: Record<string, BadgeSeed[]> = {
 export function badgesForIndustry(industry: string): BadgeSeed[] {
   return [...SHARED, ...(INDUSTRY_BADGES[industry] ?? INDUSTRY_BADGES.healthcare)];
 }
+
+export interface RewardSeed {
+  name: string;
+  description: string;
+  points: number;
+  category: string;
+  icon: string;
+}
+
+const STARTER_REWARDS: RewardSeed[] = [
+  { name: '$25 gift card', description: 'Amazon or a local favourite — your pick.', points: 2500, category: 'Gift cards', icon: '🎁' },
+  { name: 'Team lunch', description: 'Lunch on the company, any spot under $30.', points: 1500, category: 'Experiences', icon: '🥪' },
+  { name: 'Extra PTO day', description: 'Take a paid day off, any time in the next quarter.', points: 5000, category: 'Time off', icon: '🌿' },
+  { name: 'Coffee run', description: 'Coffee and a pastry on us, up to $15.', points: 600, category: 'Treats', icon: '☕' },
+];
+
+export function starterRewards(): RewardSeed[] {
+  return STARTER_REWARDS;
+}
+
