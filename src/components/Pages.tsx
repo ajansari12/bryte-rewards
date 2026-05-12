@@ -21,8 +21,9 @@ import { useRequestRedemption } from '@/lib/mutations/useRequestRedemption';
 import { useQuarterlySpend, useQuarterlyPool } from '@/lib/queries/budget';
 import { useOnboardingStatus } from '@/lib/queries/onboardingStatus';
 import { qk } from '@/lib/queries/keys';
-import { useUpdateOrg, useFinalizeOnboarding } from '@/lib/mutations/useUpdateOrg';
-import { badgesForIndustry, starterRewardsForIndustry } from '@/lib/onboardingPresets';
+import { useUpdateOrg } from '@/lib/mutations/useUpdateOrg';
+import { starterRewardsForIndustry } from '@/lib/onboardingPresets';
+import { OnboardingChecklist, type AdminTabTarget as OCTabTarget } from './OnboardingChecklist';
 import { BRYTE_DATA } from '@/lib/data';
 import { supabase } from '@/lib/supabase';
 
@@ -1484,9 +1485,16 @@ export function AdminPage({ onToast, onOpenKudos }: { onToast: (t: Toast) => voi
   const { data: currentOrg } = useCurrentOrg();
   const { data: onboardingStatus } = useOnboardingStatus();
   const needsSetup = !!currentOrg && !currentOrg.onboarded_at;
-  const [tab, setTab] = useState<'setup' | 'integrations' | 'billing' | 'approvals' | 'values' | 'rewards' | 'badges' | 'team' | 'budget' | 'export'>(
-    needsSetup && currentUser?.role === 'admin' ? 'setup' : 'integrations'
-  );
+  type AdminTab = 'setup' | 'integrations' | 'billing' | 'approvals' | 'values' | 'rewards' | 'badges' | 'team' | 'budget' | 'export';
+  const VALID_TABS: AdminTab[] = ['setup', 'integrations', 'billing', 'approvals', 'values', 'rewards', 'badges', 'team', 'budget', 'export'];
+  const [tab, setTab] = useState<AdminTab>(() => {
+    const pending = typeof window !== 'undefined' ? sessionStorage.getItem('bryte:adminTab') : null;
+    if (pending) {
+      sessionStorage.removeItem('bryte:adminTab');
+      if ((VALID_TABS as string[]).includes(pending)) return pending as AdminTab;
+    }
+    return needsSetup && currentUser?.role === 'admin' ? 'setup' : 'integrations';
+  });
   const [exporting, setExporting] = useState(false);
 
   const exportRecognitionsCsv = async () => {
@@ -1616,22 +1624,17 @@ export function AdminPage({ onToast, onOpenKudos }: { onToast: (t: Toast) => voi
 }
 
 // ─── SetupPanel ─────────────────────────────────────────
-type AdminTabTarget = 'values' | 'badges' | 'rewards' | 'team';
-
 interface SetupPanelProps {
   onToast: (t: Toast) => void;
-  onJumpTab: (t: AdminTabTarget) => void;
+  onJumpTab: (t: OCTabTarget) => void;
   status: ReturnType<typeof useOnboardingStatus>['data'];
 }
 
 function SetupPanel({ onToast, onJumpTab, status }: SetupPanelProps) {
   const { data: org } = useCurrentOrg();
-  const qc = useQueryClient();
   const updateOrg = useUpdateOrg();
-  const finalize = useFinalizeOnboarding();
   const [name, setName] = useState(org?.name ?? '');
   const [industry, setIndustry] = useState(org?.industry ?? 'technology');
-  const [seeding, setSeeding] = useState<null | 'values' | 'badges' | 'rewards'>(null);
 
   useEffect(() => {
     if (org) {
@@ -1653,162 +1656,7 @@ function SetupPanel({ onToast, onJumpTab, status }: SetupPanelProps) {
     }
   };
 
-  const seedValues = async () => {
-    setSeeding('values');
-    try {
-      const preset = BRYTE_DATA.INDUSTRIES[industry]?.values ?? BRYTE_DATA.INDUSTRIES.technology.values;
-      const { error } = await supabase.from('values').insert(
-        preset.map((v, i) => ({ org_id: org.id, name: v.name, icon: v.icon, points: v.points, sort_order: i + 1 }))
-      );
-      if (error) throw error;
-      qc.invalidateQueries({ queryKey: qk.orgValues(org.id) });
-      qc.invalidateQueries({ queryKey: qk.onboardingStatus(org.id) });
-      onToast({ kind: 'success', msg: `Added ${preset.length} starter values ✦` });
-    } catch (err) {
-      onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Could not seed values' });
-    } finally {
-      setSeeding(null);
-    }
-  };
-
-  const seedBadges = async () => {
-    setSeeding('badges');
-    try {
-      const preset = badgesForIndustry(industry);
-      const { error } = await supabase.from('badges').insert(preset.map(b => ({ ...b, org_id: org.id })));
-      if (error) throw error;
-      qc.invalidateQueries({ queryKey: qk.badges(org.id) });
-      qc.invalidateQueries({ queryKey: qk.onboardingStatus(org.id) });
-      onToast({ kind: 'success', msg: `Added ${preset.length} starter badges ✦` });
-    } catch (err) {
-      onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Could not seed badges' });
-    } finally {
-      setSeeding(null);
-    }
-  };
-
-  const seedStarterRewards = async () => {
-    setSeeding('rewards');
-    try {
-      const preset = starterRewardsForIndustry(industry);
-      const { error } = await supabase.from('rewards').insert(preset.map(r => ({
-        org_id: org.id,
-        title: r.title,
-        brand: r.brand,
-        denom: r.denom,
-        points: r.points,
-        color: r.color,
-        kind: r.kind,
-        active: true,
-      })));
-      if (error) throw error;
-      qc.invalidateQueries({ queryKey: qk.rewards(org.id) });
-      qc.invalidateQueries({ queryKey: ['rewards', 'all', org.id] });
-      qc.invalidateQueries({ queryKey: qk.onboardingStatus(org.id) });
-      onToast({ kind: 'success', msg: `Added ${preset.length} starter rewards ✦` });
-    } catch (err) {
-      onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Could not seed rewards' });
-    } finally {
-      setSeeding(null);
-    }
-  };
-
-  const skipInvites = async () => {
-    try {
-      await updateOrg.mutateAsync({ org_id: org.id, invites_skipped_at: new Date().toISOString() });
-      onToast({ kind: 'info', msg: 'You can invite teammates later from Team.' });
-    } catch (err) {
-      onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Could not save' });
-    }
-  };
-
-  const handleFinalize = async () => {
-    try {
-      await finalize.mutateAsync(org.id);
-      onToast({ kind: 'success', msg: 'Setup complete — your team can now recognise each other ✦' });
-    } catch (err) {
-      onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Could not finalize' });
-    }
-  };
-
   const profileDirty = (name.trim() !== (org.name ?? '').trim()) || (industry !== (org.industry ?? ''));
-  const rows: { key: string; label: string; done: boolean; action: React.ReactNode; hint?: string }[] = [
-    {
-      key: 'profile',
-      label: 'Organisation profile',
-      done: status.hasName && status.hasIndustry && !profileDirty,
-      hint: status.hasName && status.hasIndustry ? 'Name and industry set.' : 'Fill in your organisation name and industry.',
-      action: null,
-    },
-    {
-      key: 'values',
-      label: 'Company values',
-      done: status.valuesCount > 0,
-      hint: status.valuesCount > 0 ? `${status.valuesCount} value${status.valuesCount === 1 ? '' : 's'} configured.` : 'Add at least one company value.',
-      action: (
-        <div style={{ display: 'flex', gap: 8 }}>
-          {status.valuesCount === 0 && (
-            <button className="btn btn-ghost btn-sm" onClick={seedValues} disabled={seeding === 'values'}>
-              {seeding === 'values' ? 'Seeding…' : 'Seed recommended'}
-            </button>
-          )}
-          <button className="btn btn-primary btn-sm" onClick={() => onJumpTab('values')}>Open editor</button>
-        </div>
-      ),
-    },
-    {
-      key: 'badges',
-      label: 'Badges',
-      done: status.badgesCount > 0,
-      hint: status.badgesCount > 0 ? `${status.badgesCount} badge${status.badgesCount === 1 ? '' : 's'} configured.` : 'Add at least one badge.',
-      action: (
-        <div style={{ display: 'flex', gap: 8 }}>
-          {status.badgesCount === 0 && (
-            <button className="btn btn-ghost btn-sm" onClick={seedBadges} disabled={seeding === 'badges'}>
-              {seeding === 'badges' ? 'Seeding…' : 'Seed recommended'}
-            </button>
-          )}
-          <button className="btn btn-primary btn-sm" onClick={() => onJumpTab('badges')}>Open editor</button>
-        </div>
-      ),
-    },
-    {
-      key: 'rewards',
-      label: 'Rewards catalog',
-      done: status.rewardsCount > 0,
-      hint: status.rewardsCount > 0 ? `${status.rewardsCount} reward${status.rewardsCount === 1 ? '' : 's'} available.` : 'Add at least one reward your team can redeem.',
-      action: (
-        <div style={{ display: 'flex', gap: 8 }}>
-          {status.rewardsCount === 0 && (
-            <button className="btn btn-ghost btn-sm" onClick={seedStarterRewards} disabled={seeding === 'rewards'}>
-              {seeding === 'rewards' ? 'Seeding…' : 'Seed starter rewards'}
-            </button>
-          )}
-          <button className="btn btn-primary btn-sm" onClick={() => onJumpTab('rewards')}>Open editor</button>
-        </div>
-      ),
-    },
-    {
-      key: 'team',
-      label: 'Invite teammates',
-      done: status.memberCount > 1 || status.invitesSkipped,
-      hint: status.memberCount > 1
-        ? `${status.memberCount} teammates in the workspace.`
-        : status.invitesSkipped
-          ? 'You chose to invite teammates later.'
-          : 'Invite at least one teammate or skip for now.',
-      action: (
-        <div style={{ display: 'flex', gap: 8 }}>
-          {status.memberCount <= 1 && !status.invitesSkipped && (
-            <button className="btn btn-ghost btn-sm" onClick={skipInvites}>Invite later</button>
-          )}
-          <button className="btn btn-primary btn-sm" onClick={() => onJumpTab('team')}>Open team</button>
-        </div>
-      ),
-    },
-  ];
-
-  const readyToFinalize = rows.every(r => r.done);
 
   return (
     <div style={{ display: 'grid', gap: 18 }}>
@@ -1856,46 +1704,13 @@ function SetupPanel({ onToast, onJumpTab, status }: SetupPanelProps) {
 
       {/* Checklist */}
       <div className="card" style={{ padding: 22 }}>
-        <h3 className="serif" style={{ fontWeight: 600, marginBottom: 6 }}>Setup checklist</h3>
-        <p className="muted" style={{ fontSize: 'var(--t-sm)', marginBottom: 18 }}>
-          Each item must be complete before your workspace goes live.
-        </p>
-        <div style={{ display: 'grid', gap: 12 }}>
-          {rows.map(r => (
-            <div key={r.key} className="row" style={{
-              alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
-              padding: '12px 14px', border: '1px solid var(--b-border-soft)', borderRadius: 'var(--r-md)',
-              background: r.done ? 'var(--b-forest-pale)' : 'var(--b-surface)',
-            }}>
-              <div className="row" style={{ gap: 12, alignItems: 'center' }}>
-                <span aria-hidden="true" style={{
-                  width: 24, height: 24, borderRadius: '50%',
-                  background: r.done ? 'var(--b-forest)' : 'var(--b-border-heavy)',
-                  color: r.done ? 'white' : 'var(--b-ink-3)',
-                  display: 'grid', placeItems: 'center', flexShrink: 0,
-                }}>
-                  {r.done ? <Icon name="check" size={13} stroke={3} /> : <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--b-ink-4)' }} />}
-                </span>
-                <div>
-                  <div style={{ fontWeight: 600, color: 'var(--b-ink)', fontSize: 'var(--t-sm)' }}>{r.label}</div>
-                  {r.hint && <div className="muted" style={{ fontSize: 'var(--t-xs)' }}>{r.hint}</div>}
-                </div>
-              </div>
-              {r.action}
-            </div>
-          ))}
-        </div>
-
-        <div style={{ marginTop: 20, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button className="btn btn-celebrate" onClick={handleFinalize} disabled={!readyToFinalize || finalize.isPending || !!status.onboardedAt}>
-            {status.onboardedAt ? 'Setup complete ✦' : finalize.isPending ? 'Finalising…' : 'Mark onboarding complete ✦'}
-          </button>
-          {!readyToFinalize && !status.onboardedAt && (
-            <span className="muted" style={{ fontSize: 'var(--t-xs)' }}>
-              Finish every checklist item to enable this button.
-            </span>
-          )}
-        </div>
+        <OnboardingChecklist
+          onToast={onToast}
+          onJumpTab={onJumpTab}
+          variant="full"
+          heading="Setup checklist"
+          description="Each item must be complete before your workspace goes live."
+        />
       </div>
     </div>
   );

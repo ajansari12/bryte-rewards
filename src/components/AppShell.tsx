@@ -153,11 +153,10 @@ export function AppShell() {
         />
 
         <div className="content" key={route}>
-          {needsOnboarding && isAdmin && route !== 'admin' && (
+          {needsOnboarding && isAdmin && route !== 'admin' && route !== 'feed' && (
             <div role="status" style={{ margin: '0 0 16px', padding: '12px 16px', background: 'var(--b-gold-pale)', border: '1px solid var(--b-gold-border)', borderRadius: 'var(--r-md)', display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
               <div style={{ fontSize: 'var(--t-sm)', color: 'var(--b-ink-2)', lineHeight: 1.5 }}>
-                <strong style={{ color: 'var(--b-ink)' }}>Onboarding incomplete.</strong>{' '}
-                Finish the setup checklist so your team can start recognising each other.
+                <strong style={{ color: 'var(--b-ink)' }}>Finish setup</strong> to unlock Bryte for your team.
               </div>
               <button className="btn btn-primary btn-sm" onClick={() => setRoute('admin')}>
                 Open setup checklist
@@ -168,6 +167,11 @@ export function AppShell() {
             <FeedPage
               onRecognize={() => app.setShowModal(true)}
               onOpenRec={app.setDetailRec}
+              onToast={app.pushToast}
+              onJumpSetup={(tab) => {
+                if (tab) sessionStorage.setItem('bryte:adminTab', tab);
+                setRoute('admin');
+              }}
             />
           )}
           {route === 'profile' && (

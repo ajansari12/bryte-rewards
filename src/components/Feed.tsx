@@ -7,6 +7,8 @@ import { useCurrentUser, useCurrentOrg } from '@/lib/queries/users';
 import { useAddReaction } from '@/lib/mutations/useAddReaction';
 import type { Recognition } from '@/lib/types';
 import { NominationsBanner, AnniversaryStrip } from './Additions';
+import { OnboardingChecklist } from './OnboardingChecklist';
+import { useOnboardingStatus } from '@/lib/queries/onboardingStatus';
 
 // Industry-specific empty state copy (presentational config, not DB data)
 const EMPTY_STATES: Record<string, string> = {
@@ -232,9 +234,11 @@ export function StatCardAnimated({ label, rawValue, trend, dir }: StatCardAnimat
 interface FeedPageProps {
   onRecognize?: () => void;
   onOpenRec?: (rec: Recognition) => void;
+  onJumpSetup?: (tab?: 'values' | 'badges' | 'rewards' | 'team') => void;
+  onToast?: (t: { kind?: 'success' | 'error' | 'info'; msg: string }) => void;
 }
 
-export function FeedPage({ onRecognize, onOpenRec }: FeedPageProps) {
+export function FeedPage({ onRecognize, onOpenRec, onJumpSetup, onToast }: FeedPageProps) {
   const { data: currentUser } = useCurrentUser();
   const { data: org } = useCurrentOrg();
   const { data: dbRecs, isLoading } = useRecognitions();
@@ -367,6 +371,10 @@ export function FeedPage({ onRecognize, onOpenRec }: FeedPageProps) {
         <div><h1 className="page-title">Recognition feed</h1><div className="sub">{today}</div></div>
       </div>
 
+      {currentUser?.role === 'admin' && onJumpSetup && onToast && (
+        <AdminOnboardingHero onJumpSetup={onJumpSetup} onToast={onToast} orgName={org?.name ?? 'Your workspace'} />
+      )}
+
       <NominationsBanner />
       <AnniversaryStrip />
 
@@ -408,6 +416,56 @@ export function FeedPage({ onRecognize, onOpenRec }: FeedPageProps) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AdminOnboardingHero — prominent setup prompt on the admin's feed
+// ---------------------------------------------------------------------------
+interface HeroProps {
+  orgName: string;
+  onJumpSetup: (tab?: 'values' | 'badges' | 'rewards' | 'team') => void;
+  onToast: (t: { kind?: 'success' | 'error' | 'info'; msg: string }) => void;
+}
+
+function AdminOnboardingHero({ orgName, onJumpSetup, onToast }: HeroProps) {
+  const { data: status } = useOnboardingStatus();
+
+  if (!status || status.onboardedAt) return null;
+
+  return (
+    <div
+      className="card"
+      style={{
+        padding: 24,
+        marginBottom: 24,
+        background: 'linear-gradient(135deg, var(--b-gold-pale) 0%, var(--b-cream-2) 100%)',
+        borderLeft: '4px solid var(--b-gold)',
+      }}
+    >
+      <div className="row" style={{ gap: 14, alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap' }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: 10,
+          background: 'var(--b-gold)', color: 'white',
+          display: 'grid', placeItems: 'center', flexShrink: 0,
+        }}>
+          <Icon name="sparkle" size={18} />
+        </div>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <h2 className="serif" style={{ fontWeight: 600, fontSize: '1.15rem', margin: 0, color: 'var(--b-ink)' }}>
+            Finish setting up {orgName}
+          </h2>
+          <p className="muted" style={{ fontSize: 'var(--t-sm)', margin: '4px 0 0', lineHeight: 1.5 }}>
+            Your teammates are locked out until setup is complete. A few quick steps and your workspace is live.
+          </p>
+        </div>
+      </div>
+      <OnboardingChecklist
+        variant="compact"
+        onToast={onToast}
+        onJumpTab={(t) => onJumpSetup(t)}
+      />
     </div>
   );
 }
