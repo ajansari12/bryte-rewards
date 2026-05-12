@@ -7,7 +7,7 @@ interface GiveRecognitionInput {
   org_id: string;
   sender_id: string;
   recipient_id: string;
-  value_id: string | null;
+  value_id: string;
   message: string;
   points: number;
   type: 'public' | 'private' | 'milestone' | 'spotlight';

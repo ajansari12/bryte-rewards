@@ -13,6 +13,7 @@ import { usePostComment } from '@/lib/mutations/usePostComment';
 import { useAddReaction } from '@/lib/mutations/useAddReaction';
 import { useGiveRecognition } from '@/lib/mutations/useGiveRecognition';
 import { useIntegrations, useToggleIntegration, INTEGRATION_CATALOG } from '@/lib/queries/integrations';
+import { useOrgValues } from '@/lib/queries/values';
 import { useUpdateNotificationPrefs } from '@/lib/mutations/useUpdateNotificationPrefs';
 import { useOrgRedemptions } from '@/lib/queries/rewards';
 import { useApproveRedemption } from '@/lib/mutations/useApproveRedemption';
@@ -1271,8 +1272,10 @@ export function AnniversaryStrip() {
   const { data: users = [] } = useOrgUsers();
   const { data: currentUser } = useCurrentUser();
   const { data: recentRecs = [] } = useRecognitions();
+  const { data: orgValues = [] } = useOrgValues();
   const giveRecognition = useGiveRecognition();
   const [celebratedIds, setCelebratedIds] = useState<Set<string>>(new Set());
+  const milestoneValue = orgValues[0];
 
   const alreadyCelebratedThisYear = useMemo(() => {
     const yearStart = new Date();
@@ -1318,21 +1321,22 @@ export function AnniversaryStrip() {
 
   const handleCelebrate = async (a: typeof upcoming[number]) => {
     if (!currentUser || a.id === currentUser.id || celebratedIds.has(a.id) || alreadyCelebratedThisYear.has(a.id)) return;
+    if (!milestoneValue) return;
     setCelebratedIds(prev => new Set(prev).add(a.id));
     try {
       await giveRecognition.mutateAsync({
         org_id: currentUser.org_id,
         sender_id: currentUser.id,
         recipient_id: a.id,
-        value_id: null,
+        value_id: milestoneValue.id,
         message: `Happy ${a.years}-year anniversary, ${a.name.split(' ')[0]}. Thank you for everything you bring to this team.`,
         points: Math.max(50, a.years * 10),
         type: 'milestone',
         _senderName: currentUser.display_name,
         _senderRole: currentUser.role,
         _recipientName: a.name,
-        _valueName: null,
-        _valueIcon: null,
+        _valueName: milestoneValue.name,
+        _valueIcon: milestoneValue.icon,
       });
     } catch {
       setCelebratedIds(prev => {

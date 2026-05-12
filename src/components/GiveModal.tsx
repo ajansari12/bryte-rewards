@@ -23,7 +23,7 @@ interface GiveRecognitionModalProps {
 export function GiveRecognitionModal({ onClose, onDone, presetRecipientId }: GiveRecognitionModalProps) {
   const { data: currentUser } = useCurrentUser();
   const { data: orgUsers = [] } = useOrgUsers();
-  const { data: orgValues = [] } = useOrgValues();
+  const { data: orgValues = [], isLoading: valuesLoading } = useOrgValues();
   const giveRecognition = useGiveRecognition();
   const { data: quarterSpent = 0 } = useQuarterlySpend();
   const quarterlyPool = useQuarterlyPool();
@@ -33,9 +33,8 @@ export function GiveRecognitionModal({ onClose, onDone, presetRecipientId }: Giv
     .filter(u => u.id !== currentUser?.id)
     .map(u => ({ id: u.id, name: u.display_name, title: u.title, role: u.role }));
 
-  const values = orgValues.length > 0
-    ? orgValues
-    : [{ id: 'default', name: 'Excellence', icon: '✦', points: 30, org_id: '', sort_order: 0 }];
+  const values = orgValues;
+  const noValues = !valuesLoading && values.length === 0;
 
   const [recipient, setRecipient] = useState<Person | null>(null);
 
@@ -45,7 +44,11 @@ export function GiveRecognitionModal({ onClose, onDone, presetRecipientId }: Giv
     if (p) setRecipient(p);
   }, [presetRecipientId, people, recipient]);
   const [search, setSearch] = useState('');
-  const [value, setValue] = useState(values[0]);
+  const [value, setValue] = useState<typeof values[number] | undefined>(values[0]);
+
+  useEffect(() => {
+    if (!value && values.length > 0) setValue(values[0]);
+  }, [values, value]);
   const [message, setMessage] = useState('');
   const [isPublic, setIsPublic] = useState(true);
   const [phase, setPhase] = useState<'idle' | 'sending' | 'flying' | 'sent'>('idle');
@@ -55,7 +58,7 @@ export function GiveRecognitionModal({ onClose, onDone, presetRecipientId }: Giv
 
   const initials = (n: string) => n.split(' ').map(w => w[0]).slice(0, 2).join('');
   const filtered = people.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()));
-  const canSend = recipient && value && message.length > 10;
+  const canSend = Boolean(recipient && value && !noValues && message.length > 10);
 
   // Ensure value stays in sync if orgValues load after initial render
   const activeValue = orgValues.find(v => v.id === value?.id) ?? value;
@@ -70,7 +73,7 @@ export function GiveRecognitionModal({ onClose, onDone, presetRecipientId }: Giv
         org_id: currentUser.org_id,
         sender_id: currentUser.id,
         recipient_id: recipient!.id,
-        value_id: activeValue?.id && !activeValue.id.startsWith('default') ? activeValue.id : null,
+        value_id: activeValue?.id ?? '',
         message,
         points: activeValue?.points ?? 30,
         type: isPublic ? 'public' : 'private',
@@ -174,20 +177,29 @@ export function GiveRecognitionModal({ onClose, onDone, presetRecipientId }: Giv
             {/* Value */}
             <div className="form-group">
               <label className="form-label">What are you celebrating?</label>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {values.map(v => (
-                  <button key={v.id} className="tweak-chip"
-                    style={{
-                      background: activeValue?.id === v.id ? 'var(--b-gold-pale)' : 'var(--b-surface)',
-                      borderColor: activeValue?.id === v.id ? 'var(--b-gold)' : 'var(--b-border-heavy)',
-                      color: activeValue?.id === v.id ? 'var(--b-gold)' : 'var(--b-ink-2)',
-                      fontWeight: activeValue?.id === v.id ? 600 : 500,
-                    }}
-                    onClick={() => setValue(v)}>
-                    <span>{v.icon}</span> {v.name}
-                  </button>
-                ))}
-              </div>
+              {valuesLoading ? (
+                <div style={{ height: 36, background: 'var(--b-surface)', borderRadius: 'var(--r-md)', animation: 'pulse-celebrate 1.4s ease-in-out infinite' }} aria-busy="true" />
+              ) : noValues ? (
+                <div role="alert" style={{ padding: '12px 14px', background: 'var(--b-terra-pale)', border: '1px solid var(--b-terra-border, var(--b-border-heavy))', borderRadius: 'var(--r-md)', color: 'var(--b-ink-2)', fontSize: 'var(--t-small)', lineHeight: 1.5 }}>
+                  <strong style={{ color: 'var(--b-ink)' }}>No company values yet.</strong>{' '}
+                  Ask an admin to add at least one value in Admin &rarr; Values before sending recognition.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {values.map(v => (
+                    <button key={v.id} className="tweak-chip"
+                      style={{
+                        background: activeValue?.id === v.id ? 'var(--b-gold-pale)' : 'var(--b-surface)',
+                        borderColor: activeValue?.id === v.id ? 'var(--b-gold)' : 'var(--b-border-heavy)',
+                        color: activeValue?.id === v.id ? 'var(--b-gold)' : 'var(--b-ink-2)',
+                        fontWeight: activeValue?.id === v.id ? 600 : 500,
+                      }}
+                      onClick={() => setValue(v)}>
+                      <span>{v.icon}</span> {v.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Message */}

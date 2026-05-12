@@ -34,6 +34,7 @@ export interface DbOrg {
   renewal_date: string | null;
   payment_method_last4: string | null;
   onboarded_at: string | null;
+  is_demo: boolean;
 }
 
 export function useCurrentUser() {

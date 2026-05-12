@@ -61,9 +61,9 @@ describe('useGiveRecognition', () => {
     expect(insertCall).not.toHaveProperty('_recipientName');
   });
 
-  it('works with null value_id', async () => {
+  it('forwards a concrete value_id to the database', async () => {
     const { result } = renderHook(() => useGiveRecognition(), { wrapper });
-    await act(async () => { result.current.mutate({ ...baseInput, value_id: null, _valueName: null, _valueIcon: null }); });
-    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ value_id: null }));
+    await act(async () => { result.current.mutate({ ...baseInput, value_id: 'v-42', _valueName: 'Care', _valueIcon: '✦' }); });
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({ value_id: 'v-42' }));
   });
 });

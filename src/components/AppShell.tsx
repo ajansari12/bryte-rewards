@@ -45,6 +45,7 @@ export function AppShell() {
   useRealtimeSync();
   const { data: dbUser } = useCurrentUser();
   const { data: dbOrg } = useCurrentOrg();
+  const needsOnboarding = !!dbOrg && !dbOrg.onboarded_at;
   const { data: allRecs = [] } = useRecognitions();
   const queryClient = useQueryClient();
 
@@ -106,6 +107,26 @@ export function AppShell() {
       .split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]!.toUpperCase()).join('') || '—',
   } : undefined;
 
+  if (needsOnboarding) {
+    return (
+      <div className="app" style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', padding: 24 }}>
+        <div className="card" style={{ padding: 36, textAlign: 'center', maxWidth: 480 }}>
+          <Icon name="sparkle" size={28} />
+          <h2 className="serif" style={{ fontWeight: 600, fontSize: '1.3rem', margin: '12px 0 8px' }}>
+            Finish setting up {dbOrg?.name ?? 'your workspace'}
+          </h2>
+          <p className="muted" style={{ fontSize: 'var(--t-sm)', marginBottom: 18, lineHeight: 1.55 }}>
+            Your admin hasn&rsquo;t completed onboarding yet. Company values, badges, and rewards
+            need to be configured before anyone can recognise a teammate.
+          </p>
+          <button className="btn btn-primary btn-sm" onClick={() => navigate('/onboarding')}>
+            Complete setup
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Suspense fallback={null}>
     <div className="app">
@@ -114,7 +135,7 @@ export function AppShell() {
         setRoute={setRoute}
         industry={sidebarIndustry}
         orgName={dbOrg?.name}
-        orgTag={dbOrg ? `${(BRYTE_DATA.INDUSTRIES[dbOrg.industry]?.name) || 'Team'} · ${dbOrg.plan === 'free' ? 'Free plan' : dbOrg.plan}` : undefined}
+        orgTag={dbOrg ? `${BRYTE_DATA.INDUSTRIES[dbOrg.industry]?.name ?? (dbOrg.industry ? dbOrg.industry.replace(/_/g, ' ') : dbOrg.name)} · ${dbOrg.plan === 'free' ? 'Free plan' : dbOrg.plan}` : undefined}
         user={sidebarUser}
       />
 
