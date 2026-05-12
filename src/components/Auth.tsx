@@ -14,17 +14,38 @@ export function AuthPage({ mode = 'login' }: { mode?: string }) {
   const [form, setForm] = useState({ email: '', password: '', org: '', name: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
 
   const headlines: Record<string, { h: string; sub: string }> = {
     login: { h: 'Welcome back.', sub: 'Recognise, celebrate, and connect with your team.' },
     signup: { h: "Your team's culture starts here.", sub: 'The recognition platform built for Canadian teams across every industry.' },
+    forgot: { h: 'Reset your password.', sub: "We'll email you a secure link to set a new one." },
+    reset: { h: 'Choose a new password.', sub: 'Passwords must be at least 8 characters.' },
   };
   const { h, sub } = headlines[mode] || headlines.login;
 
   const handle = async () => {
     setError('');
+    setInfo('');
     setSubmitting(true);
     try {
+      if (mode === 'forgot') {
+        const redirectTo = `${window.location.origin}/reset-password`;
+        const { error: resetErr } = await supabase.auth.resetPasswordForEmail(form.email, { redirectTo });
+        if (resetErr) { setError(resetErr.message); return; }
+        setInfo('Check your inbox for a password reset link.');
+        return;
+      }
+
+      if (mode === 'reset') {
+        if (form.password.length < 8) { setError('Password must be at least 8 characters.'); return; }
+        const { error: updErr } = await supabase.auth.updateUser({ password: form.password });
+        if (updErr) { setError(updErr.message); return; }
+        setInfo('Password updated. Redirecting…');
+        setTimeout(() => navigate('/app/feed'), 900);
+        return;
+      }
+
       if (mode === 'login') {
         const { error: authErr } = await supabase.auth.signInWithPassword({
           email: form.email,
@@ -126,18 +147,22 @@ export function AuthPage({ mode = 'login' }: { mode?: string }) {
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             </div>
           )}
-          <div className="form-group">
-            <label className="form-label" htmlFor="auth-email">Work email</label>
-            <input id="auth-email" className="input" type="email" placeholder="alex@mapleviewmedical.ca" value={form.email}
-              autoComplete="email"
-              onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-          </div>
-          <div className="form-group">
-            <label className="form-label" htmlFor="auth-password">Password</label>
-            <input id="auth-password" className="input" type="password" placeholder="••••••••••" value={form.password}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
-          </div>
+          {mode !== 'reset' && (
+            <div className="form-group">
+              <label className="form-label" htmlFor="auth-email">Work email</label>
+              <input id="auth-email" className="input" type="email" placeholder="alex@mapleviewmedical.ca" value={form.email}
+                autoComplete="email"
+                onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+            </div>
+          )}
+          {mode !== 'forgot' && (
+            <div className="form-group">
+              <label className="form-label" htmlFor="auth-password">{mode === 'reset' ? 'New password' : 'Password'}</label>
+              <input id="auth-password" className="input" type="password" placeholder="••••••••••" value={form.password}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+            </div>
+          )}
           {mode === 'signup' && (
             <div className="form-group">
               <label className="form-label" htmlFor="auth-org">Organisation name</label>
@@ -152,21 +177,43 @@ export function AuthPage({ mode = 'login' }: { mode?: string }) {
               {error}
             </p>
           )}
+          {info && (
+            <p style={{ fontSize: 'var(--t-xs)', color: 'var(--b-forest)', marginBottom: 12, lineHeight: 1.5 }}>
+              {info}
+            </p>
+          )}
 
           <button
             className="btn btn-primary btn-block btn-lg"
             style={{ marginTop: 8 }}
             onClick={handle}
-            disabled={submitting || !form.email || !form.password}
+            disabled={
+              submitting ||
+              (mode === 'forgot' ? !form.email : mode === 'reset' ? !form.password : !form.email || !form.password)
+            }
           >
-            {submitting ? 'One moment…' : mode === 'login' ? 'Sign in →' : 'Create account →'}
+            {submitting
+              ? 'One moment…'
+              : mode === 'login'
+              ? 'Sign in →'
+              : mode === 'signup'
+              ? 'Create account →'
+              : mode === 'forgot'
+              ? 'Send reset link →'
+              : 'Update password →'}
           </button>
 
           <div style={{ textAlign: 'center', marginTop: 18, fontSize: 'var(--t-xs)', color: 'var(--b-ink-3)' }}>
             {mode === 'login' ? (
-              <>Don&apos;t have an account? <button className="btn-text" style={{ fontSize: 'inherit' }} onClick={() => navigate('/signup')}>Sign up →</button></>
-            ) : (
+              <>
+                <button className="btn-text" style={{ fontSize: 'inherit' }} onClick={() => navigate('/forgot-password')}>Forgot password?</button>
+                <span style={{ margin: '0 8px', color: 'var(--b-ink-4)' }}>·</span>
+                Don&apos;t have an account? <button className="btn-text" style={{ fontSize: 'inherit' }} onClick={() => navigate('/signup')}>Sign up →</button>
+              </>
+            ) : mode === 'signup' ? (
               <>Already have an account? <button className="btn-text" style={{ fontSize: 'inherit' }} onClick={() => navigate('/login')}>Sign in →</button></>
+            ) : (
+              <button className="btn-text" style={{ fontSize: 'inherit' }} onClick={() => navigate('/login')}>← Back to sign in</button>
             )}
           </div>
         </div>

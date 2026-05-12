@@ -60,6 +60,25 @@ export function useRealtimeSync() {
           queryClient.invalidateQueries({ queryKey: qk.leaderboard(orgId, 'quarter') });
         },
       )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'users', filter: orgFilter },
+        () => {
+          queryClient.invalidateQueries({ queryKey: qk.orgUsers(orgId) });
+          queryClient.invalidateQueries({ queryKey: qk.currentUser() });
+        },
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'values', filter: orgFilter },
+        () => {
+          queryClient.invalidateQueries({ queryKey: qk.orgValues(orgId) });
+        },
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'badges', filter: orgFilter },
+        () => {
+          queryClient.invalidateQueries({ queryKey: qk.badges(orgId) });
+        },
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };

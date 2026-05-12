@@ -49,6 +49,24 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: '/forgot-password',
+    errorElement: <RouteError />,
+    element: (
+      <SuspenseWrap>
+        <AuthPage mode="forgot" />
+      </SuspenseWrap>
+    ),
+  },
+  {
+    path: '/reset-password',
+    errorElement: <RouteError />,
+    element: (
+      <SuspenseWrap>
+        <AuthPage mode="reset" />
+      </SuspenseWrap>
+    ),
+  },
+  {
     path: '/onboarding',
     loader: requireSessionSkipIfOnboarded,
     errorElement: <RouteError />,
