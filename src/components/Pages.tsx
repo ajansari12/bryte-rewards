@@ -22,8 +22,8 @@ import { useQuarterlySpend, useQuarterlyPool } from '@/lib/queries/budget';
 import { useOnboardingStatus } from '@/lib/queries/onboardingStatus';
 import { qk } from '@/lib/queries/keys';
 import { useUpdateOrg } from '@/lib/mutations/useUpdateOrg';
-import { starterRewardsForIndustry } from '@/lib/onboardingPresets';
 import { OnboardingChecklist, type AdminTabTarget as OCTabTarget } from './OnboardingChecklist';
+import { StarterRewardsPicker } from './StarterRewardsPicker';
 import { BRYTE_DATA } from '@/lib/data';
 import { supabase } from '@/lib/supabase';
 
@@ -980,34 +980,18 @@ function RewardsEditor({ onToast }: { onToast: (t: Toast) => void }) {
   const { data: rewards = [], isLoading, isError, refetch } = useAllRewards();
   const { data: currentUser } = useCurrentUser();
   const { data: currentOrg } = useCurrentOrg();
-  const qc = useQueryClient();
   const updateRewards = useUpdateRewards();
   const [drafts, setDrafts] = useState<(RewardDraft & { _key: string })[]>([]);
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const [dirty, setDirty] = useState(false);
-  const [seeding, setSeeding] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState<null | { selectAll: boolean }>(null);
 
-  const seedStarter = async () => {
-    if (!currentUser?.org_id) return;
-    const industry = currentOrg?.industry ?? 'technology';
-    setSeeding(true);
-    try {
-      const preset = starterRewardsForIndustry(industry);
-      const { error } = await supabase.from('rewards').insert(preset.map(r => ({
-        org_id: currentUser.org_id,
-        title: r.title, brand: r.brand, denom: r.denom,
-        points: r.points, color: r.color, kind: r.kind, active: true,
-      })));
-      if (error) throw error;
-      qc.invalidateQueries({ queryKey: qk.rewards(currentUser.org_id) });
-      qc.invalidateQueries({ queryKey: ['rewards', 'all', currentUser.org_id] });
-      qc.invalidateQueries({ queryKey: qk.onboardingStatus(currentUser.org_id) });
-      onToast({ kind: 'success', msg: `Added ${preset.length} starter rewards ✦` });
-    } catch (err) {
-      onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Could not seed rewards' });
-    } finally {
-      setSeeding(false);
+  const openPicker = (selectAll: boolean) => {
+    if (dirty) {
+      onToast({ kind: 'info', msg: 'Save or cancel your current changes before adding from the starter catalog.' });
+      return;
     }
+    setPickerOpen({ selectAll });
   };
 
   useEffect(() => {
@@ -1074,19 +1058,29 @@ function RewardsEditor({ onToast }: { onToast: (t: Toast) => void }) {
 
   return (
     <div className="card" style={{ padding: 22 }}>
-      <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+      <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12, gap: 12, flexWrap: 'wrap' }}>
         <div>
           <h3 className="serif" style={{ fontWeight: 600 }}>Rewards catalog</h3>
           <div className="muted" style={{ fontSize: 'var(--t-sm)', marginTop: 4 }}>Gift cards, experiences, and donations your team can redeem points for.</div>
         </div>
-        {dirty && (
-          <div className="row" style={{ gap: 8 }}>
-            <button className="btn btn-ghost btn-sm" onClick={cancel} disabled={updateRewards.isPending}>Cancel</button>
-            <button className="btn btn-primary btn-sm" onClick={save} disabled={updateRewards.isPending}>
-              {updateRewards.isPending ? 'Saving…' : 'Save changes'}
-            </button>
-          </div>
-        )}
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => openPicker(false)}
+            disabled={dirty}
+            title={dirty ? 'Save your changes first' : 'Browse the starter catalog and pick ideas to add'}
+          >
+            <Icon name="sparkle" size={12} /> Browse starter catalog
+          </button>
+          {dirty && (
+            <>
+              <button className="btn btn-ghost btn-sm" onClick={cancel} disabled={updateRewards.isPending}>Cancel</button>
+              <button className="btn btn-primary btn-sm" onClick={save} disabled={updateRewards.isPending}>
+                {updateRewards.isPending ? 'Saving…' : 'Save changes'}
+              </button>
+            </>
+          )}
+        </div>
       </div>
       {isLoading ? (
         <div className="muted" style={{ padding: 20, textAlign: 'center' }}>Loading…</div>
@@ -1101,8 +1095,8 @@ function RewardsEditor({ onToast }: { onToast: (t: Toast) => void }) {
             <div style={{ padding: '20px 12px', textAlign: 'center', display: 'grid', gap: 10, justifyItems: 'center' }}>
               <div className="muted">No rewards yet.</div>
               <div className="row" style={{ gap: 8 }}>
-                <button className="btn btn-ghost btn-sm" onClick={seedStarter} disabled={seeding}>
-                  {seeding ? 'Seeding…' : 'Seed starter rewards'}
+                <button className="btn btn-ghost btn-sm" onClick={() => openPicker(true)}>
+                  Seed starter rewards
                 </button>
                 <button className="btn btn-primary btn-sm" onClick={add}>+ Add one manually</button>
               </div>
@@ -1158,6 +1152,16 @@ function RewardsEditor({ onToast }: { onToast: (t: Toast) => void }) {
           ))}
           <button className="btn btn-text btn-sm" style={{ marginTop: 14 }} onClick={add}>+ Add reward</button>
         </>
+      )}
+      {pickerOpen && currentUser?.org_id && (
+        <StarterRewardsPicker
+          orgId={currentUser.org_id}
+          orgIndustry={currentOrg?.industry ?? 'technology'}
+          existing={rewards.map(r => ({ title: r.title, brand: r.brand, denom: r.denom }))}
+          initiallySelectAll={pickerOpen.selectAll}
+          onClose={() => setPickerOpen(null)}
+          onToast={onToast}
+        />
       )}
     </div>
   );

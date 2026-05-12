@@ -118,3 +118,18 @@ export function starterRewards(): RewardSeed[] {
   return starterRewardsForIndustry('technology');
 }
 
+export const REWARD_INDUSTRIES = ['healthcare', 'construction', 'retail', 'technology', 'hospitality', 'financial'] as const;
+export type RewardIndustry = typeof REWARD_INDUSTRIES[number];
+
+export function universalRewards(): RewardSeed[] {
+  return [...SHARED_REWARDS];
+}
+
+export function industryOnlyRewards(industry: string): RewardSeed[] {
+  return INDUSTRY_REWARDS[industry] ?? [];
+}
+
+export function rewardDedupKey(r: Pick<RewardSeed, 'title' | 'brand' | 'denom'>): string {
+  return [r.title, r.brand, r.denom].map(s => (s ?? '').trim().toLowerCase()).join('|');
+}
+
