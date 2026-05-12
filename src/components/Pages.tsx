@@ -20,8 +20,9 @@ import { useRecognitions } from '@/lib/queries/recognitions';
 import { useRequestRedemption } from '@/lib/mutations/useRequestRedemption';
 import { useQuarterlySpend, useQuarterlyPool } from '@/lib/queries/budget';
 import { useOnboardingStatus } from '@/lib/queries/onboardingStatus';
+import { qk } from '@/lib/queries/keys';
 import { useUpdateOrg, useFinalizeOnboarding } from '@/lib/mutations/useUpdateOrg';
-import { badgesForIndustry, starterRewards } from '@/lib/onboardingPresets';
+import { badgesForIndustry, starterRewardsForIndustry } from '@/lib/onboardingPresets';
 import { BRYTE_DATA } from '@/lib/data';
 import { supabase } from '@/lib/supabase';
 
@@ -977,10 +978,36 @@ const REWARD_COLORS = ['#4A90A4', '#E8836A', '#6BA886', '#C68B3B', '#8B5A3C', '#
 function RewardsEditor({ onToast }: { onToast: (t: Toast) => void }) {
   const { data: rewards = [], isLoading, isError, refetch } = useAllRewards();
   const { data: currentUser } = useCurrentUser();
+  const { data: currentOrg } = useCurrentOrg();
+  const qc = useQueryClient();
   const updateRewards = useUpdateRewards();
   const [drafts, setDrafts] = useState<(RewardDraft & { _key: string })[]>([]);
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const [dirty, setDirty] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+
+  const seedStarter = async () => {
+    if (!currentUser?.org_id) return;
+    const industry = currentOrg?.industry ?? 'technology';
+    setSeeding(true);
+    try {
+      const preset = starterRewardsForIndustry(industry);
+      const { error } = await supabase.from('rewards').insert(preset.map(r => ({
+        org_id: currentUser.org_id,
+        title: r.title, brand: r.brand, denom: r.denom,
+        points: r.points, color: r.color, kind: r.kind, active: true,
+      })));
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: qk.rewards(currentUser.org_id) });
+      qc.invalidateQueries({ queryKey: ['rewards', 'all', currentUser.org_id] });
+      qc.invalidateQueries({ queryKey: qk.onboardingStatus(currentUser.org_id) });
+      onToast({ kind: 'success', msg: `Added ${preset.length} starter rewards ✦` });
+    } catch (err) {
+      onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Could not seed rewards' });
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   useEffect(() => {
     if (!dirty) {
@@ -1070,7 +1097,15 @@ function RewardsEditor({ onToast }: { onToast: (t: Toast) => void }) {
       ) : (
         <>
           {drafts.length === 0 && (
-            <div className="muted" style={{ padding: 20, textAlign: 'center' }}>No rewards yet. Add one below.</div>
+            <div style={{ padding: '20px 12px', textAlign: 'center', display: 'grid', gap: 10, justifyItems: 'center' }}>
+              <div className="muted">No rewards yet.</div>
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn btn-ghost btn-sm" onClick={seedStarter} disabled={seeding}>
+                  {seeding ? 'Seeding…' : 'Seed starter rewards'}
+                </button>
+                <button className="btn btn-primary btn-sm" onClick={add}>+ Add one manually</button>
+              </div>
+            </div>
           )}
           {drafts.map((r, i) => (
             <div key={r._key} style={{ padding: '12px 0', borderBottom: '1px solid var(--b-border-soft)', display: 'grid', gridTemplateColumns: '1fr 1fr 90px 110px 90px auto', gap: 8, alignItems: 'center' }}>
@@ -1591,6 +1626,7 @@ interface SetupPanelProps {
 
 function SetupPanel({ onToast, onJumpTab, status }: SetupPanelProps) {
   const { data: org } = useCurrentOrg();
+  const qc = useQueryClient();
   const updateOrg = useUpdateOrg();
   const finalize = useFinalizeOnboarding();
   const [name, setName] = useState(org?.name ?? '');
@@ -1625,6 +1661,8 @@ function SetupPanel({ onToast, onJumpTab, status }: SetupPanelProps) {
         preset.map((v, i) => ({ org_id: org.id, name: v.name, icon: v.icon, points: v.points, sort_order: i + 1 }))
       );
       if (error) throw error;
+      qc.invalidateQueries({ queryKey: qk.orgValues(org.id) });
+      qc.invalidateQueries({ queryKey: qk.onboardingStatus(org.id) });
       onToast({ kind: 'success', msg: `Added ${preset.length} starter values ✦` });
     } catch (err) {
       onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Could not seed values' });
@@ -1639,6 +1677,8 @@ function SetupPanel({ onToast, onJumpTab, status }: SetupPanelProps) {
       const preset = badgesForIndustry(industry);
       const { error } = await supabase.from('badges').insert(preset.map(b => ({ ...b, org_id: org.id })));
       if (error) throw error;
+      qc.invalidateQueries({ queryKey: qk.badges(org.id) });
+      qc.invalidateQueries({ queryKey: qk.onboardingStatus(org.id) });
       onToast({ kind: 'success', msg: `Added ${preset.length} starter badges ✦` });
     } catch (err) {
       onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Could not seed badges' });
@@ -1650,11 +1690,21 @@ function SetupPanel({ onToast, onJumpTab, status }: SetupPanelProps) {
   const seedStarterRewards = async () => {
     setSeeding('rewards');
     try {
-      const preset = starterRewards();
+      const preset = starterRewardsForIndustry(industry);
       const { error } = await supabase.from('rewards').insert(preset.map(r => ({
-        org_id: org.id, name: r.name, description: r.description, points: r.points, category: r.category, icon: r.icon, active: true,
+        org_id: org.id,
+        title: r.title,
+        brand: r.brand,
+        denom: r.denom,
+        points: r.points,
+        color: r.color,
+        kind: r.kind,
+        active: true,
       })));
       if (error) throw error;
+      qc.invalidateQueries({ queryKey: qk.rewards(org.id) });
+      qc.invalidateQueries({ queryKey: ['rewards', 'all', org.id] });
+      qc.invalidateQueries({ queryKey: qk.onboardingStatus(org.id) });
       onToast({ kind: 'success', msg: `Added ${preset.length} starter rewards ✦` });
     } catch (err) {
       onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Could not seed rewards' });

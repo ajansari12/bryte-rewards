@@ -57,21 +57,64 @@ export function badgesForIndustry(industry: string): BadgeSeed[] {
 }
 
 export interface RewardSeed {
-  name: string;
-  description: string;
+  title: string;
+  brand: string;
+  denom: string;
   points: number;
-  category: string;
-  icon: string;
+  color: string;
+  kind: 'gift' | 'experience' | 'donate';
 }
 
-const STARTER_REWARDS: RewardSeed[] = [
-  { name: '$25 gift card', description: 'Amazon or a local favourite — your pick.', points: 2500, category: 'Gift cards', icon: '🎁' },
-  { name: 'Team lunch', description: 'Lunch on the company, any spot under $30.', points: 1500, category: 'Experiences', icon: '🥪' },
-  { name: 'Extra PTO day', description: 'Take a paid day off, any time in the next quarter.', points: 5000, category: 'Time off', icon: '🌿' },
-  { name: 'Coffee run', description: 'Coffee and a pastry on us, up to $15.', points: 600, category: 'Treats', icon: '☕' },
+const COLORS = ['#4A90A4', '#E8836A', '#6BA886', '#C68B3B', '#8B5A3C', '#5D7BA0'];
+const c = (i: number) => COLORS[i % COLORS.length];
+
+const SHARED_REWARDS: RewardSeed[] = [
+  { title: 'Gift card', brand: 'Amazon',      denom: '$25', points: 2500, color: c(0), kind: 'gift' },
+  { title: 'Gift card', brand: 'Amazon',      denom: '$50', points: 5000, color: c(0), kind: 'gift' },
+  { title: 'Coffee run', brand: 'Local café', denom: '$15', points: 600,  color: c(1), kind: 'experience' },
+  { title: 'Team lunch', brand: 'Your pick',  denom: '$30', points: 1500, color: c(2), kind: 'experience' },
+  { title: 'Extra PTO day', brand: 'One paid day off', denom: '', points: 5000, color: c(3), kind: 'experience' },
+  { title: 'Charity donation', brand: 'Choose a cause', denom: '$25', points: 2500, color: c(4), kind: 'donate' },
 ];
 
+const INDUSTRY_REWARDS: Record<string, RewardSeed[]> = {
+  healthcare: [
+    { title: 'Scrubs stipend',     brand: 'New scrubs on us',   denom: '$75', points: 7500, color: c(5), kind: 'gift' },
+    { title: 'Cafeteria credit',   brand: 'On-site cafeteria',  denom: '$20', points: 2000, color: c(1), kind: 'experience' },
+    { title: 'Wellness class',     brand: 'Yoga or meditation', denom: '1 class', points: 1800, color: c(2), kind: 'experience' },
+  ],
+  construction: [
+    { title: 'Gear voucher',       brand: 'Tool shop',          denom: '$100', points: 10000, color: c(3), kind: 'gift' },
+    { title: 'Steel-toe boots',    brand: 'Work-boot stipend',  denom: '$150', points: 15000, color: c(4), kind: 'gift' },
+    { title: 'Early Friday',       brand: 'Clock out at 2pm',   denom: '', points: 3000, color: c(2), kind: 'experience' },
+  ],
+  retail: [
+    { title: 'Store credit',       brand: 'Our store',          denom: '$40', points: 4000, color: c(0), kind: 'gift' },
+    { title: 'Comp ticket',        brand: 'Partner venue',      denom: '1 seat', points: 2500, color: c(5), kind: 'experience' },
+    { title: 'Shift-swap priority', brand: 'Next schedule',     denom: '', points: 1200, color: c(2), kind: 'experience' },
+  ],
+  technology: [
+    { title: 'Home office gear',   brand: 'Desk upgrade',       denom: '$100', points: 10000, color: c(5), kind: 'gift' },
+    { title: 'Conference ticket',  brand: 'Of your choice',     denom: '1 seat', points: 12000, color: c(3), kind: 'experience' },
+    { title: 'Dev book bundle',    brand: 'Any 3 books',        denom: '$75', points: 3500, color: c(4), kind: 'gift' },
+  ],
+  hospitality: [
+    { title: 'Dinner for two',     brand: 'Partner restaurant', denom: '$100', points: 10000, color: c(1), kind: 'experience' },
+    { title: 'Spa night',          brand: 'Local spa',          denom: '1 visit', points: 8000, color: c(5), kind: 'experience' },
+    { title: 'Uniform allowance',  brand: 'Shirt and shoes',    denom: '$75', points: 7500, color: c(4), kind: 'gift' },
+  ],
+  financial: [
+    { title: 'Pro development',    brand: 'Course or cert',     denom: '$200', points: 20000, color: c(0), kind: 'gift' },
+    { title: 'Commuter stipend',   brand: 'Transit pass',       denom: '$75', points: 7500, color: c(5), kind: 'gift' },
+    { title: 'Desk upgrade',       brand: 'Chair or monitor',   denom: '$150', points: 15000, color: c(3), kind: 'gift' },
+  ],
+};
+
+export function starterRewardsForIndustry(industry: string): RewardSeed[] {
+  return [...SHARED_REWARDS, ...(INDUSTRY_REWARDS[industry] ?? INDUSTRY_REWARDS.technology)];
+}
+
 export function starterRewards(): RewardSeed[] {
-  return STARTER_REWARDS;
+  return starterRewardsForIndustry('technology');
 }
 
