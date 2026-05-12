@@ -491,10 +491,21 @@ import { useDirectReports } from '@/lib/queries/users';
 
 export function ManagerPage({ onRecognize }: { onRecognize: () => void }) {
   const { data: reports = [], isLoading } = useDirectReports();
+  const { data: recs = [] } = useRecognitions();
   const teamSize = reports.length;
   const initials = (n: string) => n.split(' ').map(w => w[0]).slice(0, 2).join('');
 
-  const recognized = reports.filter(r => r.points > 0).length;
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const monthStartMs = monthStart.getTime();
+
+  const recognizedThisMonthIds = new Set(
+    recs
+      .filter(r => new Date(r.created_at).getTime() >= monthStartMs)
+      .map(r => r.recipient_id)
+  );
+  const recognized = reports.filter(r => recognizedThisMonthIds.has(r.id)).length;
 
   return (
     <div>

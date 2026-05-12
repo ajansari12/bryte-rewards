@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Icon } from './Icon';
 import { supabase } from '@/lib/supabase';
 import { useBadges } from '@/lib/queries/badges';
@@ -40,6 +40,7 @@ interface NotifPanelProps {
   notifs: Notification[];
   onMarkAll: () => void;
   onSeeAll: () => void;
+  onItemClick?: (n: Notification) => void;
 }
 
 // ─── Sidebar ─────────────────────────────────────────
@@ -179,7 +180,7 @@ export function Sidebar({ route, setRoute, orgName: orgNameProp, orgTag: orgTagP
 }
 
 // ─── Notification Panel ───────────────────────────────
-export function NotifPanel({ onClose, notifs, onMarkAll, onSeeAll }: NotifPanelProps) {
+export function NotifPanel({ onClose, notifs, onMarkAll, onSeeAll, onItemClick }: NotifPanelProps) {
   const typeIcon: Record<string, string> = { received: '✦', reaction: '❤️', badge: '🏅', milestone: '🎉' };
   return (
     <div style={{
@@ -210,6 +211,7 @@ export function NotifPanel({ onClose, notifs, onMarkAll, onSeeAll }: NotifPanelP
             cursor: 'pointer', transition: 'background 120ms var(--ease)',
             animation: `notif-item-in 200ms ${i * 50}ms var(--ease-spring) both`,
           }}
+          onClick={() => onItemClick?.(n)}
           onMouseEnter={e => { if (n.read) (e.currentTarget as HTMLDivElement).style.background = 'var(--b-elevated)'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = n.read ? 'transparent' : 'var(--b-gold-pale)'; }}>
             <style>{`@keyframes notif-item-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: none; } }`}</style>
@@ -350,43 +352,3 @@ export function Confetti({ burst }: { burst: number }) {
   );
 }
 
-// Flying card overlay — fires from modal center toward feed
-export function FlyingCard({ show, onDone }: { show: boolean; onDone: () => void }) {
-  useEffect(() => {
-    if (show) { const t = setTimeout(onDone, 900); return () => clearTimeout(t); }
-  }, [show]);
-  if (!show) return null;
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 500, pointerEvents: 'none',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
-      <div style={{
-        width: 220, background: 'var(--b-card)', borderRadius: 'var(--r-lg)',
-        border: '1px solid var(--b-border)', boxShadow: 'var(--shadow-lg)',
-        overflow: 'hidden',
-        animation: 'card-fly 850ms var(--ease-spring) forwards',
-      }}>
-        <div style={{height: 4, background: 'var(--b-terra)'}}/>
-        <div style={{padding: '12px 14px'}}>
-          <div className="row" style={{gap: 8, marginBottom: 8}}>
-            <div className="avatar sm role-manager">AT</div>
-            <div style={{fontSize: '0.78rem'}}>
-              <span className="serif" style={{fontWeight: 600, color: 'var(--b-ink)'}}>You</span>{' '}
-              <span className="italic" style={{color: 'var(--b-ink-3)', fontSize: '0.72rem'}}>recognised</span>
-            </div>
-          </div>
-          <div className="mono" style={{fontSize: '0.68rem', color: 'var(--b-gold)', fontWeight: 600}}>✦ Recognition sent</div>
-        </div>
-      </div>
-      <style>{`
-        @keyframes card-fly {
-          0% { opacity: 0; transform: scale(0.8) translateY(20px); }
-          30% { opacity: 1; transform: scale(1) translateY(0); }
-          80% { opacity: 1; transform: scale(0.85) translate(-300px, -200px); }
-          100% { opacity: 0; transform: scale(0.6) translate(-380px, -280px); }
-        }
-      `}</style>
-    </div>
-  );
-}

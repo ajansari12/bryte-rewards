@@ -74,6 +74,9 @@ export function useReviewNomination() {
       if (user?.org_id) {
         queryClient.invalidateQueries({ queryKey: qk.nominations(user.org_id) });
         queryClient.invalidateQueries({ queryKey: qk.badges(user.org_id) });
+        queryClient.invalidateQueries({ queryKey: qk.orgUsers(user.org_id) });
+        queryClient.invalidateQueries({ queryKey: ['leaderboard', user.org_id] });
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
       }
     },
   });

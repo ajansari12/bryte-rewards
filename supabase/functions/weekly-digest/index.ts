@@ -79,12 +79,21 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get auth emails via admin API
-    const { data: { users: authUsers }, error: authErr } = await supabase.auth.admin.listUsers();
-    if (authErr) throw authErr;
+    // Get auth emails via admin API (paginated — default page size is 50)
     const emailMap: Record<string, string> = {};
-    for (const u of authUsers ?? []) {
-      if (u.email) emailMap[u.id] = u.email;
+    {
+      const perPage = 1000;
+      let page = 1;
+      while (true) {
+        const { data, error: authErr } = await supabase.auth.admin.listUsers({ page, perPage });
+        if (authErr) throw authErr;
+        const batch = data.users ?? [];
+        for (const u of batch) {
+          if (u.email) emailMap[u.id] = u.email;
+        }
+        if (batch.length < perPage) break;
+        page++;
+      }
     }
 
     // Group digest users by org
@@ -120,12 +129,21 @@ Deno.serve(async (req: Request) => {
         .order("points", { ascending: false })
         .limit(5);
 
-      // New badges awarded this week
-      const { data: newBadges } = await supabase
-        .from("user_badges")
-        .select("awarded_at, user:users!user_id(display_name, org_id), badge:badges!badge_id(name, icon)")
-        .gte("awarded_at", since)
-        .limit(5);
+      // New badges awarded this week (scoped to this org's members)
+      const { data: orgMembers } = await supabase
+        .from("users")
+        .select("id")
+        .eq("org_id", orgId);
+      const orgUserIds = (orgMembers ?? []).map(u => u.id);
+
+      const { data: newBadges } = orgUserIds.length > 0
+        ? await supabase
+            .from("user_badges")
+            .select("awarded_at, user:users!user_id(display_name, org_id), badge:badges!badge_id(name, icon)")
+            .gte("awarded_at", since)
+            .in("user_id", orgUserIds)
+            .limit(5)
+        : { data: [] };
 
       // Weekly leaderboard: aggregate points by recipient
       const { data: allRecs } = await supabase
@@ -217,14 +235,24 @@ interface DigestParams {
   newBadges: Array<{ awarded_at: string; user: any; badge: any }>;
 }
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function buildDigestHtml(p: DigestParams): string {
   const recItems = p.recs.map(r => {
-    const sender = r.sender?.display_name ?? "Someone";
-    const recipient = r.recipient?.display_name ?? "a teammate";
+    const sender = escapeHtml(r.sender?.display_name ?? "Someone");
+    const recipient = escapeHtml(r.recipient?.display_name ?? "a teammate");
     const valueChip = r.value?.name
-      ? `<span style="display:inline-block;background:#F5EDD6;color:#8B6914;border-radius:4px;padding:2px 8px;font-size:11px;margin-bottom:6px;">${r.value.name}</span><br>`
+      ? `<span style="display:inline-block;background:#F5EDD6;color:#8B6914;border-radius:4px;padding:2px 8px;font-size:11px;margin-bottom:6px;">${escapeHtml(r.value.name)}</span><br>`
       : "";
-    const snippet = (r.message ?? "").slice(0, 120) + ((r.message?.length ?? 0) > 120 ? "…" : "");
+    const rawSnippet = (r.message ?? "").slice(0, 120) + ((r.message?.length ?? 0) > 120 ? "…" : "");
+    const snippet = escapeHtml(rawSnippet);
     return `
       <div style="padding:14px 16px;margin-bottom:10px;background:#F9F6F0;border-radius:8px;border-left:3px solid #C2882D;">
         ${valueChip}
@@ -236,15 +264,15 @@ function buildDigestHtml(p: DigestParams): string {
   const leaderRows = p.leaderboard.map((e, i) => `
     <tr>
       <td style="padding:8px 12px;font-family:monospace;color:#8B6914;font-weight:700;">#${i + 1}</td>
-      <td style="padding:8px 12px;color:#1C1410;font-weight:${i === 0 ? "700" : "500"};">${e.name}</td>
+      <td style="padding:8px 12px;color:#1C1410;font-weight:${i === 0 ? "700" : "500"};">${escapeHtml(e.name)}</td>
       <td style="padding:8px 12px;font-family:monospace;color:#C2882D;font-weight:700;text-align:right;">${e.points.toLocaleString()} pts</td>
     </tr>`).join("");
 
   const badgeItems = p.newBadges.length > 0
     ? p.newBadges.map(b => {
-        const who = b.user?.display_name ?? "A teammate";
-        const icon = b.badge?.icon ?? "🏅";
-        const name = b.badge?.name ?? "Badge";
+        const who = escapeHtml(b.user?.display_name ?? "A teammate");
+        const icon = escapeHtml(b.badge?.icon ?? "🏅");
+        const name = escapeHtml(b.badge?.name ?? "Badge");
         return `<div style="display:inline-block;margin:4px 6px;padding:8px 14px;background:#F0F7F0;border:1px solid #A8C5A0;border-radius:20px;font-size:12px;color:#2D5A27;">${icon} <strong>${who}</strong> earned ${name}</div>`;
       }).join("")
     : "<div style='color:#8C7B74;font-size:13px;font-style:italic;'>No new badges this week.</div>";
@@ -261,14 +289,14 @@ function buildDigestHtml(p: DigestParams): string {
         <span style="font-style:italic;font-weight:300;font-size:18px;color:rgba(250,246,239,0.6);margin-left:4px;">Weekly Digest</span>
       </div>
       <div style="margin-top:6px;font-size:11px;color:rgba(250,246,239,0.5);letter-spacing:0.04em;text-transform:uppercase;">
-        ${p.orgName} · Week of ${p.weekLabel}
+        ${escapeHtml(p.orgName)} · Week of ${escapeHtml(p.weekLabel)}
       </div>
     </div>
     <div style="height:3px;background:linear-gradient(90deg,#C2882D,#E8C56A,transparent);"></div>
 
     <div style="padding:28px 32px;">
       <p style="font-size:15px;color:#1C1410;line-height:1.6;margin:0 0 24px;">
-        Hi ${p.firstName} — here's what happened on your team wall this week. ✦
+        Hi ${escapeHtml(p.firstName)} — here's what happened on your team wall this week. ✦
       </p>
 
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:28px;">

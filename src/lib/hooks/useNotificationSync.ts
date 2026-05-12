@@ -49,6 +49,8 @@ function toUiNotif(n: DbNotification): Notification {
     sub,
     time: formatRelTime(n.created_at),
     read: n.read_at !== null,
+    kind: n.kind,
+    payload: n.payload_json as Record<string, unknown>,
   };
 }
 

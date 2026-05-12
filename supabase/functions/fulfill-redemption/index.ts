@@ -154,6 +154,19 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Guard against double-fulfillment
+    if (redemption.status !== "approved") {
+      return new Response(
+        JSON.stringify({
+          message: `redemption is ${redemption.status}; expected 'approved'`,
+        }),
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const resendKey = Deno.env.get("RESEND_API_KEY");
     const fulfillmentCode = generateFulfillmentCode();
     const reward = redemption.reward as any;
@@ -164,7 +177,8 @@ Deno.serve(async (req: Request) => {
 
     // Send fulfillment email if Resend is configured and we have an email
     if (resendKey && recipientEmail) {
-      const firstName = (redemptionUser.display_name as string).split(" ")[0];
+      const displayName = (redemptionUser.display_name as string | null) ?? "";
+      const firstName = displayName.split(" ")[0] || "there";
       const html = buildFulfillmentEmail({
         firstName,
         rewardTitle: reward?.title ?? "Reward",

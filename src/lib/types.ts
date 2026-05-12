@@ -18,6 +18,8 @@ export interface Notification {
   sub: string;
   time: string;
   read: boolean;
+  kind?: string;
+  payload?: Record<string, unknown>;
 }
 
 export interface Toast {

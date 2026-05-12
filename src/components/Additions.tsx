@@ -257,7 +257,7 @@ export function ProfilePage({
 }
 
 // ─── SearchPalette ──────────────────────────────────────
-export function SearchPalette({ onClose, onJump }: { onClose: () => void; onJump: (route: string) => void }) {
+export function SearchPalette({ onClose, onJump }: { onClose: () => void; onJump: (route: string, personId?: string) => void }) {
   const [q, setQ] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -270,7 +270,7 @@ export function SearchPalette({ onClose, onJump }: { onClose: () => void; onJump
     return () => window.removeEventListener('keydown', h);
   }, [onClose]);
 
-  type Item = { kind: 'action' | 'page' | 'person'; label: string; icon: string; route: string; sub?: string };
+  type Item = { kind: 'action' | 'page' | 'person'; label: string; icon: string; route: string; sub?: string; personId?: string };
 
   const BASE_ITEMS: Item[] = useMemo(() => [
     { kind: 'action', label: 'Recognise someone', icon: 'sparkle', route: '__recognize' },
@@ -292,6 +292,7 @@ export function SearchPalette({ onClose, onJump }: { onClose: () => void; onJump
       icon: 'users',
       route: '__recognize',
       sub: u.title || u.role,
+      personId: u.id,
     })),
     [orgUsers],
   );
@@ -322,7 +323,7 @@ export function SearchPalette({ onClose, onJump }: { onClose: () => void; onJump
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive(a => Math.min(a + 1, flatItems.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(a => Math.max(a - 1, 0)); }
-    else if (e.key === 'Enter' && flatItems[active]) { onJump(flatItems[active].route); onClose(); }
+    else if (e.key === 'Enter' && flatItems[active]) { onJump(flatItems[active].route, flatItems[active].personId); onClose(); }
   };
 
   const renderItem = (item: typeof flatItems[0], globalIdx: number) => (
@@ -330,7 +331,7 @@ export function SearchPalette({ onClose, onJump }: { onClose: () => void; onJump
       key={item.label}
       data-idx={globalIdx}
       onMouseEnter={() => setActive(globalIdx)}
-      onClick={() => { onJump(item.route); onClose(); }}
+      onClick={() => { onJump(item.route, item.personId); onClose(); }}
       className="row"
       style={{
         width: '100%', padding: '10px 14px', gap: 12,
@@ -985,7 +986,7 @@ export function IntegrationsPanel() {
 }
 
 // ─── NominationsBanner ──────────────────────────────────
-export function NominationsBanner({ onVote }: { onVote?: (name: string) => void }) {
+export function NominationsBanner() {
   const { data: leaderboard = [] } = useLeaderboard('month');
   const { data: currentUser } = useCurrentUser();
   const { data: votes = [] } = useMonthlyVotes();
@@ -1046,7 +1047,6 @@ export function NominationsBanner({ onVote }: { onVote?: (name: string) => void 
             <button key={n.id} disabled={castVote.isPending} onClick={async () => {
               try {
                 await castVote.mutateAsync(n.id);
-                onVote?.(n.name);
               } catch {/* ignore */}
             }} style={{
               background: voted ? 'var(--b-gold)' : 'rgba(255,255,255,0.06)',
@@ -1079,11 +1079,25 @@ export function NominationsBanner({ onVote }: { onVote?: (name: string) => void 
 // ─── AnniversaryStrip ───────────────────────────────────
 // Shows upcoming work anniversaries based on users.start_date — the anniversary
 // day in the current year, looking 14 days ahead.
-export function AnniversaryStrip({ onCelebrate }: { onCelebrate?: (a: { name: string; years: number; date: string; tenure: string }) => void }) {
+export function AnniversaryStrip() {
   const { data: users = [] } = useOrgUsers();
   const { data: currentUser } = useCurrentUser();
+  const { data: recentRecs = [] } = useRecognitions();
   const giveRecognition = useGiveRecognition();
   const [celebratedIds, setCelebratedIds] = useState<Set<string>>(new Set());
+
+  const alreadyCelebratedThisYear = useMemo(() => {
+    const yearStart = new Date();
+    yearStart.setMonth(0, 1);
+    yearStart.setHours(0, 0, 0, 0);
+    const ids = new Set<string>();
+    for (const r of recentRecs) {
+      if (r.type !== 'milestone') continue;
+      if (new Date(r.created_at).getTime() < yearStart.getTime()) continue;
+      if (r.recipient_id) ids.add(r.recipient_id);
+    }
+    return ids;
+  }, [recentRecs]);
 
   const upcoming = useMemo(() => {
     const today = new Date();
@@ -1115,7 +1129,7 @@ export function AnniversaryStrip({ onCelebrate }: { onCelebrate?: (a: { name: st
   if (upcoming.length === 0) return null;
 
   const handleCelebrate = async (a: typeof upcoming[number]) => {
-    if (!currentUser || a.id === currentUser.id || celebratedIds.has(a.id)) return;
+    if (!currentUser || a.id === currentUser.id || celebratedIds.has(a.id) || alreadyCelebratedThisYear.has(a.id)) return;
     setCelebratedIds(prev => new Set(prev).add(a.id));
     try {
       await giveRecognition.mutateAsync({
@@ -1132,7 +1146,6 @@ export function AnniversaryStrip({ onCelebrate }: { onCelebrate?: (a: { name: st
         _valueName: null,
         _valueIcon: null,
       });
-      onCelebrate?.({ name: a.name, years: a.years, date: a.date, tenure: a.tenure });
     } catch {
       setCelebratedIds(prev => {
         const next = new Set(prev);
@@ -1151,7 +1164,7 @@ export function AnniversaryStrip({ onCelebrate }: { onCelebrate?: (a: { name: st
         </div>
         <div className="row flex-wrap" style={{ gap: 8, flex: 1, justifyContent: 'flex-end' }}>
           {upcoming.map(a => {
-            const done = celebratedIds.has(a.id);
+            const done = celebratedIds.has(a.id) || alreadyCelebratedThisYear.has(a.id);
             const isSelf = a.id === currentUser?.id;
             return (
               <div key={a.id} className="row" style={{ gap: 8, background: 'var(--b-card)', padding: '6px 12px', borderRadius: 'var(--r-pill)', border: '1px solid var(--b-forest-border)' }}>

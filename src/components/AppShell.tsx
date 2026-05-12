@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
 import { useApp } from '@/context/AppContext';
 import { Sidebar, Topbar, ToastRack, NotifPanel, Confetti } from './Shell';
 import { FeedPage } from './Feed';
@@ -9,7 +9,11 @@ import { Icon } from './Icon';
 import { useNotificationSync } from '@/lib/hooks/useNotificationSync';
 import { useRealtimeSync } from '@/lib/hooks/useRealtimeSync';
 import { useCurrentUser, useCurrentOrg } from '@/lib/queries/users';
-import type { Industry, Theme, Route } from '@/lib/types';
+import { useRecognitions } from '@/lib/queries/recognitions';
+import { supabase } from '@/lib/supabase';
+import { useQueryClient } from '@tanstack/react-query';
+import { qk } from '@/lib/queries/keys';
+import type { Industry, Theme, Route, Notification as UiNotification } from '@/lib/types';
 
 // Lazy-load less-critical page components
 const LeaderboardPage = React.lazy(() => import('./Pages').then(m => ({ default: m.LeaderboardPage })));
@@ -41,12 +45,55 @@ export function AppShell() {
   useRealtimeSync();
   const { data: dbUser } = useCurrentUser();
   const { data: dbOrg } = useCurrentOrg();
+  const { data: allRecs = [] } = useRecognitions();
+  const queryClient = useQueryClient();
 
-  const pathname = window.location.pathname;
+  const { pathname } = useLocation();
   const routeSegment = pathname.split('/').pop() || 'feed';
   const route = routeSegment as Route;
 
   const setRoute = (r: Route) => navigate(`/app/${r}`);
+
+  const onNotifClick = (n: UiNotification) => {
+    const payload = n.payload ?? {};
+    const recId = payload.recognition_id as string | undefined;
+    const approvalKinds = new Set(['approval', 'redemption_requested', 'redemption_approved', 'redemption_cancelled']);
+
+    if (!n.read && dbUser?.id) {
+      void supabase
+        .from('notifications')
+        .update({ read_at: new Date().toISOString() })
+        .eq('id', n.id)
+        .then(() => queryClient.invalidateQueries({ queryKey: qk.notifications(dbUser.id) }));
+    }
+
+    if (recId) {
+      const rec = allRecs.find(r => r.id === recId);
+      if (rec) {
+        app.setDetailRec({
+          _id: rec.id,
+          sender: rec.sender?.display_name ?? 'Unknown',
+          senderRole: rec.sender?.role ?? 'employee',
+          recipient: rec.recipient?.display_name ?? 'Unknown',
+          value: rec.value?.name ?? '',
+          message: rec.message,
+          points: rec.points,
+          time: new Date(rec.created_at).toLocaleDateString(),
+          type: rec.type,
+          reactions: {},
+        });
+        app.setShowNotifPanel(false);
+        return;
+      }
+    }
+    if (n.kind && approvalKinds.has(n.kind)) {
+      app.setShowNotifPanel(false);
+      setRoute('rewards');
+      return;
+    }
+    app.setShowNotifPanel(false);
+    setRoute('notifications');
+  };
 
   const sidebarIndustry = dbOrg?.industry || app.industry;
   const sidebarUser = dbUser ? {
@@ -88,8 +135,6 @@ export function AppShell() {
             <FeedPage
               onRecognize={() => app.setShowModal(true)}
               onOpenRec={app.setDetailRec}
-              onCelebrate={(a: any) => app.pushToast({ kind: 'success', msg: `Celebrating ${a.name}'s ${a.years}-year ✦` })}
-              onVote={(n: string) => app.pushToast({ kind: 'success', msg: `Voted for ${n.split(' ')[0]} ✦` })}
             />
           )}
           {route === 'profile' && (
@@ -123,26 +168,30 @@ export function AppShell() {
             onClose={() => app.setShowNotifPanel(false)}
             onMarkAll={markAllRead}
             onSeeAll={() => { app.setShowNotifPanel(false); setRoute('notifications'); }}
+            onItemClick={onNotifClick}
           />
         </>
       )}
 
       {app.showModal && (
         <GiveRecognitionModal
-          onClose={() => app.setShowModal(false)}
+          onClose={() => { app.setShowModal(false); app.setPresetRecipientId(null); }}
           onDone={() => {
             app.fireConfetti();
             app.pushToast({ kind: 'success', msg: 'Recognition sent ✦' });
           }}
+          presetRecipientId={app.presetRecipientId}
         />
       )}
 
       {app.showSearch && (
         <SearchPalette
           onClose={() => app.setShowSearch(false)}
-          onJump={(r: string) => {
-            if (r === '__recognize') app.setShowModal(true);
-            else setRoute(r as Route);
+          onJump={(r: string, personId?: string) => {
+            if (r === '__recognize') {
+              if (personId) app.setPresetRecipientId(personId);
+              app.setShowModal(true);
+            } else setRoute(r as Route);
           }}
         />
       )}

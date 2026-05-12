@@ -55,6 +55,33 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Dedup: check if this email is already a member of the org
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const perPage = 1000;
+    let existingUserId: string | null = null;
+    for (let page = 1; ; page++) {
+      const { data, error: listErr } = await supabase.auth.admin.listUsers({ page, perPage });
+      if (listErr) throw listErr;
+      const batch = data.users ?? [];
+      const hit = batch.find(u => (u.email ?? "").toLowerCase() === normalizedEmail);
+      if (hit) { existingUserId = hit.id; break; }
+      if (batch.length < perPage) break;
+    }
+
+    if (existingUserId) {
+      const { data: existingMember } = await supabase
+        .from("users")
+        .select("id, org_id")
+        .eq("id", existingUserId)
+        .maybeSingle();
+      if (existingMember && existingMember.org_id === org_id) {
+        return new Response(
+          JSON.stringify({ id: existingUserId, already_member: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // Invite via Supabase Auth Admin
     const { data: invite, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(email, {
       data: { org_id, role },

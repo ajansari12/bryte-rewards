@@ -23,6 +23,8 @@ export function useRequestRedemption() {
     onSuccess: (_data, input) => {
       queryClient.invalidateQueries({ queryKey: qk.redemptions(input.user_id) });
       queryClient.invalidateQueries({ queryKey: qk.currentUser() });
+      queryClient.invalidateQueries({ queryKey: ['redemptions', 'org'] });
+      queryClient.invalidateQueries({ queryKey: ['org'] });
     },
   });
 }

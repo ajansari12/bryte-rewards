@@ -232,11 +232,9 @@ export function StatCardAnimated({ label, rawValue, trend, dir }: StatCardAnimat
 interface FeedPageProps {
   onRecognize?: () => void;
   onOpenRec?: (rec: Recognition) => void;
-  onCelebrate?: (anniversary: any) => void;
-  onVote?: (name: string) => void;
 }
 
-export function FeedPage({ onRecognize, onOpenRec, onCelebrate, onVote }: FeedPageProps) {
+export function FeedPage({ onRecognize, onOpenRec }: FeedPageProps) {
   const { data: currentUser } = useCurrentUser();
   const { data: org } = useCurrentOrg();
   const { data: dbRecs, isLoading } = useRecognitions();
@@ -369,8 +367,8 @@ export function FeedPage({ onRecognize, onOpenRec, onCelebrate, onVote }: FeedPa
         <div><h1 className="page-title">Recognition feed</h1><div className="sub">{today}</div></div>
       </div>
 
-      <NominationsBanner onVote={onVote} />
-      <AnniversaryStrip onCelebrate={onCelebrate} />
+      <NominationsBanner />
+      <AnniversaryStrip />
 
       <div className="stat-strip" style={{ marginBottom: 22 }}>
         {stats.map((s, i) => <StatCardAnimated key={i} {...s} />)}

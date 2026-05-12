@@ -15,11 +15,15 @@ export function useRealtimeSync() {
     const orgId = user.org_id;
     const userId = user.id;
 
+    const orgFilter = `org_id=eq.${orgId}`;
+
     const channel = supabase
       .channel(`org-realtime:${orgId}`)
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'comments' },
         (payload) => {
+          // comments has no org_id column; invalidate on any change but only the
+          // affected recognition's comment list.
           const row = (payload.new ?? payload.old) as { recognition_id?: string } | null;
           if (row?.recognition_id) {
             queryClient.invalidateQueries({ queryKey: qk.comments(row.recognition_id) });
@@ -34,20 +38,20 @@ export function useRealtimeSync() {
         },
       )
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'redemptions' },
+        { event: '*', schema: 'public', table: 'redemptions', filter: orgFilter },
         () => {
           queryClient.invalidateQueries({ queryKey: qk.redemptions(userId) });
           queryClient.invalidateQueries({ queryKey: qk.orgRedemptions(orgId) });
         },
       )
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'nominations' },
+        { event: '*', schema: 'public', table: 'nominations', filter: orgFilter },
         () => {
           queryClient.invalidateQueries({ queryKey: qk.nominations(orgId) });
         },
       )
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'recognitions' },
+        { event: '*', schema: 'public', table: 'recognitions', filter: orgFilter },
         () => {
           queryClient.invalidateQueries({ queryKey: qk.recognitions(orgId) });
           queryClient.invalidateQueries({ queryKey: qk.feedStats(orgId) });

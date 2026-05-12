@@ -17,6 +17,7 @@ interface AppState {
   showTour: boolean;
   showKudos: boolean;
   nominateBadge: { id: string; name: string; icon: string; criteria?: string } | null;
+  presetRecipientId: string | null;
 }
 
 interface AppActions {
@@ -31,6 +32,7 @@ interface AppActions {
   setShowTour: (v: boolean) => void;
   setShowKudos: (v: boolean) => void;
   setNominateBadge: (b: { id: string; name: string; icon: string; criteria?: string } | null) => void;
+  setPresetRecipientId: (id: string | null) => void;
   pushToast: (t: Omit<Toast, 'id'>) => void;
   fireConfetti: () => void;
 }
@@ -51,6 +53,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [showTour, setShowTour] = useState(false);
   const [showKudos, setShowKudos] = useState(false);
   const [nominateBadge, setNominateBadge] = useState<{ id: string; name: string; icon: string; criteria?: string } | null>(null);
+  const [presetRecipientId, setPresetRecipientId] = useState<string | null>(null);
 
   // Load persisted prefs on mount
   useEffect(() => {
@@ -110,8 +113,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setIndustry = useCallback((ind: Industry) => {
     setIndustryState(ind);
-    persist({ industry: ind, theme: '' });
-  }, []);
+    persist({ industry: ind, theme });
+  }, [theme]);
 
   const toggleTheme = useCallback(() => {
     setTheme(t => {
@@ -143,10 +146,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       industry, theme, showModal, toasts, confetti,
       showNotifPanel, showTweaks, showSearch, detailRec, showDigest,
-      showTour, showKudos, nominateBadge,
+      showTour, showKudos, nominateBadge, presetRecipientId,
       setIndustry, toggleTheme, setShowModal,
       setShowNotifPanel, setShowTweaks, setShowSearch, setDetailRec,
       setShowDigest, setShowTour, setShowKudos, setNominateBadge,
+      setPresetRecipientId,
       pushToast, fireConfetti,
     }}>
       {children}

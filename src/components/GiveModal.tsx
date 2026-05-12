@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Icon } from './Icon';
 import { useCurrentUser } from '@/lib/queries/users';
 import { useOrgValues } from '@/lib/queries/values';
 import { useOrgUsers } from '@/lib/queries/users';
 import { useGiveRecognition } from '@/lib/mutations/useGiveRecognition';
+import { useQuarterlySpend, useQuarterlyPool } from '@/lib/queries/budget';
 import { useFocusTrap } from './Extras';
 
 interface Person {
@@ -16,13 +17,17 @@ interface Person {
 interface GiveRecognitionModalProps {
   onClose: () => void;
   onDone?: () => void;
+  presetRecipientId?: string | null;
 }
 
-export function GiveRecognitionModal({ onClose, onDone }: GiveRecognitionModalProps) {
+export function GiveRecognitionModal({ onClose, onDone, presetRecipientId }: GiveRecognitionModalProps) {
   const { data: currentUser } = useCurrentUser();
   const { data: orgUsers = [] } = useOrgUsers();
   const { data: orgValues = [] } = useOrgValues();
   const giveRecognition = useGiveRecognition();
+  const { data: quarterSpent = 0 } = useQuarterlySpend();
+  const quarterlyPool = useQuarterlyPool();
+  const poolRemaining = Math.max(0, quarterlyPool - quarterSpent);
 
   const people: Person[] = orgUsers
     .filter(u => u.id !== currentUser?.id)
@@ -33,6 +38,12 @@ export function GiveRecognitionModal({ onClose, onDone }: GiveRecognitionModalPr
     : [{ id: 'default', name: 'Excellence', icon: '✦', points: 30, org_id: '', sort_order: 0 }];
 
   const [recipient, setRecipient] = useState<Person | null>(null);
+
+  useEffect(() => {
+    if (!presetRecipientId || recipient) return;
+    const p = people.find(x => x.id === presetRecipientId);
+    if (p) setRecipient(p);
+  }, [presetRecipientId, people, recipient]);
   const [search, setSearch] = useState('');
   const [value, setValue] = useState(values[0]);
   const [message, setMessage] = useState('');
@@ -235,9 +246,18 @@ export function GiveRecognitionModal({ onClose, onDone }: GiveRecognitionModalPr
 
             {/* Points */}
             <div role="status" aria-live="polite" style={{ padding: '10px 14px', background: 'var(--b-forest-pale)', borderRadius: 'var(--r-md)', border: '1px solid var(--b-forest-border)', marginBottom: 14, fontSize: 'var(--t-small)', color: 'var(--b-ink-2)' }}>
-              {recipient ? recipient.name.split(' ')[0] : 'They'} will receive{' '}
-              <span className="mono" style={{ fontWeight: 700, color: 'var(--b-forest)' }}>{activeValue?.points ?? 0}</span>{' '}
-              Bryte Points ✦
+              <div>
+                {recipient ? recipient.name.split(' ')[0] : 'They'} will receive{' '}
+                <span className="mono" style={{ fontWeight: 700, color: 'var(--b-forest)' }}>{activeValue?.points ?? 0}</span>{' '}
+                Bryte Points ✦
+              </div>
+              <div className="muted" style={{ fontSize: 'var(--t-xs)', marginTop: 4 }}>
+                Quarter pool remaining:{' '}
+                <span className="mono" style={{ fontWeight: 600, color: 'var(--b-ink-2)' }}>
+                  {poolRemaining.toLocaleString()}
+                </span>{' '}
+                / {quarterlyPool.toLocaleString()}
+              </div>
             </div>
 
             {/* Toggle */}

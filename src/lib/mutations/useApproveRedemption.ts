@@ -43,6 +43,9 @@ export function useApproveRedemption() {
     },
     onSettled: (_data, _err, input) => {
       queryClient.invalidateQueries({ queryKey: qk.orgRedemptions(input.org_id) });
+      queryClient.invalidateQueries({ queryKey: qk.currentOrg(input.org_id) });
+      queryClient.invalidateQueries({ queryKey: ['redemptions'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 }
