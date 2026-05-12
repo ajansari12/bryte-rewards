@@ -28,6 +28,12 @@ export interface DbOrg {
   plan: string;
   points_pool_remaining: number;
   quarterly_pool: number;
+  billing_status: 'active' | 'past_due' | 'canceled' | null;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  renewal_date: string | null;
+  payment_method_last4: string | null;
+  onboarded_at: string | null;
 }
 
 export function useCurrentUser() {

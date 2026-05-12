@@ -26,5 +26,7 @@ export function usePendingInvites(enabled = true) {
     },
     enabled,
     staleTime: 60_000,
+    refetchInterval: enabled ? 30_000 : false,
+    refetchIntervalInBackground: false,
   });
 }

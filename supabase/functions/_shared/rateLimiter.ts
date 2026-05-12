@@ -44,11 +44,17 @@ export function checkRateLimit(req: Request): Response | null {
   refill(bucket, now);
 
   if (bucket.tokens < 1) {
-    return new Response(JSON.stringify({ message: "Rate limit exceeded. Try again in a moment." }), {
+    const msToRefillOne = ((1 - bucket.tokens) / CAPACITY) * WINDOW_MS;
+    const retryAfterSec = Math.max(1, Math.ceil(msToRefillOne / 1000));
+    const resetEpoch = Math.ceil((now + msToRefillOne) / 1000);
+    return new Response(JSON.stringify({ message: "Rate limit exceeded. Try again in a moment.", retry_after: retryAfterSec }), {
       status: 429,
       headers: {
         "Content-Type": "application/json",
-        "Retry-After": String(Math.ceil(WINDOW_MS / 1000)),
+        "Retry-After": String(retryAfterSec),
+        "X-RateLimit-Limit": String(CAPACITY),
+        "X-RateLimit-Remaining": "0",
+        "X-RateLimit-Reset": String(resetEpoch),
         "Access-Control-Allow-Origin": "*",
       },
     });

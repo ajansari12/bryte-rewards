@@ -928,12 +928,12 @@ export function BillingPanel() {
   const plan = org?.plan ?? 'free';
   const planName = planLabel[plan] ?? plan;
   const pointsRemaining = org?.points_pool_remaining ?? 0;
-  const quarterlyPool = (org as any)?.quarterly_pool ?? 24000;
-  const renewalDate = (org as any)?.renewal_date
-    ? new Date((org as any).renewal_date).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
+  const quarterlyPool = org?.quarterly_pool ?? 24000;
+  const renewalDate = org?.renewal_date
+    ? new Date(org.renewal_date).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
     : '—';
-  const last4 = (org as any)?.payment_method_last4;
-  const billingStatus = ((org as any)?.billing_status ?? 'active') as 'active' | 'past_due' | 'canceled';
+  const last4 = org?.payment_method_last4;
+  const billingStatus = org?.billing_status ?? 'active';
   const statusPillLabel: Record<string, string> = {
     active: plan === 'free' ? 'Free' : 'Active',
     past_due: 'Past due',

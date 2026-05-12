@@ -198,12 +198,27 @@ Deno.serve(async (req: Request) => {
             }),
           });
           if (!res.ok) {
-            errors.push(`${email}: ${await res.text()}`);
+            const errText = await res.text();
+            errors.push(`${email}: ${errText}`);
+            await supabase.from("email_log").insert({
+              org_id: orgId, to_email: email, template: "weekly_digest",
+              status: "failed", error: errText.slice(0, 500),
+            });
           } else {
             emailsSent++;
+            const json = await res.json().catch(() => ({}));
+            await supabase.from("email_log").insert({
+              org_id: orgId, to_email: email, template: "weekly_digest",
+              status: "sent", provider_message_id: json?.id ?? null,
+            });
           }
         } catch (e) {
-          errors.push(`${email}: ${e instanceof Error ? e.message : "send failed"}`);
+          const msg = e instanceof Error ? e.message : "send failed";
+          errors.push(`${email}: ${msg}`);
+          await supabase.from("email_log").insert({
+            org_id: orgId, to_email: email, template: "weekly_digest",
+            status: "failed", error: msg.slice(0, 500),
+          });
         }
       }
     }
