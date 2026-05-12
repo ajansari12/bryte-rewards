@@ -83,6 +83,43 @@ export function ProfilePage({
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const [draftTitle, setDraftTitle] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  const openProfileEdit = () => {
+    setDraftName(currentUser?.display_name ?? '');
+    setDraftTitle(currentUser?.title ?? '');
+    setProfileError(null);
+    setEditing(true);
+  };
+
+  const saveProfile = async () => {
+    if (!currentUser) return;
+    const name = draftName.trim();
+    if (name.length < 2 || name.length > 60) {
+      setProfileError('Name must be 2–60 characters.');
+      return;
+    }
+    const title = draftTitle.trim().slice(0, 80);
+    setSavingProfile(true);
+    setProfileError(null);
+    try {
+      const { error: updErr } = await supabase
+        .from('users')
+        .update({ display_name: name, title })
+        .eq('id', currentUser.id);
+      if (updErr) throw updErr;
+      await queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      setEditing(false);
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : 'Could not save profile.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const handleAvatarUpload = async (file: File | null) => {
     if (!file || !currentUser) return;
@@ -198,8 +235,49 @@ export function ProfilePage({
           <div style={{ color: 'var(--b-rose, #c2410c)', fontSize: 'var(--t-xs)', marginTop: 4 }}>{uploadError}</div>
         )}
 
-        <h1 className="serif" style={{ fontSize: '1.8rem', fontWeight: 600, margin: 0 }}>{currentUser?.display_name ?? '—'}</h1>
-        <div className="muted" style={{ marginTop: 4 }}>{currentUser?.title ?? ''}</div>
+        {editing ? (
+          <div style={{ maxWidth: 360, margin: '0 auto', textAlign: 'left' }}>
+            <label className="label" htmlFor="profile-name" style={{ display: 'block', marginBottom: 4 }}>Display name</label>
+            <input
+              id="profile-name"
+              value={draftName}
+              onChange={e => setDraftName(e.target.value)}
+              maxLength={60}
+              style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)', background: 'var(--b-cream-2)', marginBottom: 10 }}
+            />
+            <label className="label" htmlFor="profile-title" style={{ display: 'block', marginBottom: 4 }}>Title</label>
+            <input
+              id="profile-title"
+              value={draftTitle}
+              onChange={e => setDraftTitle(e.target.value)}
+              maxLength={80}
+              placeholder="e.g. Staff Engineer"
+              style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)', background: 'var(--b-cream-2)', marginBottom: 10 }}
+            />
+            {profileError && (
+              <div style={{ color: 'var(--b-rose, #c2410c)', fontSize: 'var(--t-xs)', marginBottom: 8 }}>{profileError}</div>
+            )}
+            <div className="row" style={{ gap: 8, justifyContent: 'center' }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => setEditing(false)} disabled={savingProfile}>Cancel</button>
+              <button className="btn btn-primary btn-sm" onClick={saveProfile} disabled={savingProfile}>
+                {savingProfile ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h1 className="serif" style={{ fontSize: '1.8rem', fontWeight: 600, margin: 0 }}>{currentUser?.display_name ?? '—'}</h1>
+            <div className="muted" style={{ marginTop: 4 }}>{currentUser?.title ?? ''}</div>
+            <button
+              className="btn-text"
+              onClick={openProfileEdit}
+              style={{ marginTop: 6, fontSize: 'var(--t-xs)' }}
+              aria-label="Edit profile name and title"
+            >
+              Edit profile
+            </button>
+          </>
+        )}
 
         <div style={{ margin: '16px auto 0', maxWidth: 260 }}>
           <div className="row" style={{ justifyContent: 'space-between', marginBottom: 5 }}>

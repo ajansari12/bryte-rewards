@@ -79,6 +79,12 @@ export function useRealtimeSync() {
           queryClient.invalidateQueries({ queryKey: qk.badges(orgId) });
         },
       )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: qk.notifications(userId) });
+        },
+      )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };

@@ -469,6 +469,31 @@ export function ApprovalQueuePanel({ onToast }: { onToast?: (t: { kind?: 'succes
     }
   };
 
+  const handleFulfill = async (id: string) => {
+    setActioningId(id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fulfill-redemption`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ redemption_id: id }),
+        }
+      );
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message ?? 'Fulfillment failed');
+      onToast?.({ kind: 'success', msg: 'Fulfillment email sent ✦' });
+    } catch (e) {
+      onToast?.({ kind: 'error', msg: e instanceof Error ? e.message : 'Fulfillment failed' });
+    } finally {
+      setActioningId(null);
+    }
+  };
+
   const handleDeny = async (id: string) => {
     if (!user) return;
     setActioningId(id);
@@ -560,14 +585,18 @@ export function ApprovalQueuePanel({ onToast }: { onToast?: (t: { kind?: 'succes
                 : r.status === 'approved'
                 ? { cls: 'pill gold', style: {} }
                 : { cls: 'pill', style: { background: 'var(--b-terra-pale)', color: 'var(--b-terra)' } };
+              const canRefulfill = r.status === 'approved' && actioningId !== r.id;
               return (
-                <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '28px 1fr auto auto', gap: 14, padding: '12px 18px', borderBottom: i < processed.length - 1 ? '1px solid var(--b-border-soft)' : 'none', alignItems: 'center', fontSize: 'var(--t-small)' }}>
+                <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '28px 1fr auto auto auto', gap: 14, padding: '12px 18px', borderBottom: i < processed.length - 1 ? '1px solid var(--b-border-soft)' : 'none', alignItems: 'center', fontSize: 'var(--t-small)' }}>
                   <div className="avatar role-employee" style={{ width: 28, height: 28, fontSize: 10 }}>{_initE(requesterName)}</div>
                   <span>
                     <span className="serif" style={{ fontWeight: 600 }}>{requesterName}</span>
                     <span className="muted"> · {rewardTitle}</span>
                   </span>
                   <span className={statusPill.cls} style={{ ...statusPill.style, width: 'fit-content' }}>{r.status}</span>
+                  {canRefulfill ? (
+                    <button className="btn btn-ghost btn-sm" onClick={() => handleFulfill(r.id)}>Send fulfillment</button>
+                  ) : <span />}
                   <span className="muted mono" style={{ fontSize: 'var(--t-xs)' }}>
                     {r.processed_at ? new Date(r.processed_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }) : ''}
                   </span>

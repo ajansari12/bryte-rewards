@@ -9,6 +9,8 @@ import { useBadges, useAllBadges } from '@/lib/queries/badges';
 import { useRewards, useAllRewards } from '@/lib/queries/rewards';
 import { useUpdateRewards, type RewardDraft } from '@/lib/mutations/useUpdateRewards';
 import { useUpdateBadges, type BadgeDraft } from '@/lib/mutations/useUpdateBadges';
+import { useUpdateUserRole } from '@/lib/mutations/useUpdateUserRole';
+import { useInviteTeammate } from '@/lib/mutations/useInviteTeammate';
 import { useWeeklyActivity, useValueBreakdown } from '@/lib/queries/analytics';
 import { useOrgValues } from '@/lib/queries/values';
 import { useUpdateValues } from '@/lib/mutations/useUpdateValues';
@@ -1263,6 +1265,107 @@ function BadgesEditor({ onToast }: { onToast: (t: Toast) => void }) {
   );
 }
 
+// ─── Team & roles (admin-only) ──────────────────────────
+function TeamPanel({ onToast }: { onToast: (t: Toast) => void }) {
+  const { data: currentUser } = useCurrentUser();
+  const { data: users = [], isLoading, isError, refetch } = useOrgUsers();
+  const updateRole = useUpdateUserRole();
+  const invite = useInviteTeammate();
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'employee' | 'manager'>('employee');
+
+  const changeRole = async (userId: string, role: 'employee' | 'manager' | 'admin') => {
+    if (!currentUser?.org_id) return;
+    try {
+      await updateRole.mutateAsync({ user_id: userId, org_id: currentUser.org_id, role });
+      onToast({ kind: 'success', msg: 'Role updated ✦' });
+    } catch (err) {
+      onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Could not update role' });
+    }
+  };
+
+  const sendInvite = async () => {
+    if (!currentUser?.org_id || !inviteEmail.trim()) return;
+    try {
+      await invite.mutateAsync({ email: inviteEmail.trim(), org_id: currentUser.org_id, role: inviteRole });
+      onToast({ kind: 'success', msg: `Invited ${inviteEmail.trim()} ✦` });
+      setInviteEmail('');
+    } catch (err) {
+      onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Invite failed' });
+    }
+  };
+
+  return (
+    <div className="card" style={{ padding: 22 }}>
+      <h3 className="serif" style={{ fontWeight: 600 }}>Team & roles</h3>
+      <div className="muted" style={{ fontSize: 'var(--t-sm)', marginTop: 4, marginBottom: 16 }}>
+        Invite teammates, promote managers, or re-send invites to anyone who hasn&apos;t joined yet.
+      </div>
+
+      <div className="row" style={{ gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+        <input
+          type="email"
+          placeholder="teammate@company.ca"
+          value={inviteEmail}
+          onChange={e => setInviteEmail(e.target.value)}
+          aria-label="Teammate email"
+          style={{ flex: 1, minWidth: 220, padding: '8px 10px', border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)', background: 'var(--b-cream-2)' }}
+        />
+        <select
+          value={inviteRole}
+          onChange={e => setInviteRole(e.target.value as 'employee' | 'manager')}
+          aria-label="Role for new invite"
+          style={{ padding: '8px 10px', border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)', background: 'var(--b-cream-2)' }}
+        >
+          <option value="employee">Employee</option>
+          <option value="manager">Manager</option>
+        </select>
+        <button
+          className="btn btn-primary btn-sm"
+          onClick={sendInvite}
+          disabled={!inviteEmail.trim() || invite.isPending}
+        >
+          {invite.isPending ? 'Sending…' : 'Send invite'}
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="muted" style={{ padding: 20, textAlign: 'center' }}>Loading…</div>
+      ) : isError ? (
+        <div className="muted" style={{ padding: 20, textAlign: 'center' }}>
+          Couldn&apos;t load teammates.{' '}
+          <button className="btn-text" onClick={() => refetch()}>Retry</button>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 6 }}>
+          {users.map(u => {
+            const isSelf = u.id === currentUser?.id;
+            return (
+              <div key={u.id} className="row" style={{ gap: 10, padding: '10px 0', borderBottom: '1px solid var(--b-border-soft)' }}>
+                <div style={{ flex: 1 }}>
+                  <div className="serif" style={{ fontWeight: 600, fontSize: 'var(--t-sm)' }}>{u.display_name}</div>
+                  <div className="muted" style={{ fontSize: 'var(--t-xs)' }}>{u.title || u.role}</div>
+                </div>
+                <select
+                  value={u.role}
+                  onChange={e => changeRole(u.id, e.target.value as 'employee' | 'manager' | 'admin')}
+                  disabled={isSelf || updateRole.isPending}
+                  aria-label={`Role for ${u.display_name}`}
+                  style={{ padding: '6px 8px', border: '1px solid var(--b-border)', borderRadius: 'var(--r-sm)', background: 'var(--b-cream-2)', fontSize: 'var(--t-xs)' }}
+                >
+                  <option value="employee">Employee</option>
+                  <option value="manager">Manager</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── CSV Export helper ──────────────────────────────────
 function toCsvCell(v: unknown): string {
   const s = v === null || v === undefined ? '' : String(v);
@@ -1272,7 +1375,7 @@ function toCsvCell(v: unknown): string {
 
 // ─── AdminPage ──────────────────────────────────────────
 export function AdminPage({ onToast, onOpenKudos }: { onToast: (t: Toast) => void; onOpenKudos: () => void }) {
-  const [tab, setTab] = useState<'integrations' | 'billing' | 'approvals' | 'values' | 'rewards' | 'badges' | 'budget' | 'export'>('integrations');
+  const [tab, setTab] = useState<'integrations' | 'billing' | 'approvals' | 'values' | 'rewards' | 'badges' | 'team' | 'budget' | 'export'>('integrations');
   const { data: recs = [] } = useRecognitions();
   const { data: currentUser } = useCurrentUser();
   const [exporting, setExporting] = useState(false);
@@ -1341,8 +1444,8 @@ export function AdminPage({ onToast, onOpenKudos }: { onToast: (t: Toast) => voi
       </div>
 
       <div className="row" style={{ gap: 8, marginBottom: 22, flexWrap: 'wrap' }}>
-        {(['integrations', 'billing', 'approvals', 'values', 'rewards', 'badges', 'budget', 'export'] as const)
-          .filter(t => (t === 'rewards' || t === 'badges') ? currentUser?.role === 'admin' : true)
+        {(['integrations', 'billing', 'approvals', 'values', 'rewards', 'badges', 'team', 'budget', 'export'] as const)
+          .filter(t => (t === 'rewards' || t === 'badges' || t === 'team') ? currentUser?.role === 'admin' : true)
           .map(t => (
           <button key={t} className={'chip' + (tab === t ? ' chip-active' : '')} onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
@@ -1363,6 +1466,7 @@ export function AdminPage({ onToast, onOpenKudos }: { onToast: (t: Toast) => voi
 
       {tab === 'rewards' && currentUser?.role === 'admin' && <RewardsEditor onToast={onToast} />}
       {tab === 'badges' && currentUser?.role === 'admin' && <BadgesEditor onToast={onToast} />}
+      {tab === 'team' && currentUser?.role === 'admin' && <TeamPanel onToast={onToast} />}
 
       {tab === 'budget' && <BudgetPanel />}
 

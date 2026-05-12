@@ -15,6 +15,28 @@ export function AuthPage({ mode = 'login' }: { mode?: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [lastResendAt, setLastResendAt] = useState(0);
+
+  const resendConfirmation = async () => {
+    if (!form.email) return;
+    const since = Date.now() - lastResendAt;
+    if (since < 30_000) {
+      setError(`Please wait ${Math.ceil((30_000 - since) / 1000)}s before resending.`);
+      return;
+    }
+    setError('');
+    const type = mode === 'forgot' ? 'recovery' : 'signup';
+    if (type === 'recovery') {
+      const redirectTo = `${window.location.origin}/reset-password`;
+      const { error: resendErr } = await supabase.auth.resetPasswordForEmail(form.email, { redirectTo });
+      if (resendErr) { setError(resendErr.message); return; }
+    } else {
+      const { error: resendErr } = await supabase.auth.resend({ type: 'signup', email: form.email });
+      if (resendErr) { setError(resendErr.message); return; }
+    }
+    setLastResendAt(Date.now());
+    setInfo(`Confirmation email resent to ${form.email}.`);
+  };
 
   const headlines: Record<string, { h: string; sub: string }> = {
     login: { h: 'Welcome back.', sub: 'Recognise, celebrate, and connect with your team.' },
@@ -73,13 +95,18 @@ export function AuthPage({ mode = 'login' }: { mode?: string }) {
 
         // If the project has email confirmation enabled, signUp() returns no
         // session. Fall back to an immediate sign-in so the RPC below runs
-        // under an authenticated context.
+        // under an authenticated context. If sign-in also fails because the
+        // email is not yet confirmed, surface a "check your inbox" state
+        // instead of a bare error so the user can resend the confirmation.
         if (!data.session) {
           const { error: signInErr } = await supabase.auth.signInWithPassword({
             email: form.email,
             password: form.password,
           });
-          if (signInErr) { setError(signInErr.message); return; }
+          if (signInErr) {
+            setInfo(`Check your inbox at ${form.email} to confirm your account before signing in.`);
+            return;
+          }
         }
 
         // Atomically create the org and the caller's admin user profile.
@@ -180,6 +207,19 @@ export function AuthPage({ mode = 'login' }: { mode?: string }) {
           {info && (
             <p style={{ fontSize: 'var(--t-xs)', color: 'var(--b-forest)', marginBottom: 12, lineHeight: 1.5 }}>
               {info}
+              {(mode === 'signup' || mode === 'forgot') && form.email && (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    className="btn-text"
+                    style={{ fontSize: 'inherit' }}
+                    onClick={resendConfirmation}
+                  >
+                    Resend email
+                  </button>
+                </>
+              )}
             </p>
           )}
 
