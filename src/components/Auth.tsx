@@ -225,12 +225,22 @@ export function AuthPage({ mode = 'login' }: { mode?: string }) {
 // ─── Onboarding Wizard ───────────────────────────────
 const ONBOARDING_STEPS = ['Welcome', 'Industry', 'Values', 'Profile', 'Invite'];
 
+const ONBOARDING_SESSION_KEY = 'bryte.onboarding.v1';
+
+function loadOnboardingDraft() {
+  try {
+    const raw = sessionStorage.getItem(ONBOARDING_SESSION_KEY);
+    return raw ? JSON.parse(raw) as { industry?: string; title?: string } : null;
+  } catch { return null; }
+}
+
 export function OnboardingWizard() {
   const navigate = useNavigate();
+  const draft = typeof window !== 'undefined' ? loadOnboardingDraft() : null;
   const [step, setStep] = useState(0);
-  const [localIndustry, setLocalIndustry] = useState('healthcare');
+  const [localIndustry, setLocalIndustry] = useState(draft?.industry || 'healthcare');
   const [values, setValues] = useState<Array<{ id: string; name: string; icon: string; points: number }> | null>(null);
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(draft?.title || '');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [invites, setInvites] = useState<Array<{ email: string; role: 'employee' | 'manager' }>>([
@@ -246,10 +256,16 @@ export function OnboardingWizard() {
   const data = BRYTE_DATA.INDUSTRIES;
 
   useEffect(() => {
-    if (localIndustry) {
+    if (localIndustry && data[localIndustry]) {
       setValues(data[localIndustry].values.map((v: { id: string; name: string; icon: string; points: number }) => ({ ...v })));
     }
   }, [localIndustry]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(ONBOARDING_SESSION_KEY, JSON.stringify({ industry: localIndustry, title }));
+    } catch {}
+  }, [localIndustry, title]);
 
   const onAvatarPick = (file: File | null) => {
     if (!file) { setAvatarFile(null); setAvatarPreview(null); return; }
@@ -329,13 +345,23 @@ export function OnboardingWizard() {
       );
       if (badgesErr) throw badgesErr;
 
-      // Send invites (best-effort, don't block launch if one fails)
+      // Send invites (best-effort). Capture failed addresses so the admin
+      // knows which teammates still need to be re-invited from the admin UI.
       const pending = invites.filter(i => i.email.trim() && /.+@.+\..+/.test(i.email.trim()));
+      const failed: string[] = [];
       if (pending.length > 0) {
         await Promise.all(pending.map(inv =>
-          inviteTeammate.mutateAsync({ email: inv.email.trim(), org_id: orgId, role: inv.role }).catch(() => null)
+          inviteTeammate.mutateAsync({ email: inv.email.trim(), org_id: orgId, role: inv.role })
+            .catch(() => { failed.push(inv.email.trim()); })
         ));
       }
+      if (failed.length > 0) {
+        window.dispatchEvent(new CustomEvent('bryte:toast', {
+          detail: { msg: `Could not invite: ${failed.join(', ')}. You can resend from Admin.`, kind: 'warn' },
+        }));
+      }
+
+      try { sessionStorage.removeItem(ONBOARDING_SESSION_KEY); } catch {}
 
       setLaunched(true);
       setTimeout(() => { navigate('/app/feed'); }, 1800);

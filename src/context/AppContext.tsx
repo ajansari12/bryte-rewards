@@ -102,6 +102,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
         window.location.href = '/login';
+      } else if (event === 'PASSWORD_RECOVERY') {
+        if (window.location.pathname !== '/reset-password') {
+          window.location.href = '/reset-password';
+        }
       }
     });
     return () => subscription.unsubscribe();

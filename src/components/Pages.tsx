@@ -850,7 +850,7 @@ interface DraftValue {
 }
 
 function ValuesEditor({ onToast }: { onToast: (t: Toast) => void }) {
-  const { data: orgValues = [], isLoading } = useOrgValues();
+  const { data: orgValues = [], isLoading, isError, refetch } = useOrgValues();
   const { data: currentUser } = useCurrentUser();
   const updateValues = useUpdateValues();
   const [drafts, setDrafts] = useState<DraftValue[]>([]);
@@ -919,6 +919,11 @@ function ValuesEditor({ onToast }: { onToast: (t: Toast) => void }) {
 
       {isLoading ? (
         <div className="muted" style={{ padding: 20, textAlign: 'center' }}>Loading…</div>
+      ) : isError ? (
+        <div className="muted" style={{ padding: 20, textAlign: 'center' }}>
+          Couldn&apos;t load values.{' '}
+          <button className="btn-text" onClick={() => refetch()}>Retry</button>
+        </div>
       ) : (
         <>
           {drafts.length === 0 && (
@@ -962,7 +967,7 @@ const REWARD_KINDS = ['gift', 'experience', 'donate'] as const;
 const REWARD_COLORS = ['#4A90A4', '#E8836A', '#6BA886', '#C68B3B', '#8B5A3C', '#5D7BA0'];
 
 function RewardsEditor({ onToast }: { onToast: (t: Toast) => void }) {
-  const { data: rewards = [], isLoading } = useAllRewards();
+  const { data: rewards = [], isLoading, isError, refetch } = useAllRewards();
   const { data: currentUser } = useCurrentUser();
   const updateRewards = useUpdateRewards();
   const [drafts, setDrafts] = useState<(RewardDraft & { _key: string })[]>([]);
@@ -1049,6 +1054,11 @@ function RewardsEditor({ onToast }: { onToast: (t: Toast) => void }) {
       </div>
       {isLoading ? (
         <div className="muted" style={{ padding: 20, textAlign: 'center' }}>Loading…</div>
+      ) : isError ? (
+        <div className="muted" style={{ padding: 20, textAlign: 'center' }}>
+          Couldn&apos;t load rewards.{' '}
+          <button className="btn-text" onClick={() => refetch()}>Retry</button>
+        </div>
       ) : (
         <>
           {drafts.length === 0 && (
@@ -1111,7 +1121,7 @@ function RewardsEditor({ onToast }: { onToast: (t: Toast) => void }) {
 
 // ─── BadgesEditor ───────────────────────────────────────
 function BadgesEditor({ onToast }: { onToast: (t: Toast) => void }) {
-  const { data: badges = [], isLoading } = useAllBadges();
+  const { data: badges = [], isLoading, isError, refetch } = useAllBadges();
   const { data: currentUser } = useCurrentUser();
   const updateBadges = useUpdateBadges();
   const [drafts, setDrafts] = useState<(BadgeDraft & { _key: string })[]>([]);
@@ -1197,6 +1207,11 @@ function BadgesEditor({ onToast }: { onToast: (t: Toast) => void }) {
       </div>
       {isLoading ? (
         <div className="muted" style={{ padding: 20, textAlign: 'center' }}>Loading…</div>
+      ) : isError ? (
+        <div className="muted" style={{ padding: 20, textAlign: 'center' }}>
+          Couldn&apos;t load badges.{' '}
+          <button className="btn-text" onClick={() => refetch()}>Retry</button>
+        </div>
       ) : (
         <>
           {drafts.length === 0 && (

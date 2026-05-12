@@ -18,6 +18,14 @@ function planFromStripe(sub: Record<string, unknown>): string {
   return "free";
 }
 
+// Per-plan quarterly points pool. Keep in sync with the admin billing UI
+// so plan upgrades/downgrades resize the org pool.
+const PLAN_QUARTERLY_POOL: Record<string, number> = {
+  free: 0,
+  growth: 24000,
+  enterprise: 60000,
+};
+
 async function verifyStripeSignature(
   rawBody: string,
   sigHeader: string,
@@ -84,7 +92,15 @@ Deno.serve(async (req: Request) => {
 
     const event = JSON.parse(rawBody) as { type: string; data: { object: Record<string, unknown> } };
 
-    if (!["customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"].includes(event.type)) {
+    const HANDLED = [
+      "customer.subscription.created",
+      "customer.subscription.updated",
+      "customer.subscription.deleted",
+      "invoice.paid",
+      "invoice.payment_succeeded",
+      "invoice.payment_failed",
+    ];
+    if (!HANDLED.includes(event.type)) {
       return new Response(JSON.stringify({ received: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -96,6 +112,59 @@ Deno.serve(async (req: Request) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
+    // Invoice events: refill the org points pool on successful payment, or
+    // flag billing_status=past_due on failure. These events carry the
+    // customer id but not a full subscription object.
+    if (event.type.startsWith("invoice.")) {
+      const inv = event.data.object as Record<string, unknown>;
+      const customerId = inv["customer"] as string;
+      if (!customerId) {
+        return new Response(JSON.stringify({ received: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: orgRow } = await supabase
+        .from("organizations")
+        .select("id, plan, quarterly_pool")
+        .eq("stripe_customer_id", customerId)
+        .maybeSingle();
+      if (!orgRow) {
+        return new Response(JSON.stringify({ received: true, note: "org not linked" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (event.type === "invoice.payment_failed") {
+        await supabase
+          .from("organizations")
+          .update({ billing_status: "past_due" })
+          .eq("id", orgRow.id);
+      } else {
+        // invoice.paid / invoice.payment_succeeded — refill pool to plan size.
+        const planPool = PLAN_QUARTERLY_POOL[orgRow.plan as string] ?? orgRow.quarterly_pool ?? 0;
+        await supabase
+          .from("organizations")
+          .update({
+            billing_status: "active",
+            quarterly_pool: planPool,
+            points_pool_remaining: planPool,
+          })
+          .eq("id", orgRow.id);
+      }
+
+      await supabase.from("billing_events").insert({
+        org_id: orgRow.id,
+        stripe_customer_id: customerId,
+        event_type: event.type,
+        plan: orgRow.plan,
+        payload_json: inv,
+      });
+
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const sub = event.data.object as Record<string, unknown>;
     const customerId = sub["customer"] as string;
     const subscriptionId = sub["id"] as string;
@@ -106,6 +175,10 @@ Deno.serve(async (req: Request) => {
     const plan = status === "canceled" || status === "cancelled"
       ? "free"
       : planFromStripe(sub);
+    const planPool = PLAN_QUARTERLY_POOL[plan] ?? 0;
+    const billingStatus = status === "past_due" ? "past_due"
+      : status === "canceled" || status === "cancelled" ? "canceled"
+      : "active";
 
     const renewalDate = currentPeriodEnd
       ? new Date(currentPeriodEnd * 1000).toISOString()
@@ -144,6 +217,8 @@ Deno.serve(async (req: Request) => {
           stripe_customer_id: customerId,
           stripe_subscription_id: subscriptionId,
           plan,
+          billing_status: billingStatus,
+          quarterly_pool: planPool,
           ...(renewalDate ? { renewal_date: renewalDate } : {}),
           ...(last4 ? { payment_method_last4: last4 } : {}),
         })
@@ -163,10 +238,14 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Update org plan + subscription info
+    // Update org plan + subscription info. On a plan change, resize the
+    // quarterly_pool but don't clobber points_pool_remaining mid-quarter;
+    // the invoice.paid handler refills on payment.
     const updatePayload: Record<string, unknown> = {
       stripe_subscription_id: subscriptionId,
       plan,
+      billing_status: billingStatus,
+      quarterly_pool: planPool,
     };
     if (renewalDate) updatePayload["renewal_date"] = renewalDate;
     if (last4) updatePayload["payment_method_last4"] = last4;

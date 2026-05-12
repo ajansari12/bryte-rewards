@@ -4,6 +4,7 @@ import {
   requireOnboardedSession,
   requireSessionSkipIfOnboarded,
   redirectIfAuthenticated,
+  requireRecoverySession,
 } from '@/lib/auth/requireSession';
 import { RouteError, ErrorBoundary } from '@/components/RouteError';
 
@@ -60,6 +61,7 @@ export const router = createBrowserRouter([
   {
     path: '/reset-password',
     errorElement: <RouteError />,
+    loader: requireRecoverySession,
     element: (
       <SuspenseWrap>
         <AuthPage mode="reset" />

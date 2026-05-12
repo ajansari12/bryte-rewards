@@ -43,6 +43,16 @@ export async function redirectIfAuthenticated() {
   throw redirect(org?.onboarded_at ? '/app/feed' : '/onboarding');
 }
 
+export async function requireRecoverySession() {
+  const hash = typeof window !== 'undefined' ? window.location.hash : '';
+  const hasRecoveryHash = hash.includes('type=recovery') || hash.includes('access_token');
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session && !hasRecoveryHash) {
+    throw redirect('/forgot-password');
+  }
+  return null;
+}
+
 export async function requireSessionSkipIfOnboarded() {
   const session = await requireSession();
   const { data: profile } = await supabase
