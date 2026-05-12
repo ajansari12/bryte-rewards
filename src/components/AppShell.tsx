@@ -200,6 +200,7 @@ export function AppShell() {
           rec={app.detailRec}
           onClose={() => app.setDetailRec(null)}
           onRecognize={() => app.setShowModal(true)}
+          onPrint={() => { app.setDetailRec(null); app.setShowKudos(true); }}
         />
       )}
       {app.showDigest && <DigestPreview onClose={() => app.setShowDigest(false)} onToast={app.pushToast} />}

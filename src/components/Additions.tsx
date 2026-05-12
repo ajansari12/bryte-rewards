@@ -456,7 +456,7 @@ export function SearchPalette({ onClose, onJump }: { onClose: () => void; onJump
 // ─── RecognitionDetail ──────────────────────────────────
 const QUICK_REACTIONS = ['❤️', '🙌', '🔥', '✦', '💛'];
 
-export function RecognitionDetail({ rec, onClose, onRecognize }: { rec: Recognition; onClose: () => void; onRecognize: () => void }) {
+export function RecognitionDetail({ rec, onClose, onRecognize, onPrint }: { rec: Recognition; onClose: () => void; onRecognize: () => void; onPrint?: () => void }) {
   const trapRef = useFocusTrap(true, onClose);
   const recognitionId = rec._id ?? null;
   const { data: dbComments = [] } = useComments(recognitionId);
@@ -650,6 +650,11 @@ export function RecognitionDetail({ rec, onClose, onRecognize }: { rec: Recognit
         <div className="row" style={{ padding: 14, borderTop: '1px solid var(--b-border-soft)', gap: 8 }}>
           <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
           <span className="grow" />
+          {onPrint && (
+            <button className="btn btn-ghost btn-sm" onClick={onPrint} title="Open printable kudos board">
+              <Icon name="gift" size={12} /> Print kudos
+            </button>
+          )}
           <button className="btn btn-primary btn-sm" onClick={onRecognize}>
             <Icon name="sparkle" size={12} /> Recognise back
           </button>
@@ -878,6 +883,29 @@ export function BillingPanel() {
     }
   };
 
+  const handleManageSubscription = async () => {
+    if (!user) return;
+    setCheckoutLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/billing-portal`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ return_url: window.location.href }),
+        }
+      );
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
@@ -932,7 +960,7 @@ export function BillingPanel() {
               <button
                 className="btn btn-ghost"
                 disabled={checkoutLoading}
-                onClick={() => handleChangePlan(import.meta.env.VITE_STRIPE_GROWTH_PRICE_ID ?? 'price_growth')}
+                onClick={handleManageSubscription}
               >
                 {checkoutLoading ? 'Redirecting…' : 'Manage subscription →'}
               </button>

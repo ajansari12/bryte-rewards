@@ -16,8 +16,19 @@ export interface LeaderboardEntry {
   display_name: string;
   role: string;
   title: string;
+  avatar_url: string | null;
   points: number;
+  recognition_count: number;
   rank: number;
+}
+
+interface LeaderboardRow {
+  user_id: string;
+  display_name: string;
+  role: string;
+  avatar_url: string | null;
+  points_sum: number | string;
+  recognition_count: number | string;
 }
 
 export function useLeaderboard(period: LeaderboardPeriod = 'month') {
@@ -28,44 +39,42 @@ export function useLeaderboard(period: LeaderboardPeriod = 'month') {
       if (!user?.org_id) return [];
       const days = PERIOD_DAYS[period];
       const since = new Date(Date.now() - days * 86_400_000).toISOString();
+      const until = new Date(Date.now() + 60_000).toISOString();
 
-      // Sum points from recognitions received in the period
-      const { data: recData, error: recErr } = await supabase
-        .from('recognitions')
-        .select('recipient_id, points')
-        .eq('org_id', user.org_id)
-        .gte('created_at', since);
-      if (recErr) throw recErr;
+      const { data, error } = await supabase.rpc('leaderboard_top', {
+        p_org_id: user.org_id,
+        p_since: since,
+        p_until: until,
+        p_limit: 50,
+      });
+      if (error) throw error;
 
-      // Aggregate in JS
-      const totals: Record<string, number> = {};
-      for (const r of recData ?? []) {
-        totals[r.recipient_id] = (totals[r.recipient_id] ?? 0) + r.points;
+      const rows = (data ?? []) as LeaderboardRow[];
+
+      // Fetch titles separately (RPC doesn't return title to keep signature stable)
+      const ids = rows.map(r => r.user_id);
+      const titles: Record<string, string> = {};
+      if (ids.length) {
+        const { data: titleRows } = await supabase
+          .from('users')
+          .select('id, title')
+          .in('id', ids);
+        for (const t of titleRows ?? []) titles[t.id] = t.title ?? '';
       }
 
-      if (Object.keys(totals).length === 0) return [];
-
-      // Fetch user profiles for those who appeared
-      const { data: users, error: uErr } = await supabase
-        .from('users')
-        .select('id, display_name, role, title')
-        .eq('org_id', user.org_id);
-      if (uErr) throw uErr;
-
-      const entries: LeaderboardEntry[] = (users ?? [])
-        .map(u => ({
-          user_id: u.id,
-          display_name: u.display_name,
-          role: u.role,
-          title: u.title,
-          points: totals[u.id] ?? 0,
+      return rows
+        .map(r => ({
+          user_id: r.user_id,
+          display_name: r.display_name,
+          role: r.role,
+          title: titles[r.user_id] ?? '',
+          avatar_url: r.avatar_url,
+          points: Number(r.points_sum),
+          recognition_count: Number(r.recognition_count),
           rank: 0,
         }))
         .filter(e => e.points > 0)
-        .sort((a, b) => b.points - a.points)
         .map((e, i) => ({ ...e, rank: i + 1 }));
-
-      return entries;
     },
     enabled: !!user?.org_id,
     staleTime: 120_000,

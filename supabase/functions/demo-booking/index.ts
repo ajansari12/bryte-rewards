@@ -8,6 +8,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+function escapeHtml(s: unknown): string {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -73,15 +82,15 @@ Deno.serve(async (req: Request) => {
           body: JSON.stringify({
             from: "Bryte Rewards <noreply@bryte.app>",
             to: ["demos@bryte.app"],
-            subject: `New demo request — ${first_name} ${last_name} (${company})`,
+            subject: `New demo request — ${escapeHtml(first_name)} ${escapeHtml(last_name)} (${escapeHtml(company)})`,
             html: `
-              <p><strong>Name:</strong> ${first_name} ${last_name}</p>
-              <p><strong>Email:</strong> ${work_email}</p>
-              <p><strong>Company:</strong> ${company}</p>
-              <p><strong>Team size:</strong> ${team_size}</p>
-              <p><strong>Preferred date:</strong> ${preferred_date ?? "Not specified"}</p>
-              <p><strong>Preferred time:</strong> ${preferred_time ?? "Not specified"}</p>
-              <p><strong>Message:</strong> ${message ?? "—"}</p>
+              <p><strong>Name:</strong> ${escapeHtml(first_name)} ${escapeHtml(last_name)}</p>
+              <p><strong>Email:</strong> ${escapeHtml(work_email)}</p>
+              <p><strong>Company:</strong> ${escapeHtml(company)}</p>
+              <p><strong>Team size:</strong> ${escapeHtml(team_size)}</p>
+              <p><strong>Preferred date:</strong> ${escapeHtml(preferred_date ?? "Not specified")}</p>
+              <p><strong>Preferred time:</strong> ${escapeHtml(preferred_time ?? "Not specified")}</p>
+              <p><strong>Message:</strong> ${escapeHtml(message ?? "—")}</p>
             `,
           }),
         }).catch((err) => console.error("Resend notification failed:", err))
