@@ -14,8 +14,6 @@ export const INTEGRATION_CATALOG = [
   { kind: 'adp', name: 'ADP', color: '#E31837', desc: 'Sync payroll data, employee records and org hierarchy.' },
   { kind: 'hris', name: 'HRIS Sync', color: '#2C5F4A', desc: 'Generic SCIM bridge for BambooHR, Rippling, and more.' },
   { kind: 'zapier', name: 'Zapier', color: '#FF4A00', desc: 'Connect to 5,000+ apps. Trigger recognitions from any workflow.' },
-  { kind: 'slack', name: 'Slack', color: '#4A154B', desc: 'Give recognitions from /recognise and get notifications in-channel.' },
-  { kind: 'teams', name: 'Microsoft Teams', color: '#4B53BC', desc: 'Weekly digest + give recognition from chat.' },
 ];
 
 const keyFor = (orgId: string) => ['integrations', orgId];

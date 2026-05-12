@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { Icon } from './Icon';
 import { BillingPanel, IntegrationsPanel } from './Additions';
 import { ApprovalQueuePanel, NominationApprovalsPanel, OrgChartPanel } from './Extras';
-import { useCurrentUser, useCurrentOrg } from '@/lib/queries/users';
+import { useCurrentUser, useCurrentOrg, useOrgUsers } from '@/lib/queries/users';
 import { useLeaderboard } from '@/lib/queries/leaderboard';
+import { useMonthlyVotes, useCastVote } from '@/lib/mutations/useCastVote';
 import { useBadges, useAllBadges } from '@/lib/queries/badges';
 import { useRewards, useAllRewards } from '@/lib/queries/rewards';
 import { useUpdateRewards, type RewardDraft } from '@/lib/mutations/useUpdateRewards';
@@ -196,6 +197,153 @@ function ValueBreakdownChart({ values }: { values: { name: string; pct: number; 
   );
 }
 
+// ─── TeammateOfMonth ───────────────────────────────────
+function TeammateOfMonth() {
+  const { data: currentUser } = useCurrentUser();
+  const { data: orgUsers = [] } = useOrgUsers();
+  const { data: votes = [] } = useMonthlyVotes();
+  const castVote = useCastVote();
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
+
+  const myVote = votes.find(v => v.voter_id === currentUser?.id)?.nominee_id ?? null;
+
+  const tallies = votes.reduce<Record<string, number>>((acc, v) => {
+    acc[v.nominee_id] = (acc[v.nominee_id] ?? 0) + 1;
+    return acc;
+  }, {});
+  const ranked = Object.entries(tallies)
+    .map(([id, count]) => ({ id, count, user: orgUsers.find(u => u.id === id) }))
+    .filter(x => x.user)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  const totalVotes = votes.length;
+  const orgSize = Math.max(orgUsers.length, 1);
+  const participation = Math.round((new Set(votes.map(v => v.voter_id)).size / orgSize) * 100);
+
+  const candidates = orgUsers
+    .filter(u => u.id !== currentUser?.id)
+    .filter(u => !search || u.display_name.toLowerCase().includes(search.toLowerCase()))
+    .slice(0, 8);
+
+  const initials = (n: string) => n.split(' ').map(w => w[0]).slice(0, 2).join('');
+  const monthLabel = new Date().toLocaleString(undefined, { month: 'long' });
+
+  return (
+    <div className="card" style={{ padding: 22, marginBottom: 18 }}>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <div className="label" style={{ color: 'var(--b-gold)', marginBottom: 4 }}>Teammate of the Month</div>
+          <div className="serif" style={{ fontWeight: 600, fontSize: '1.05rem' }}>{monthLabel} · cast your vote</div>
+          <div className="muted" style={{ fontSize: 'var(--t-xs)', marginTop: 4 }}>
+            One vote per person. You can change it anytime before month-end.
+          </div>
+        </div>
+        <div className="row" style={{ gap: 18 }}>
+          <div style={{ textAlign: 'center' }}>
+            <div className="mono" style={{ fontWeight: 700, color: 'var(--b-ink)' }}>{totalVotes}</div>
+            <div className="label">votes</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div className="mono" style={{ fontWeight: 700, color: 'var(--b-forest)' }}>{participation}%</div>
+            <div className="label">participation</div>
+          </div>
+        </div>
+      </div>
+
+      {ranked.length > 0 && (
+        <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
+          {ranked.map((r, i) => {
+            if (!r.user) return null;
+            const pct = Math.round((r.count / Math.max(totalVotes, 1)) * 100);
+            const isLeader = i === 0;
+            return (
+              <div key={r.id} style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '10px 12px',
+                background: isLeader ? 'var(--b-gold-pale)' : 'var(--b-surface)',
+                border: `1px solid ${isLeader ? 'var(--b-gold-border)' : 'var(--b-border-soft)'}`,
+                borderRadius: 'var(--r-md)',
+              }}>
+                <div className="mono" style={{ width: 22, textAlign: 'center', color: 'var(--b-ink-4)', fontWeight: 700 }}>{i + 1}</div>
+                <div className={`avatar sm role-${r.user.role}`}>{initials(r.user.display_name)}</div>
+                <div className="grow">
+                  <div className="serif" style={{ fontWeight: 600, fontSize: 'var(--t-sm)' }}>{r.user.display_name}</div>
+                  <div style={{ height: 4, background: 'var(--b-border-soft)', borderRadius: 2, marginTop: 4, overflow: 'hidden' }}>
+                    <div style={{ width: `${pct}%`, height: '100%', background: isLeader ? 'var(--b-gold)' : 'var(--b-forest)', transition: 'width 400ms var(--ease)' }} />
+                  </div>
+                </div>
+                <div className="mono" style={{ fontWeight: 600, color: isLeader ? 'var(--b-gold)' : 'var(--b-ink-3)', minWidth: 48, textAlign: 'right' }}>
+                  {r.count} · {pct}%
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {myVote ? (
+        <div className="row" style={{ justifyContent: 'space-between', padding: '10px 12px', background: 'var(--b-forest-pale)', border: '1px solid var(--b-forest-border)', borderRadius: 'var(--r-md)' }}>
+          <div style={{ fontSize: 'var(--t-sm)' }}>
+            You voted for{' '}
+            <strong>{orgUsers.find(u => u.id === myVote)?.display_name ?? '—'}</strong>
+          </div>
+          <button className="btn-text btn-sm" onClick={() => setOpen(o => !o)}>
+            {open ? 'Close' : 'Change vote'}
+          </button>
+        </div>
+      ) : (
+        <button className="btn btn-primary btn-sm" onClick={() => setOpen(o => !o)}>
+          {open ? 'Close' : 'Cast your vote'}
+        </button>
+      )}
+
+      {open && (
+        <div style={{ marginTop: 12 }}>
+          <input
+            className="input"
+            placeholder="Search teammates…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            autoFocus
+          />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8, marginTop: 10 }}>
+            {candidates.map(u => (
+              <button
+                key={u.id}
+                className="row"
+                onClick={async () => {
+                  await castVote.mutateAsync(u.id);
+                  setOpen(false);
+                  setSearch('');
+                }}
+                disabled={castVote.isPending}
+                style={{
+                  padding: 10, gap: 10, textAlign: 'left',
+                  background: u.id === myVote ? 'var(--b-gold-pale)' : 'var(--b-card)',
+                  border: `1px solid ${u.id === myVote ? 'var(--b-gold)' : 'var(--b-border)'}`,
+                  borderRadius: 'var(--r-md)', cursor: 'pointer',
+                }}
+              >
+                <div className={`avatar sm role-${u.role}`}>{initials(u.display_name)}</div>
+                <div className="grow">
+                  <div className="serif" style={{ fontWeight: 600, fontSize: 'var(--t-sm)' }}>{u.display_name}</div>
+                  <div className="muted" style={{ fontSize: 'var(--t-xs)' }}>{u.title || u.role}</div>
+                </div>
+                {u.id === myVote && <Icon name="check" size={14} style={{ color: 'var(--b-gold)' }} />}
+              </button>
+            ))}
+            {candidates.length === 0 && (
+              <div className="muted" style={{ padding: 16, textAlign: 'center', gridColumn: '1/-1' }}>No teammates match.</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── LeaderboardPage ───────────────────────────────────
 export function LeaderboardPage() {
   const { data: currentUser } = useCurrentUser();
@@ -245,6 +393,8 @@ export function LeaderboardPage() {
           </button>
         ))}
       </div>
+
+      <TeammateOfMonth />
 
       {isLoading ? (
         <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--b-ink-4)' }}>Loading…</div>

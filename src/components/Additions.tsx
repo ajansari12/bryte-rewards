@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Icon } from './Icon';
 import type { Recognition } from '@/lib/types';
 import { useFocusTrap } from './Extras';
@@ -79,6 +80,38 @@ export function ProfilePage({
   const { data: allBadges = [] } = useBadges();
   const { data: myRecs = [] } = useMyRecognitions();
   const updatePrefs = useUpdateNotificationPrefs();
+  const queryClient = useQueryClient();
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleAvatarUpload = async (file: File | null) => {
+    if (!file || !currentUser) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('Max 5 MB');
+      return;
+    }
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const path = `${currentUser.id}/avatar-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true, cacheControl: '3600' });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+      const { error: updErr } = await supabase
+        .from('users')
+        .update({ avatar_url: pub.publicUrl })
+        .eq('id', currentUser.id);
+      if (updErr) throw updErr;
+      await queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const earnedBadges = allBadges.filter(b => b.awarded_at !== null);
   const recentRecs = myRecs.slice(0, 3);
@@ -132,13 +165,38 @@ export function ProfilePage({
               style={{ transition: noAnim() ? 'none' : 'stroke-dashoffset 900ms cubic-bezier(0.4,0,0.2,1)' }}
             />
           </svg>
-          <div
+          <label
+            htmlFor="avatar-upload"
             className={`avatar xl role-${currentUser?.role ?? 'employee'}`}
-            style={{ position: 'absolute', top: SW + 4, left: SW + 4, right: SW + 4, bottom: SW + 4, margin: 0, width: 'auto', height: 'auto', fontSize: 28 }}
+            style={{
+              position: 'absolute', top: SW + 4, left: SW + 4, right: SW + 4, bottom: SW + 4,
+              margin: 0, width: 'auto', height: 'auto', fontSize: 28,
+              cursor: uploading ? 'wait' : 'pointer', overflow: 'hidden',
+              backgroundImage: currentUser?.avatar_url ? `url(${currentUser.avatar_url})` : undefined,
+              backgroundSize: 'cover', backgroundPosition: 'center',
+            }}
+            title="Click to change avatar"
           >
-            {initials(currentUser?.display_name ?? '??')}
-          </div>
+            {!currentUser?.avatar_url && initials(currentUser?.display_name ?? '??')}
+            {uploading && (
+              <div style={{
+                position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)',
+                color: 'var(--b-canvas)', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', fontSize: 10, letterSpacing: '0.08em',
+              }}>…</div>
+            )}
+          </label>
+          <input
+            id="avatar-upload"
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={e => handleAvatarUpload(e.target.files?.[0] ?? null)}
+          />
         </div>
+        {uploadError && (
+          <div style={{ color: 'var(--b-rose, #c2410c)', fontSize: 'var(--t-xs)', marginTop: 4 }}>{uploadError}</div>
+        )}
 
         <h1 className="serif" style={{ fontSize: '1.8rem', fontWeight: 600, margin: 0 }}>{currentUser?.display_name ?? '—'}</h1>
         <div className="muted" style={{ marginTop: 4 }}>{currentUser?.title ?? ''}</div>
@@ -787,6 +845,7 @@ export function BillingPanel() {
   const plan = org?.plan ?? 'free';
   const planName = planLabel[plan] ?? plan;
   const pointsRemaining = org?.points_pool_remaining ?? 0;
+  const quarterlyPool = (org as any)?.quarterly_pool ?? 24000;
   const renewalDate = (org as any)?.renewal_date
     ? new Date((org as any).renewal_date).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
     : '—';
@@ -849,7 +908,7 @@ export function BillingPanel() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
             {[
               { l: 'Next renewal', v: renewalDate, sub: plan === 'free' ? 'No subscription' : 'Auto-renews' },
-              { l: 'Points pool remaining', v: pointsRemaining.toLocaleString(), sub: `of ${(org?.points_pool_remaining !== undefined ? 120000 : 0).toLocaleString()}` },
+              { l: 'Points pool remaining', v: pointsRemaining.toLocaleString(), sub: `of ${quarterlyPool.toLocaleString()}` },
               { l: 'Current plan', v: planName, sub: plan === 'free' ? 'Upgrade to unlock more' : 'Billed monthly' },
             ].map(s => (
               <div key={s.l} style={{ padding: '14px 16px', background: 'var(--b-surface)', borderRadius: 'var(--r-md)' }}>
