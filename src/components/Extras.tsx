@@ -469,7 +469,7 @@ export function ApprovalQueuePanel({ onToast }: { onToast?: (t: { kind?: 'succes
     }
   };
 
-  const handleFulfill = async (id: string) => {
+  const handleFulfill = async (id: string, opts: { resend?: boolean } = {}) => {
     setActioningId(id);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -481,12 +481,12 @@ export function ApprovalQueuePanel({ onToast }: { onToast?: (t: { kind?: 'succes
             'Content-Type': 'application/json',
             Authorization: `Bearer ${session?.access_token}`,
           },
-          body: JSON.stringify({ redemption_id: id }),
+          body: JSON.stringify({ redemption_id: id, resend: !!opts.resend }),
         }
       );
       const result = await res.json();
       if (!res.ok) throw new Error(result.message ?? 'Fulfillment failed');
-      onToast?.({ kind: 'success', msg: 'Fulfillment email sent ✦' });
+      onToast?.({ kind: 'success', msg: opts.resend ? 'Fulfillment code re-sent ✦' : 'Fulfillment email sent ✦' });
     } catch (e) {
       onToast?.({ kind: 'error', msg: e instanceof Error ? e.message : 'Fulfillment failed' });
     } finally {
@@ -586,6 +586,7 @@ export function ApprovalQueuePanel({ onToast }: { onToast?: (t: { kind?: 'succes
                 ? { cls: 'pill gold', style: {} }
                 : { cls: 'pill', style: { background: 'var(--b-terra-pale)', color: 'var(--b-terra)' } };
               const canRefulfill = r.status === 'approved' && actioningId !== r.id;
+              const canResend = r.status === 'fulfilled' && actioningId !== r.id && ((r as any).resent_count ?? 0) < 3;
               return (
                 <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '28px 1fr auto auto auto', gap: 14, padding: '12px 18px', borderBottom: i < processed.length - 1 ? '1px solid var(--b-border-soft)' : 'none', alignItems: 'center', fontSize: 'var(--t-small)' }}>
                   <div className="avatar role-employee" style={{ width: 28, height: 28, fontSize: 10 }}>{_initE(requesterName)}</div>
@@ -596,6 +597,8 @@ export function ApprovalQueuePanel({ onToast }: { onToast?: (t: { kind?: 'succes
                   <span className={statusPill.cls} style={{ ...statusPill.style, width: 'fit-content' }}>{r.status}</span>
                   {canRefulfill ? (
                     <button className="btn btn-ghost btn-sm" onClick={() => handleFulfill(r.id)}>Send fulfillment</button>
+                  ) : canResend ? (
+                    <button className="btn btn-ghost btn-sm" onClick={() => handleFulfill(r.id, { resend: true })}>Resend code</button>
                   ) : <span />}
                   <span className="muted mono" style={{ fontSize: 'var(--t-xs)' }}>
                     {r.processed_at ? new Date(r.processed_at).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' }) : ''}

@@ -149,11 +149,19 @@ export function AppShell() {
             <RewardsPage onToast={app.pushToast} onConfetti={app.fireConfetti} />
           )}
           {route === 'manager' && (
-            <ManagerPage onRecognize={() => app.setShowModal(true)} />
+            dbUser && dbUser.role !== 'manager' && dbUser.role !== 'admin'
+              ? <AccessDenied route="manager" onBack={() => setRoute('feed')} />
+              : <ManagerPage onRecognize={() => app.setShowModal(true)} />
           )}
-          {route === 'analytics' && <AnalyticsPage />}
+          {route === 'analytics' && (
+            dbUser && dbUser.role !== 'manager' && dbUser.role !== 'admin'
+              ? <AccessDenied route="analytics" onBack={() => setRoute('feed')} />
+              : <AnalyticsPage />
+          )}
           {route === 'admin' && (
-            <AdminPage onToast={app.pushToast} onOpenKudos={() => app.setShowKudos(true)} />
+            dbUser && dbUser.role !== 'admin'
+              ? <AccessDenied route="admin" onBack={() => setRoute('feed')} />
+              : <AdminPage onToast={app.pushToast} onOpenKudos={() => app.setShowKudos(true)} />
           )}
           {route === 'mobile' && <MobileGalleryPage />}
         </div>
@@ -232,6 +240,25 @@ export function AppShell() {
   );
 }
 
+// ─── AccessDenied ───────────────────────────────────────
+function AccessDenied({ route, onBack }: { route: string; onBack: () => void }) {
+  const labels: Record<string, string> = {
+    manager: 'Team pulse is for managers and admins.',
+    analytics: 'Analytics is for managers and admins.',
+    admin: 'Settings & admin are for org admins.',
+  };
+  return (
+    <div className="card" style={{ padding: 36, textAlign: 'center', maxWidth: 440, margin: '60px auto' }}>
+      <Icon name="shield" size={28} />
+      <h2 className="serif" style={{ fontWeight: 600, fontSize: '1.3rem', margin: '12px 0 8px' }}>Access denied</h2>
+      <p className="muted" style={{ fontSize: 'var(--t-sm)', marginBottom: 16 }}>
+        {labels[route] ?? 'You don’t have permission to view this page.'}
+      </p>
+      <button className="btn btn-primary btn-sm" onClick={onBack}>Back to feed</button>
+    </div>
+  );
+}
+
 // ─── TweaksPanel ─────────────────────────────────────────
 interface TweaksPanelProps {
   industry: Industry;
@@ -247,7 +274,7 @@ function TweaksPanel({ industry, onIndustry, theme, onTheme, onClose }: TweaksPa
     <div className="tweaks-panel">
       <div className="tweaks-head">
         <div className="title">Tweaks</div>
-        <button className="icon-btn" onClick={onClose} style={{ width: 28, height: 28 }}>
+        <button className="icon-btn" onClick={onClose} aria-label="Close tweaks panel" style={{ width: 28, height: 28 }}>
           <Icon name="close" size={14} />
         </button>
       </div>

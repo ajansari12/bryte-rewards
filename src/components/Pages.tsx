@@ -11,6 +11,8 @@ import { useUpdateRewards, type RewardDraft } from '@/lib/mutations/useUpdateRew
 import { useUpdateBadges, type BadgeDraft } from '@/lib/mutations/useUpdateBadges';
 import { useUpdateUserRole } from '@/lib/mutations/useUpdateUserRole';
 import { useInviteTeammate } from '@/lib/mutations/useInviteTeammate';
+import { usePendingInvites } from '@/lib/queries/pendingInvites';
+import { useQueryClient } from '@tanstack/react-query';
 import { useWeeklyActivity, useValueBreakdown } from '@/lib/queries/analytics';
 import { useOrgValues } from '@/lib/queries/values';
 import { useUpdateValues } from '@/lib/mutations/useUpdateValues';
@@ -1269,10 +1271,13 @@ function BadgesEditor({ onToast }: { onToast: (t: Toast) => void }) {
 function TeamPanel({ onToast }: { onToast: (t: Toast) => void }) {
   const { data: currentUser } = useCurrentUser();
   const { data: users = [], isLoading, isError, refetch } = useOrgUsers();
+  const { data: pending = [], isLoading: pendingLoading, refetch: refetchPending } = usePendingInvites(currentUser?.role === 'admin');
+  const qc = useQueryClient();
   const updateRole = useUpdateUserRole();
   const invite = useInviteTeammate();
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'employee' | 'manager'>('employee');
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   const changeRole = async (userId: string, role: 'employee' | 'manager' | 'admin') => {
     if (!currentUser?.org_id) return;
@@ -1290,9 +1295,30 @@ function TeamPanel({ onToast }: { onToast: (t: Toast) => void }) {
       await invite.mutateAsync({ email: inviteEmail.trim(), org_id: currentUser.org_id, role: inviteRole });
       onToast({ kind: 'success', msg: `Invited ${inviteEmail.trim()} ✦` });
       setInviteEmail('');
+      qc.invalidateQueries({ queryKey: ['pendingInvites'] });
     } catch (err) {
       onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Invite failed' });
     }
+  };
+
+  const resendInvite = async (email: string, role: string | null, id: string) => {
+    if (!currentUser?.org_id) return;
+    const sendRole: 'employee' | 'manager' = role === 'manager' ? 'manager' : 'employee';
+    setResendingId(id);
+    try {
+      await invite.mutateAsync({ email, org_id: currentUser.org_id, role: sendRole });
+      onToast({ kind: 'success', msg: `Re-sent invite to ${email}` });
+    } catch (err) {
+      onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Resend failed' });
+    } finally {
+      setResendingId(null);
+    }
+  };
+
+  const daysSince = (iso: string | null) => {
+    if (!iso) return null;
+    const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+    return days;
   };
 
   return (
@@ -1362,6 +1388,44 @@ function TeamPanel({ onToast }: { onToast: (t: Toast) => void }) {
           })}
         </div>
       )}
+
+      <div style={{ marginTop: 28 }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div className="label">Pending invites</div>
+          <button className="btn-text" style={{ fontSize: 'var(--t-xs)' }} onClick={() => refetchPending()} aria-label="Refresh pending invites">Refresh</button>
+        </div>
+        {pendingLoading ? (
+          <div className="muted" style={{ fontSize: 'var(--t-xs)' }}>Loading…</div>
+        ) : pending.length === 0 ? (
+          <div className="muted" style={{ fontSize: 'var(--t-xs)' }}>Everyone you invited has joined ✦</div>
+        ) : (
+          <div style={{ display: 'grid', gap: 6 }}>
+            {pending.map(p => {
+              const days = daysSince(p.invited_at);
+              const stale = days !== null && days >= 3;
+              return (
+                <div key={p.id} className="row" style={{ gap: 10, padding: '8px 0', borderBottom: '1px solid var(--b-border-soft)' }}>
+                  <div style={{ flex: 1, fontSize: 'var(--t-sm)' }}>
+                    <div style={{ fontWeight: 500 }}>{p.email}</div>
+                    <div className="muted" style={{ fontSize: 'var(--t-xs)' }}>
+                      {p.role ? `${p.role} · ` : ''}
+                      {days === null ? 'invited' : days === 0 ? 'invited today' : `invited ${days}d ago`}
+                      {stale && ' · haven’t joined yet'}
+                    </div>
+                  </div>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => resendInvite(p.email, p.role, p.id)}
+                    disabled={resendingId === p.id || invite.isPending}
+                  >
+                    {resendingId === p.id ? '…' : 'Resend'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

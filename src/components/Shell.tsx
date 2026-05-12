@@ -74,11 +74,16 @@ export function Sidebar({ route, setRoute, orgName: orgNameProp, orgTag: orgTagP
     { id: 'badges', label: 'Badges', icon: 'badge' },
     { id: 'rewards', label: 'Rewards', icon: 'gift' },
   ];
+  const role = me?.role ?? 'employee';
   const teamItems = [
     { id: 'manager', label: 'Team pulse', icon: 'users' },
     { id: 'analytics', label: 'Analytics', icon: 'chart' },
     { id: 'admin', label: 'Settings & admin', icon: 'shield' },
-  ];
+  ].filter(item => {
+    if (item.id === 'manager' || item.id === 'analytics') return role === 'manager' || role === 'admin';
+    if (item.id === 'admin') return role === 'admin';
+    return true;
+  });
   const orgName = orgNameProp || 'Bryte';
   const orgTag = orgTagProp ?? '';
 
@@ -124,7 +129,7 @@ export function Sidebar({ route, setRoute, orgName: orgNameProp, orgTag: orgTagP
             <div className="name">{me.displayName}</div>
             <div className="role">{me.title}</div>
           </div>
-          <button className="icon-btn" style={{width: 24, height: 24}}>
+          <button className="icon-btn" style={{width: 24, height: 24}} aria-label={showCtx ? 'Close user menu' : 'Open user menu'} aria-expanded={showCtx}>
             <Icon name={showCtx ? 'up' : 'down'} size={13} stroke={2.5}/>
           </button>
 
@@ -196,7 +201,7 @@ export function NotifPanel({ onClose, notifs, onMarkAll, onSeeAll, onItemClick }
         <div className="h3">Notifications</div>
         <div className="row" style={{gap: 6}}>
           <button className="btn-text btn-sm" style={{fontSize: 'var(--t-xs)'}} onClick={onMarkAll}>Mark all read</button>
-          <button className="icon-btn" onClick={onClose}><Icon name="close" size={16}/></button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close notifications"><Icon name="close" size={16}/></button>
         </div>
       </div>
 
@@ -260,16 +265,23 @@ export function Topbar({ title, crumb, onRecognize, onToggleTheme, theme, notifi
           <span>Search…</span>
           <kbd>⌘K</kbd>
         </button>
-        <button className="icon-btn" onClick={onToggleTheme} title="Toggle theme">
+        <button className="icon-btn" onClick={onToggleTheme} title="Toggle theme" aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}>
           <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
         </button>
-        <button className="icon-btn" onClick={onBell} title="Notifications" style={{
-          background: showNotifPanel ? 'var(--b-gold-pale)' : 'transparent',
-          color: showNotifPanel ? 'var(--b-gold)' : 'var(--b-ink-3)',
-          borderRadius: 'var(--r-md)',
-        }}>
+        <button
+          className="icon-btn"
+          onClick={onBell}
+          title="Notifications"
+          aria-label={notifications > 0 ? `Notifications, ${notifications} unread` : 'Notifications'}
+          aria-expanded={showNotifPanel}
+          style={{
+            background: showNotifPanel ? 'var(--b-gold-pale)' : 'transparent',
+            color: showNotifPanel ? 'var(--b-gold)' : 'var(--b-ink-3)',
+            borderRadius: 'var(--r-md)',
+          }}
+        >
           <Icon name="bell" />
-          {notifications > 0 && <span className="bell-badge" key={notifications}>{notifications}</span>}
+          {notifications > 0 && <span className="bell-badge" key={notifications} aria-hidden="true">{notifications}</span>}
         </button>
         <button className="btn btn-celebrate" onClick={onRecognize}>
           <span style={{fontSize: 14}}>✦</span> Recognise someone

@@ -121,8 +121,8 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const body = await req.json() as { redemption_id: string };
-    const { redemption_id } = body;
+    const body = await req.json() as { redemption_id: string; resend?: boolean };
+    const { redemption_id, resend = false } = body;
     if (!redemption_id) {
       return new Response(JSON.stringify({ message: "redemption_id required" }), {
         status: 400,
@@ -154,8 +154,9 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Guard against double-fulfillment
-    if (redemption.status !== "approved") {
+    // For new fulfillment, redemption must be approved. For resend, must be
+    // already fulfilled and under the resend cap.
+    if (!resend && redemption.status !== "approved") {
       return new Response(
         JSON.stringify({
           message: `redemption is ${redemption.status}; expected 'approved'`,
@@ -167,8 +168,28 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const MAX_RESENDS = 3;
+    if (resend) {
+      if (redemption.status !== "fulfilled") {
+        return new Response(
+          JSON.stringify({ message: `cannot resend a redemption that is ${redemption.status}` }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if ((redemption.resent_count ?? 0) >= MAX_RESENDS) {
+        return new Response(
+          JSON.stringify({ message: `resend limit reached (${MAX_RESENDS})` }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     const resendKey = Deno.env.get("RESEND_API_KEY");
-    const fulfillmentCode = generateFulfillmentCode();
+    // Reuse the existing fulfillment_code on resend so the user keeps the same
+    // code they might already have; generate a fresh one on first fulfillment.
+    const fulfillmentCode = resend && redemption.fulfillment_code
+      ? redemption.fulfillment_code
+      : generateFulfillmentCode();
     const reward = redemption.reward as any;
 
     // Get recipient email
@@ -203,15 +224,24 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Mark redemption as fulfilled and persist the fulfillment code
+    // Mark redemption as fulfilled and persist the fulfillment code. On resend
+    // we leave the original processed_at/processed_by alone and bump the
+    // resend counters instead.
+    const updatePayload = resend
+      ? {
+          resent_at: new Date().toISOString(),
+          resent_count: (redemption.resent_count ?? 0) + 1,
+          fulfillment_code: fulfillmentCode,
+        }
+      : {
+          status: "fulfilled",
+          processed_at: new Date().toISOString(),
+          processed_by: callerUser.id,
+          fulfillment_code: fulfillmentCode,
+        };
     const { error: updateErr } = await supabase
       .from("redemptions")
-      .update({
-        status: "fulfilled",
-        processed_at: new Date().toISOString(),
-        processed_by: callerUser.id,
-        fulfillment_code: fulfillmentCode,
-      })
+      .update(updatePayload)
       .eq("id", redemption_id);
 
     if (updateErr) throw updateErr;
