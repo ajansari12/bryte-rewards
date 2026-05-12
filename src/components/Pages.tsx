@@ -1308,6 +1308,7 @@ function TeamPanel({ onToast }: { onToast: (t: Toast) => void }) {
     try {
       await invite.mutateAsync({ email, org_id: currentUser.org_id, role: sendRole });
       onToast({ kind: 'success', msg: `Re-sent invite to ${email}` });
+      qc.invalidateQueries({ queryKey: ['pendingInvites'] });
     } catch (err) {
       onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Resend failed' });
     } finally {

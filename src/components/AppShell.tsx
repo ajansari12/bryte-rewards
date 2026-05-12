@@ -149,19 +149,22 @@ export function AppShell() {
             <RewardsPage onToast={app.pushToast} onConfetti={app.fireConfetti} />
           )}
           {route === 'manager' && (
-            dbUser && dbUser.role !== 'manager' && dbUser.role !== 'admin'
-              ? <AccessDenied route="manager" onBack={() => setRoute('feed')} />
-              : <ManagerPage onRecognize={() => app.setShowModal(true)} />
+            !dbUser ? <RouteSkeleton />
+              : dbUser.role !== 'manager' && dbUser.role !== 'admin'
+                ? <AccessDenied route="manager" onBack={() => setRoute('feed')} />
+                : <ManagerPage onRecognize={() => app.setShowModal(true)} />
           )}
           {route === 'analytics' && (
-            dbUser && dbUser.role !== 'manager' && dbUser.role !== 'admin'
-              ? <AccessDenied route="analytics" onBack={() => setRoute('feed')} />
-              : <AnalyticsPage />
+            !dbUser ? <RouteSkeleton />
+              : dbUser.role !== 'manager' && dbUser.role !== 'admin'
+                ? <AccessDenied route="analytics" onBack={() => setRoute('feed')} />
+                : <AnalyticsPage />
           )}
           {route === 'admin' && (
-            dbUser && dbUser.role !== 'admin'
-              ? <AccessDenied route="admin" onBack={() => setRoute('feed')} />
-              : <AdminPage onToast={app.pushToast} onOpenKudos={() => app.setShowKudos(true)} />
+            !dbUser ? <RouteSkeleton />
+              : dbUser.role !== 'admin'
+                ? <AccessDenied route="admin" onBack={() => setRoute('feed')} />
+                : <AdminPage onToast={app.pushToast} onOpenKudos={() => app.setShowKudos(true)} />
           )}
           {route === 'mobile' && <MobileGalleryPage />}
         </div>
@@ -237,6 +240,17 @@ export function AppShell() {
       )}
     </div>
     </Suspense>
+  );
+}
+
+// ─── RouteSkeleton ──────────────────────────────────────
+function RouteSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading" style={{ display: 'grid', gap: 14, padding: 24 }}>
+      <div style={{ height: 28, width: 220, background: 'var(--b-border-soft)', borderRadius: 'var(--r-sm)' }} />
+      <div style={{ height: 120, background: 'var(--b-border-soft)', borderRadius: 'var(--r-md)' }} />
+      <div style={{ height: 120, background: 'var(--b-border-soft)', borderRadius: 'var(--r-md)' }} />
+    </div>
   );
 }
 

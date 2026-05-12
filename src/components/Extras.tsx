@@ -586,7 +586,7 @@ export function ApprovalQueuePanel({ onToast }: { onToast?: (t: { kind?: 'succes
                 ? { cls: 'pill gold', style: {} }
                 : { cls: 'pill', style: { background: 'var(--b-terra-pale)', color: 'var(--b-terra)' } };
               const canRefulfill = r.status === 'approved' && actioningId !== r.id;
-              const canResend = r.status === 'fulfilled' && actioningId !== r.id && ((r as any).resent_count ?? 0) < 3;
+              const canResend = r.status === 'fulfilled' && actioningId !== r.id && (r.resent_count ?? 0) < 3;
               return (
                 <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '28px 1fr auto auto auto', gap: 14, padding: '12px 18px', borderBottom: i < processed.length - 1 ? '1px solid var(--b-border-soft)' : 'none', alignItems: 'center', fontSize: 'var(--t-small)' }}>
                   <div className="avatar role-employee" style={{ width: 28, height: 28, fontSize: 10 }}>{_initE(requesterName)}</div>

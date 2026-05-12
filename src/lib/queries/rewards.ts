@@ -24,6 +24,9 @@ export interface DbRedemption {
   requested_at: string;
   processed_at: string | null;
   processed_by: string | null;
+  fulfillment_code: string | null;
+  resent_at: string | null;
+  resent_count: number;
   reward: { title: string; brand: string; points: number } | null;
   user: { display_name: string } | null;
 }

@@ -27,6 +27,10 @@ function toUiNotif(n: DbNotification): Notification {
     milestone: 'milestone',
     comment: 'comment',
     approval: 'approval',
+    redemption_requested: 'approval',
+    redemption_approved: 'approval',
+    redemption_cancelled: 'approval',
+    nomination_pending: 'badge',
   };
 
   const type = (kindMap[n.kind] ?? 'received') as Notification['type'];
@@ -35,6 +39,17 @@ function toUiNotif(n: DbNotification): Notification {
     msg = p.sender_name
       ? `${p.sender_name} recognised ${p.recipient_name ?? 'your teammate'}`
       : 'Your team member was recognised';
+  }
+  if (n.kind === 'redemption_requested') {
+    msg = p.sender_name
+      ? `${p.sender_name} requested ${p.reward_title ?? 'a reward'}`
+      : 'New redemption request';
+  }
+  if (n.kind === 'approval' && p.status) {
+    msg = `Redemption ${p.status}: ${p.reward_title ?? 'reward'}`;
+  }
+  if (n.kind === 'nomination_pending') {
+    msg = `${p.nominee_name ?? 'A teammate'} was nominated for ${p.badge_name ?? 'a badge'}`;
   }
   const sub = [
     p.value_name ? `for ${p.value_name}` : '',

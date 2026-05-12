@@ -933,6 +933,15 @@ export function BillingPanel() {
     ? new Date((org as any).renewal_date).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
     : '—';
   const last4 = (org as any)?.payment_method_last4;
+  const billingStatus = ((org as any)?.billing_status ?? 'active') as 'active' | 'past_due' | 'canceled';
+  const statusPillLabel: Record<string, string> = {
+    active: plan === 'free' ? 'Free' : 'Active',
+    past_due: 'Past due',
+    canceled: 'Cancelled',
+  };
+  const statusPillClass = billingStatus === 'past_due' || billingStatus === 'canceled'
+    ? 'pill'
+    : (plan === 'free' ? 'pill' : 'pill gold');
 
   const handleChangePlan = async (priceId: string) => {
     if (!user) return;
@@ -1009,8 +1018,22 @@ export function BillingPanel() {
                 {last4 && ` · ····${last4}`}
               </div>
             </div>
-            <span className={`pill ${plan === 'free' ? '' : 'gold'}`}>{plan === 'free' ? 'Free' : 'Active'}</span>
+            <span className={statusPillClass} style={billingStatus === 'past_due' ? { background: 'var(--b-terra-pale, #fde4dc)', color: 'var(--b-terra, #a0532c)' } : undefined}>
+              {statusPillLabel[billingStatus]}
+            </span>
           </div>
+          {billingStatus === 'past_due' && (
+            <div role="status" style={{
+              padding: '10px 14px', borderRadius: 'var(--r-md)', marginBottom: 18,
+              background: 'var(--b-terra-pale, #fde4dc)', border: '1px solid var(--b-terra, #a0532c)',
+              fontSize: 'var(--t-sm)', color: 'var(--b-terra, #a0532c)',
+            }}>
+              Your last invoice failed. Update your payment method to keep recognition flowing.{' '}
+              <button className="btn-text" style={{ color: 'inherit', fontWeight: 600 }} onClick={handleManageSubscription}>
+                Manage billing →
+              </button>
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
             {[
               { l: 'Next renewal', v: renewalDate, sub: plan === 'free' ? 'No subscription' : 'Auto-renews' },
