@@ -25,7 +25,13 @@ function SuspenseWrap({ children }: { children: React.ReactNode }) {
 export const router = createBrowserRouter([
   {
     path: '/',
-    loader: async () => { throw redirect('/home.html'); },
+    loader: async () => {
+      if (typeof window !== 'undefined') {
+        window.location.replace('/home.html');
+        return null;
+      }
+      throw redirect('/home.html');
+    },
     element: null,
     errorElement: <RouteError />,
   },
