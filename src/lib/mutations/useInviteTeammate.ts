@@ -23,11 +23,14 @@ export function useInviteTeammate() {
           body: JSON.stringify(input),
         }
       );
+      const payload = await res.json().catch(() => null) as { message?: string; error?: string; code?: string } | null;
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: 'Invite failed' }));
-        throw new Error(err.message);
+        const message = payload?.message || payload?.error || `Invite failed (${res.status})`;
+        const error = new Error(message) as Error & { code?: string };
+        if (payload?.code) error.code = payload.code;
+        throw error;
       }
-      return res.json();
+      return payload;
     },
   });
 }

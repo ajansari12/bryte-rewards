@@ -1545,8 +1545,13 @@ export function AdminPage({ onToast, onOpenKudos }: { onToast: (t: Toast) => voi
       const a = document.createElement('a');
       a.href = url;
       a.download = `team-${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
+      document.body.appendChild(a);
+      try {
+        a.click();
+      } finally {
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
       onToast({ kind: 'success', msg: 'Team roster downloaded ✦' });
     } catch (err) {
       onToast({ kind: 'error', msg: err instanceof Error ? err.message : 'Export failed' });

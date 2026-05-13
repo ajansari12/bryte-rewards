@@ -80,13 +80,46 @@ Deno.serve(async (req: Request) => {
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+      // Email is registered to a different organization. Auth.users has a global
+      // unique-email constraint, so we can't re-invite. Surface a clear, actionable error.
+      if (existingMember && existingMember.org_id !== org_id) {
+        return new Response(
+          JSON.stringify({
+            code: "email_in_use_other_org",
+            message: "That email is already registered to another organization. Please use a different work email for this teammate.",
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      // Auth user exists but no public.users row — likely a stale invite. Add them to this org.
+      const { error: insertErr } = await supabase
+        .from("users")
+        .insert({ id: existingUserId, org_id, role, email: normalizedEmail });
+      if (insertErr) throw insertErr;
+      return new Response(
+        JSON.stringify({ id: existingUserId, attached_existing: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Invite via Supabase Auth Admin
+    // Invite via Supabase Auth Admin (org_id + role travel via user_metadata
+    // and are picked up by the on_auth_user_created trigger to create public.users).
     const { data: invite, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(email, {
       data: { org_id, role },
     });
-    if (inviteErr) throw inviteErr;
+    if (inviteErr) {
+      const msg = (inviteErr.message || "").toLowerCase();
+      if (msg.includes("already registered") || msg.includes("already been registered")) {
+        return new Response(
+          JSON.stringify({
+            code: "email_in_use_other_org",
+            message: "That email is already registered. Please use a different work email for this teammate.",
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      throw inviteErr;
+    }
 
     return new Response(JSON.stringify({ id: invite.user.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

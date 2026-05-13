@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Icon } from './Icon';
 import { BrandWordmark } from './BrandWordmark';
 import { supabase } from '@/lib/supabase';
@@ -48,7 +48,23 @@ interface NotifPanelProps {
 export function Sidebar({ route, setRoute, orgName: orgNameProp, orgTag: orgTagProp, user }: SidebarProps) {
   const me = user;
   const [showCtx, setShowCtx] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
   const { data: allBadges = [] } = useBadges();
+
+  useEffect(() => {
+    if (!showCtx) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (!userMenuRef.current) return;
+      if (!userMenuRef.current.contains(e.target as Node)) setShowCtx(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowCtx(false); };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [showCtx]);
   const { data: myRecs = [] } = useMyRecognitions();
 
   const earnedBadgesCount = allBadges.filter(b => b.awarded_at !== null).length;
@@ -99,8 +115,12 @@ export function Sidebar({ route, setRoute, orgName: orgNameProp, orgTag: orgTagP
         <div className="nav-section-label">Your work</div>
         {navItems.map(item => (
           <div key={item.id}
+            role="link"
+            tabIndex={0}
+            aria-current={route === item.id ? 'page' : undefined}
             className={'nav-item' + (route === item.id ? ' active' : '')}
-            onClick={() => setRoute(item.id as Route)}>
+            onClick={() => setRoute(item.id as Route)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setRoute(item.id as Route); } }}>
             <Icon name={item.icon} />
             <span>{item.label}</span>
           </div>
@@ -109,8 +129,12 @@ export function Sidebar({ route, setRoute, orgName: orgNameProp, orgTag: orgTagP
         <div className="nav-section-label" style={{marginTop: 14}}>Team</div>
         {teamItems.map(item => (
           <div key={item.id}
+            role="link"
+            tabIndex={0}
+            aria-current={route === item.id ? 'page' : undefined}
             className={'nav-item' + (route === item.id ? ' active' : '')}
-            onClick={() => setRoute(item.id as Route)}>
+            onClick={() => setRoute(item.id as Route)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setRoute(item.id as Route); } }}>
             <Icon name={item.icon} />
             <span>{item.label}</span>
           </div>
@@ -119,9 +143,13 @@ export function Sidebar({ route, setRoute, orgName: orgNameProp, orgTag: orgTagP
 
       <div className="sidebar-foot">
         {me && (
-        <div className="sidebar-user" style={{cursor: 'pointer', position: 'relative'}}
+        <div ref={userMenuRef} className="sidebar-user" style={{cursor: 'pointer', position: 'relative'}}
+          role="button"
+          tabIndex={0}
+          aria-haspopup="menu"
+          aria-expanded={showCtx}
           onClick={() => setShowCtx(s => !s)}
-          onMouseLeave={() => setShowCtx(false)}>
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowCtx(s => !s); } }}>
           <div className={`avatar md role-${me.role}`}>{me.initials}</div>
           <div className="meta">
             <div className="name">{me.displayName}</div>

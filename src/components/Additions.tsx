@@ -942,6 +942,10 @@ export function BillingPanel() {
     ? 'pill'
     : (plan === 'free' ? 'pill' : 'pill gold');
 
+  const emitToast = (kind: 'success' | 'error' | 'info', msg: string) => {
+    window.dispatchEvent(new CustomEvent('bryte:toast', { detail: { kind, msg } }));
+  };
+
   const handleChangePlan = async (priceId: string) => {
     if (!user) return;
     setCheckoutLoading(true);
@@ -962,8 +966,14 @@ export function BillingPanel() {
           }),
         }
       );
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.url) {
+        emitToast('error', data?.message || 'Could not start checkout. Please try again.');
+        return;
+      }
+      window.location.href = data.url;
+    } catch (err) {
+      emitToast('error', err instanceof Error ? err.message : 'Could not start checkout.');
     } finally {
       setCheckoutLoading(false);
     }
@@ -985,8 +995,14 @@ export function BillingPanel() {
           body: JSON.stringify({ return_url: window.location.href }),
         }
       );
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.url) {
+        emitToast('error', data?.message || 'Could not open billing portal. Please try again.');
+        return;
+      }
+      window.location.href = data.url;
+    } catch (err) {
+      emitToast('error', err instanceof Error ? err.message : 'Could not open billing portal.');
     } finally {
       setCheckoutLoading(false);
     }
@@ -1310,7 +1326,7 @@ export function AnniversaryStrip() {
           when: anniv,
         };
       })
-      .filter(a => a.years > 0 && a.when >= today && a.when <= horizon)
+      .filter(a => a.years >= 1 && a.when >= today && a.when <= horizon)
       .sort((a, b) => a.when.getTime() - b.when.getTime());
     return items;
   }, [users]);

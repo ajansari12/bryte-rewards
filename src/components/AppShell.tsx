@@ -62,11 +62,15 @@ export function AppShell() {
     const approvalKinds = new Set(['approval', 'redemption_requested', 'redemption_approved', 'redemption_cancelled']);
 
     if (!n.read && dbUser?.id) {
+      const key = qk.notifications(dbUser.id);
+      queryClient.setQueryData<UiNotification[] | undefined>(key, (prev) =>
+        prev?.map(item => item.id === n.id ? { ...item, read: true } : item)
+      );
       void supabase
         .from('notifications')
         .update({ read_at: new Date().toISOString() })
         .eq('id', n.id)
-        .then(() => queryClient.invalidateQueries({ queryKey: qk.notifications(dbUser.id) }));
+        .then(() => queryClient.invalidateQueries({ queryKey: key }));
     }
 
     if (recId) {
