@@ -7,7 +7,13 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Cross-Origin-Opener-Policy: same-origin
 
-/marketing/*
+/*.html
+  Cache-Control: public, max-age=300, must-revalidate
+
+/site.css
+  Cache-Control: public, max-age=300, must-revalidate
+
+/site.js
   Cache-Control: public, max-age=300, must-revalidate
 
 /og/*

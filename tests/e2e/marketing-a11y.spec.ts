@@ -2,17 +2,17 @@ import { test } from '@playwright/test';
 import { checkA11y, injectAxe } from '@axe-core/playwright';
 
 const PAGES = [
-  { name: 'Home',         path: '/marketing/Home.html' },
-  { name: 'Product',      path: '/marketing/Product.html' },
-  { name: 'Pricing',      path: '/marketing/Pricing.html' },
-  { name: 'Customers',    path: '/marketing/Customers.html' },
-  { name: 'Security',     path: '/marketing/Security.html' },
-  { name: 'About',        path: '/marketing/About.html' },
-  { name: 'Compare',      path: '/marketing/Compare.html' },
-  { name: 'Blog',         path: '/marketing/Blog.html' },
-  { name: 'Demo',         path: '/marketing/Demo.html' },
-  { name: 'ROI',          path: '/marketing/ROI.html' },
-  { name: '404',          path: '/marketing/404.html' },
+  { name: 'Home',         path: '/Home.html' },
+  { name: 'Product',      path: '/Product.html' },
+  { name: 'Pricing',      path: '/Pricing.html' },
+  { name: 'Customers',    path: '/Customers.html' },
+  { name: 'Security',     path: '/Security.html' },
+  { name: 'About',        path: '/About.html' },
+  { name: 'Compare',      path: '/Compare.html' },
+  { name: 'Blog',         path: '/Blog.html' },
+  { name: 'Demo',         path: '/Demo.html' },
+  { name: 'ROI',          path: '/ROI.html' },
+  { name: '404',          path: '/404.html' },
 ];
 
 test.describe('Marketing pages — axe accessibility', () => {

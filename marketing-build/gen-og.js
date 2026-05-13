@@ -4,7 +4,7 @@
  * the canvas API via the `canvas` npm package. Falls back to SVG placeholder
  * if canvas is unavailable so the build never hard-fails.
  *
- * Run: node public/marketing/gen-og.js
+ * Run: node marketing-build/gen-og.js
  */
 
 import { writeFileSync, mkdirSync } from 'fs';
@@ -12,7 +12,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
-const outDir = join(__dir, '../og');
+const outDir = join(__dir, '..', 'public', 'og');
 
 const pages = [
   { slug: 'home',        title: 'Recognition that feels Canadian.',       sub: 'Say the things that matter, out loud.' },
@@ -119,4 +119,4 @@ for (const page of pages) {
     console.error(`  ✗  ${page.slug}:`, err.message);
   }
 }
-console.log('\nDone. To get true PNG output, run: npm install canvas && node public/marketing/gen-og.js');
+console.log('\nDone. To get true PNG output, run: npm install canvas && node marketing-build/gen-og.js');

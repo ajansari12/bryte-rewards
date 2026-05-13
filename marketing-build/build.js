@@ -5,14 +5,14 @@
  * fixes CTAs to point at app.bryte.app, adds performance + a11y attributes,
  * and writes the result back in-place.
  *
- * Run: node public/marketing/build.js
+ * Run: node marketing-build/build.js
  */
 
 import { readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-const __dir = dirname(fileURLToPath(import.meta.url));
+const __dir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
 // ── Page metadata ────────────────────────────────────────────────────────────
 const pages = [
@@ -117,18 +117,18 @@ const footerHtml = readFileSync(join(__dir, '_partials/footer.html'), 'utf8');
 
 const SLUG_TO_PATH = {
   home: '/',
-  product: '/product',
-  pricing: '/pricing',
-  customers: '/customers',
-  security: '/security',
-  about: '/about',
-  compare: '/compare',
-  blog: '/blog',
-  'blog-post-1': '/blog/recognition-not-points',
-  'blog-post-2': '/blog/values-refresh',
-  demo: '/demo',
-  roi: '/roi',
-  '404': '/404',
+  product: '/Product.html',
+  pricing: '/Pricing.html',
+  customers: '/Customers.html',
+  security: '/Security.html',
+  about: '/About.html',
+  compare: '/Compare.html',
+  blog: '/Blog.html',
+  'blog-post-1': '/Blog-post-1.html',
+  'blog-post-2': '/Blog-post-2.html',
+  demo: '/Demo.html',
+  roi: '/ROI.html',
+  '404': '/404.html',
 };
 
 function buildSeoBlock(page) {
@@ -205,11 +205,11 @@ function fixCtAs(html) {
 
   // Sign in buttons that point to Demo.html → actual login
   html = html.replace(
-    /<a([^>]*?)class="([^"]*btn-ghost[^"]*)"([^>]*)href="Demo\.html"([^>]*)>Sign in<\/a>/g,
+    /<a([^>]*?)class="([^"]*btn-ghost[^"]*)"([^>]*)href="\/?Demo\.html"([^>]*)>Sign in<\/a>/g,
     '<a$1class="$2"$3href="/login"$4>Sign in</a>'
   );
   html = html.replace(
-    /<a([^>]*?)href="Demo\.html"([^>]*)class="([^"]*btn-ghost[^"]*)"([^>]*)>Sign in<\/a>/g,
+    /<a([^>]*?)href="\/?Demo\.html"([^>]*)class="([^"]*btn-ghost[^"]*)"([^>]*)>Sign in<\/a>/g,
     '<a$1href="/login"$2class="$3"$4>Sign in</a>'
   );
 
@@ -224,7 +224,7 @@ function fixCtAs(html) {
     'Start your free trial',
   ];
   for (const copy of ctaCopy) {
-    const re = new RegExp(`href="(Pricing\\.html|Demo\\.html)"([^>]*)>${copy}`, 'g');
+    const re = new RegExp(`href="\\/?(Pricing\\.html|Demo\\.html)"([^>]*)>${copy}`, 'g');
     html = html.replace(re, `href="/signup"$2>${copy}`);
   }
 

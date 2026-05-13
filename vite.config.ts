@@ -6,10 +6,8 @@ import type { Connect } from 'vite';
 import fs from 'node:fs';
 import path from 'node:path';
 
-// Map clean marketing URLs to the static HTML files in public/marketing/.
-// The middleware reads the file and injects <base href="/marketing/"> so that
-// all relative asset paths inside the HTML resolve correctly without a
-// redirect (the URL bar stays clean, mirroring Netlify rewrite-with-200).
+// Map clean marketing URLs to the static HTML files now at the public/ root.
+// Mirrors the production _redirects rules so dev/preview behave identically.
 const marketingRoutes: Record<string, string> = {
   '/': 'Home.html',
   '/product': 'Product.html',
@@ -31,23 +29,17 @@ function marketingMiddleware(rootDir: string): Connect.NextHandleFunction {
     const file = marketingRoutes[url];
     if (!file) return next();
 
-    const filePath = path.join(rootDir, 'public', 'marketing', file);
+    const filePath = path.join(rootDir, 'public', file);
     if (!fs.existsSync(filePath)) return next();
 
-    let html = fs.readFileSync(filePath, 'utf-8');
-    if (!/<base\s/i.test(html)) {
-      html = html.replace(
-        /<head(\s[^>]*)?>/i,
-        (match) => `${match}\n  <base href="/marketing/">`
-      );
-    }
+    const html = fs.readFileSync(filePath, 'utf-8');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache');
     res.end(html);
   };
 }
 
-export default defineConfig(({ command }) => ({
+export default defineConfig(() => ({
   plugins: [
     react(),
     tailwindcss(),
