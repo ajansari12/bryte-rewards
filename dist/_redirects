@@ -1,29 +1,42 @@
 # Marketing site at apex
-/                  /marketing/Home.html         200
+/                  /Home.html                   200
 
-# Clean URLs for marketing pages
-/product           /marketing/Product.html      200
-/pricing           /marketing/Pricing.html      200
-/customers         /marketing/Customers.html    200
-/integrations      /product                     301
-/security          /marketing/Security.html     200
-/about             /marketing/About.html        200
-/compare           /marketing/Compare.html      200
-/blog              /marketing/Blog.html         200
-/blog/recognition-not-points  /marketing/Blog-post-1.html  200
-/blog/values-refresh          /marketing/Blog-post-2.html  200
-/demo              /marketing/Demo.html         200
-/roi               /marketing/ROI.html          200
-/privacy           /marketing/privacy.html      200
-/terms             /marketing/terms.html        200
-/pipeda            /marketing/pipeda.html       200
-/accessibility     /marketing/accessibility.html 200
+# Clean URLs for marketing pages (Netlify-style hosts only)
+/product           /Product.html                200
+/pricing           /Pricing.html                200
+/customers         /Customers.html              200
+/integrations      /Product.html                301
+/security          /Security.html               200
+/about             /About.html                  200
+/compare           /Compare.html                200
+/blog              /Blog.html                   200
+/blog/recognition-not-points  /Blog-post-1.html 200
+/blog/values-refresh          /Blog-post-2.html 200
+/demo              /Demo.html                   200
+/roi               /ROI.html                    200
 
-# React SPA — these routes are handled client-side
+# Legacy /marketing/* URLs redirect to canonical paths
+/marketing/Home.html          /Home.html        301
+/marketing/Product.html       /Product.html     301
+/marketing/Pricing.html       /Pricing.html     301
+/marketing/Customers.html     /Customers.html   301
+/marketing/Security.html      /Security.html    301
+/marketing/About.html         /About.html       301
+/marketing/Compare.html       /Compare.html     301
+/marketing/Blog.html          /Blog.html        301
+/marketing/Blog-post-1.html   /Blog-post-1.html 301
+/marketing/Blog-post-2.html   /Blog-post-2.html 301
+/marketing/Demo.html          /Demo.html        301
+/marketing/ROI.html           /ROI.html         301
+/marketing/404.html           /404.html         301
+
+# React SPA — handled client-side
 /login             /index.html                  200
 /signup            /index.html                  200
+/forgot-password   /index.html                  200
+/reset-password    /index.html                  200
 /onboarding        /index.html                  200
 /app/*             /index.html                  200
 
-# Custom 404 for any unknown path
-/*                 /marketing/404.html          404
+# Custom 404 for unknown paths
+/*                 /404.html                    404

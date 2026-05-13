@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recognition is not a points problem — Bryte Rewards Journal</title>
+<meta name="description" content="Why the mechanics of your recognition programme matter less than whether your managers actually mean it when they click send.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="/site.css?v=6">
+<style>
+  /* BLOG POST */
+  .post-hero {
+    padding: 72px 0 48px;
+    border-bottom: 1px solid var(--b-border);
+  }
+  .post-hero .container { max-width: 780px; }
+  .post-crumbs {
+    font-size: var(--t-xs); color: var(--b-ink-3);
+    text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;
+    margin-bottom: 20px;
+  }
+  .post-crumbs a { color: var(--b-gold-deep); }
+  .post-crumbs .sep { margin: 0 10px; color: var(--b-ink-4); }
+  .post-hero h1 {
+    font-family: var(--font-display); font-weight: 400;
+    font-size: clamp(2.25rem, 5vw, 4rem); line-height: 1.08;
+    letter-spacing: -0.03em; color: var(--b-ink); margin: 0 0 28px;
+    font-variation-settings: "opsz" 144, "wght" 400;
+  }
+  .post-hero h1 em { font-style: italic; color: var(--b-maple); }
+  .post-dek {
+    font-family: var(--font-display); font-weight: 400;
+    font-size: clamp(1.125rem, 1.8vw, 1.375rem); line-height: 1.5;
+    color: var(--b-ink-2); margin: 0 0 32px; max-width: 640px;
+    font-variation-settings: "opsz" 24;
+  }
+  .post-meta {
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    padding-top: 24px; border-top: 1px solid var(--b-border);
+    font-size: var(--t-small); color: var(--b-ink-3);
+  }
+  .post-meta .byline { display: flex; align-items: center; gap: 12px; }
+  .post-meta .avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: linear-gradient(135deg, #FAEDE8, #F5D4C4); color: var(--b-maple);
+    display: grid; place-items: center;
+    font-family: var(--font-display); font-weight: 600; font-size: 1.125rem;
+  }
+  .post-meta strong { color: var(--b-ink); font-weight: 600; display: block; font-size: var(--t-body); }
+  .post-meta .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--b-ink-4); }
+
+  /* Post body */
+  .post-body { padding: 56px 0 96px; }
+  .post-body .container { max-width: 720px; }
+
+  .post-body p, .post-body li {
+    font-family: var(--font-display); font-weight: 400;
+    font-size: 1.1875rem; line-height: 1.65; letter-spacing: -0.002em;
+    color: var(--b-ink); margin: 0 0 26px;
+    font-variation-settings: "opsz" 18;
+  }
+  .post-body p:first-of-type::first-letter {
+    font-family: var(--font-display); font-weight: 400; font-style: italic;
+    font-size: 4.5em; line-height: 0.9; float: left;
+    padding: 6px 12px 0 0; color: var(--b-maple);
+    font-variation-settings: "opsz" 144;
+  }
+
+  .post-body h2 {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 1.875rem; line-height: 1.2; letter-spacing: -0.02em;
+    color: var(--b-ink); margin: 56px 0 20px;
+    font-variation-settings: "opsz" 96;
+  }
+  .post-body h2 em { font-style: italic; color: var(--b-maple); }
+  .post-body h3 {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: 1.375rem; line-height: 1.3; letter-spacing: -0.01em;
+    color: var(--b-ink); margin: 40px 0 14px;
+  }
+
+  .post-body ul, .post-body ol { margin: 0 0 26px; padding-left: 28px; }
+  .post-body li { margin-bottom: 10px; }
+
+  .post-body strong { color: var(--b-ink); font-weight: 600; }
+  .post-body em { font-style: italic; }
+
+  .post-body a {
+    color: var(--b-maple); text-decoration: underline; text-underline-offset: 3px;
+    text-decoration-thickness: 1px; text-decoration-color: rgba(184,69,46,0.35);
+    transition: text-decoration-color var(--dur) var(--ease);
+  }
+  .post-body a:hover { text-decoration-color: var(--b-maple); }
+
+  .pullquote {
+    margin: 56px -40px; padding: 0 40px;
+    border-left: 3px solid var(--b-gold);
+    font-family: var(--font-display); font-weight: 400; font-style: italic;
+    font-size: clamp(1.5rem, 2.8vw, 2rem); line-height: 1.3;
+    color: var(--b-ink); letter-spacing: -0.015em;
+    font-variation-settings: "opsz" 144;
+  }
+  @media (max-width: 640px) { .pullquote { margin: 40px 0; } }
+  .pullquote footer {
+    font-family: var(--font-ui); font-style: normal; font-weight: 500;
+    font-size: var(--t-xs); color: var(--b-ink-3); letter-spacing: 0.08em;
+    text-transform: uppercase; margin-top: 16px;
+  }
+
+  .callout {
+    margin: 40px 0; padding: 24px 28px;
+    background: var(--b-gold-pale); border: 1px solid #E5CE9A;
+    border-radius: var(--r-md);
+  }
+  .callout .label {
+    font-family: var(--font-ui); font-size: var(--t-xs);
+    color: var(--b-gold-deep); font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    margin-bottom: 8px;
+  }
+  .callout p {
+    font-family: var(--font-ui); font-size: var(--t-small);
+    color: var(--b-ink-2); line-height: 1.6; margin: 0;
+  }
+  .callout p::first-letter { all: unset; }
+
+  .data-grid {
+    margin: 40px 0; display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 1px; background: var(--b-border);
+    border: 1px solid var(--b-border); border-radius: var(--r-md); overflow: hidden;
+  }
+  @media (max-width: 560px) { .data-grid { grid-template-columns: 1fr; } }
+  .data-cell { background: var(--b-card); padding: 24px; }
+  .data-cell .n {
+    font-family: var(--font-display); font-weight: 400;
+    font-size: 2.5rem; color: var(--b-maple); line-height: 1;
+    font-variation-settings: "opsz" 144; margin-bottom: 8px;
+  }
+  .data-cell .k {
+    font-family: var(--font-ui); font-size: var(--t-xs); color: var(--b-ink-3);
+    text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+  }
+
+  /* Post footer */
+  .post-footer { padding: 48px 0; border-top: 1px solid var(--b-border); background: var(--b-surface); }
+  .post-footer .container { max-width: 720px; }
+  .post-share {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 20px; flex-wrap: wrap;
+    padding: 20px 0; border-bottom: 1px solid var(--b-border);
+    margin-bottom: 40px;
+  }
+  .share-buttons { display: flex; gap: 10px; }
+  .share-btn {
+    padding: 8px 14px; font-size: var(--t-xs); font-weight: 600;
+    border: 1px solid var(--b-border); background: var(--b-card);
+    border-radius: var(--r-pill); color: var(--b-ink-2);
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+
+  .author-card {
+    display: grid; grid-template-columns: auto 1fr; gap: 20px;
+    padding: 28px; background: var(--b-card); border: 1px solid var(--b-border);
+    border-radius: var(--r-lg);
+  }
+  .author-card .ava {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: linear-gradient(135deg, #FAEDE8, #F5D4C4); color: var(--b-maple);
+    display: grid; place-items: center;
+    font-family: var(--font-display); font-weight: 500; font-size: 2rem;
+    font-variation-settings: "opsz" 144;
+  }
+  .author-card h4 { margin: 0 0 4px; font-family: var(--font-display); font-weight: 500; font-size: 1.25rem; color: var(--b-ink); }
+  .author-card .role { font-size: var(--t-xs); color: var(--b-ink-3); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; margin-bottom: 10px; }
+  .author-card p { margin: 0; font-size: var(--t-small); color: var(--b-ink-2); line-height: 1.55; }
+
+  /* Related */
+  .related-sec { padding: 80px 0; }
+  .related-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 32px; }
+  @media (max-width: 720px) { .related-grid { grid-template-columns: 1fr; } }
+  .related-card {
+    display: flex; gap: 20px; padding: 20px;
+    border: 1px solid var(--b-border); border-radius: var(--r-lg);
+    background: var(--b-card); transition: all var(--dur) var(--ease);
+  }
+  .related-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); border-color: var(--b-border-heavy); }
+  .related-thumb {
+    flex: 0 0 88px; width: 88px; height: 88px; border-radius: var(--r-md);
+    display: grid; place-items: center;
+    font-family: var(--font-display); font-style: italic; font-size: 2.25rem;
+    font-variation-settings: "opsz" 144;
+  }
+  .related-card .body { font-size: var(--t-xs); color: var(--b-ink-3); }
+  .related-card h4 { margin: 4px 0 6px; font-family: var(--font-display); font-weight: 500; font-size: 1.0625rem; color: var(--b-ink); line-height: 1.3; }
+  .related-card p { margin: 0; font-size: var(--t-xs); color: var(--b-ink-3); line-height: 1.5; }
+</style>
+<!-- SEO + Social -->
+<link rel="canonical" href="https://bryte.app/Blog-post-1.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bryte Rewards">
+<meta property="og:title" content="Recognition is not a points problem">
+<meta property="og:description" content="Why the mechanics of your recognition programme matter less than whether your managers actually mean it when they click send.">
+<meta property="og:url" content="https://bryte.app/Blog-post-1.html">
+<meta property="og:image" content="https://bryte.app/og/blog-post-1.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@bryteapp">
+<meta name="twitter:title" content="Recognition is not a points problem">
+<meta name="twitter:description" content="Why the mechanics of your recognition programme matter less than whether your managers actually mean it when they click send.">
+<meta name="twitter:image" content="https://bryte.app/og/blog-post-1.png">
+</head>
+<body>
+<nav class="nav" role="navigation" aria-label="Main">
+  <div class="nav-inner">
+    <a class="logo" href="/Home.html" aria-label="Bryte Rewards home">
+      <span class="logo-mark" aria-hidden="true">B</span>
+      Bryte Rewards
+    </a>
+    <div class="nav-links">
+      <a href="/Product.html">Product</a>
+      <a href="/Pricing.html">Pricing</a>
+      <a href="/Customers.html">Customers</a>
+      <a href="/Security.html">Security</a>
+      <a href="/Blog.html">Journal</a>
+      <a href="/About.html">About</a>
+    </div>
+    <div class="nav-actions">
+      <button class="theme-toggle" aria-label="Toggle colour theme">
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+      <div class="lang-toggle">
+        <button data-lang="en" aria-label="Switch to English">EN</button>
+        <button data-lang="fr" aria-label="Switch to French">FR</button>
+      </div>
+      <a class="btn btn-ghost btn-sm" href="/login">Sign in</a>
+      <a class="btn btn-primary btn-sm" href="/Demo.html">Book a demo</a>
+      <button class="nav-burger" aria-label="Open menu" aria-expanded="false" aria-controls="nav-drawer">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+  <div class="nav-drawer" id="nav-drawer" aria-label="Mobile navigation">
+    <a href="/Product.html">Product</a>
+    <a href="/Pricing.html">Pricing</a>
+    <a href="/Customers.html">Customers</a>
+    <a href="/Security.html">Security</a>
+    <a href="/About.html">About</a>
+    <a href="/Blog.html">Journal</a>
+    <a href="/ROI.html">ROI calculator</a>
+    <div class="drawer-cta">
+      <a class="btn btn-ghost btn-sm" href="/login">Sign in</a>
+      <a class="btn btn-primary btn-sm" href="/Demo.html">Book a demo</a>
+    </div>
+  </div>
+</nav>
+
+<!-- POST HERO -->
+<section class="post-hero">
+  <div class="container">
+    <div class="post-crumbs"><a href="/Blog.html">Journal</a><span class="sep">/</span>Essay</div>
+    <h1>Recognition is <em>not</em> a points problem. It's a <em>language</em> problem.</h1>
+    <p class="post-dek">The industry spent fifteen years gamifying gratitude and we ended up with leaderboards for who said "nice work" the most. Here's what our analysis of 82,000 kudos suggests we should do instead.</p>
+    <div class="post-meta">
+      <div class="byline">
+        <div class="avatar">N</div>
+        <div>
+          <strong>Nadia Okonkwo</strong>
+          <span style="font-size: var(--t-xs); color: var(--b-ink-3);">CEO &amp; co-founder</span>
+        </div>
+      </div>
+      <span class="dot"></span>
+      <span>Feb 14, 2025</span>
+      <span class="dot"></span>
+      <span>12 min read</span>
+    </div>
+  </div>
+</section>
+
+<!-- POST BODY -->
+<article class="post-body">
+  <div class="container">
+
+    <p>Somewhere between 2008 and 2014, the entire employee-recognition industry decided that the problem with saying thank you at work was that we didn't have a scoreboard. The prevailing wisdom — rolled into dozens of products I've now personally deployed and uninstalled — was that recognition was an activity you wanted <em>more</em> of. And if you wanted more of something, well, you gamified it. Streaks. Badges. Leaderboards for the people who gave the most points. A marketplace where those points could be spent on an Amazon gift card, a yoga mat, or, if enough people recognized you, a weighted blanket.</p>
+
+    <p>I know because I ran People at a Series C fintech and rolled out three of these tools in four years. They all had the same lifecycle: breathless launch, six months of activity, eight months of slow decline, a year of people quietly not using it, and then me, the VP of People, going to the CHRO and saying "we need a new tool." It wasn't a new tool we needed. It was a new idea.</p>
+
+    <h2>The thing we were optimizing was the <em>wrong thing.</em></h2>
+
+    <p>Here is what I believe now, having worked on recognition software for four years on the other side: the problem was never that people in companies weren't giving enough recognition. The problem was that the recognition they were giving was hollow.</p>
+
+    <p>The software we built — all of us, collectively, as an industry — was designed to increase the <em>volume</em> of recognition, because volume is what you can measure in a dashboard. <strong>More kudos this month than last. More points redeemed. More employees "engaged."</strong> But nobody was asking whether any of those kudos actually meant something to the person receiving them. Or, to put it more pointedly: whether the person giving them had actually paid attention.</p>
+
+    <div class="pullquote">
+      "Nice work on the deck today!" is not the same thing as "The reason that deck landed is because you spent Tuesday night reworking slide 14, and it changed the whole narrative."
+      <footer>— Something I've said in every values workshop since 2021</footer>
+    </div>
+
+    <p>The first sentence takes three seconds. The second takes maybe ninety. And the research on this — the good research, not the vendor-funded variety — is extremely clear: the second one is 40 times more effective at driving the outcomes that recognition is <em>supposed</em> to drive.</p>
+
+    <p>Not retention. Not engagement. I mean the actual outcome: <em>a person at your company feels seen.</em></p>
+
+    <h2>What we actually found when we read 82,000 kudos.</h2>
+
+    <p>When we built Bryte Rewards, we made a deliberate choice early on to privilege the <em>sentence</em> over the <em>points</em>. Our recognition cards are big. They're editorial-looking. They have a lot of whitespace. You can see the text from ten feet away. This isn't decorative — it's a forcing function. If the text is small and the points are big, guess which one people optimize for.</p>
+
+    <p>Last fall, our research team — okay, one of our engineers on a weekend — ran a structured analysis of 82,184 kudos sent across our customer base over the prior twelve months. We looked at two things: (1) what the kudos actually said, and (2) what the recipient did next. Did they react? Did they share? Did they reciprocate in the following month? Did they, six months later, still be at the company?</p>
+
+    <div class="data-grid">
+      <div class="data-cell"><div class="n">47%</div><div class="k">Of kudos were generic — "great job!", "thanks!", ≤6 words</div></div>
+      <div class="data-cell"><div class="n">3.2×</div><div class="k">More reactions on kudos that named a specific moment</div></div>
+      <div class="data-cell"><div class="n">82%</div><div class="k">Of "high-signal" kudos referenced a decision, not a deliverable</div></div>
+    </div>
+
+    <p>Let me unpack that last one, because it's the most interesting finding and the one that changed how we teach this. Bad recognition describes <em>output.</em> "Great deck." "Awesome demo." "Thanks for the PR." Good recognition describes a <em>decision.</em> "I saw you push back on the timeline and I think that was the right call." "You took the brief and made it sharper — I don't think we would have won the pitch on the original." "You stayed up late on something that wasn't glamorous and I want you to know I noticed."</p>
+
+    <p>Output is what someone produced. Decisions are what someone chose. And when you recognize a <em>decision</em>, you are doing something structurally different: you are telling the person that you are paying attention to their <em>judgment</em>, not their <em>yield</em>. You are telling them they are a thinking being whose calls you respect, not a pair of hands whose throughput you monitor.</p>
+
+    <h3>The format we recommend now.</h3>
+
+    <p>We teach a four-sentence structure in every onboarding we run. It's not a rule; it's a scaffold. It goes:</p>
+
+    <ol>
+      <li><strong>Name the moment.</strong> "The Nordstrom pitch." Not "your work." Something concrete.</li>
+      <li><strong>Name the decision.</strong> "You pushed to reframe the narrative on slide 14."</li>
+      <li><strong>Name the effect.</strong> "It's the reason we won the room."</li>
+      <li><strong>Name the person.</strong> "That's your instinct, and I think you should trust it more."</li>
+    </ol>
+
+    <p>You can write one of these in under two minutes. It is indistinguishable from something a close friend would say to you about your work. And the data suggests people will remember receiving one six months later, which is not something I'd have said about any of the kudos I sent or received in the products I used previously.</p>
+
+    <div class="callout">
+      <div class="label">Try it yourself</div>
+      <p>Right now, pull up the last three kudos you sent. Could you swap the name on them and have them read the same? If yes — that's a generic. Rewrite one this week with the four-sentence scaffold and send it to that person. Report back.</p>
+    </div>
+
+    <h2>Why the points thing actively makes this worse.</h2>
+
+    <p>Once you start paying attention to this, the points systems look increasingly strange. Points flatten everything. A three-sentence "great job on the deck" and a ninety-sentence deeply-considered note about someone's growth over a year — they both route through the same "50 points" in your app. The points were supposed to be a unit of value, but they ended up being a unit of <em>acknowledgement</em>, and once you've rolled everything into one number, you've told your team that the number is the thing.</p>
+
+    <p>I'm not saying points are evil. We have a points system in our product. It's there because redeemable rewards are genuinely nice and people want them. But we deliberately keep it small on the card. Under the text. In smaller type. Because the <em>text</em> is the point. The points are the receipt.</p>
+
+    <div class="pullquote">
+      The points are the receipt. The text is the thing.
+    </div>
+
+    <h2>What this means for People teams right now.</h2>
+
+    <p>If you are reading this and you run People at a company, you probably have three options on the table:</p>
+
+    <ol>
+      <li><strong>Keep your current recognition tool.</strong> Teach managers the four-sentence format. Measure quality, not volume. It will still be an uphill fight because the tool's UI is nudging everyone toward the hollow version — but it is absolutely possible.</li>
+      <li><strong>Switch tools.</strong> Pick something — and I will leave the list of options generous here, we are not the only one — that makes the <em>sentence</em> the main event. Ask your vendor how big the message is on the card, and listen to how they answer.</li>
+      <li><strong>Do nothing.</strong> This is fine, honestly. Bad recognition software is a net neutral at best. Your team is probably giving good recognition in chat DMs that you will never see on a dashboard, and that's fine too.</li>
+    </ol>
+
+    <p>The one thing I would beg you not to do is to launch a new program aimed at increasing the <em>number</em> of kudos sent per employee per month. That metric is lying to you. It will go up and your people will not feel more seen, and six months from now you will be right back here, wondering why.</p>
+
+    <p>Recognition isn't a points problem. It never was. It's a language problem — a case where we made the easier, cheaper, more-trackable version of a thing into a ritual, and the ritual hollowed the original out until nobody quite remembered what we were doing to begin with.</p>
+
+    <p>Fix the language. The rest takes care of itself.</p>
+
+    <div class="callout" style="margin-top: 48px; background: var(--b-ink); border-color: var(--b-ink);">
+      <div class="label" style="color: var(--b-gold-light);">The sequel</div>
+      <p style="color: var(--b-canvas);">Next month: the four-sentence scaffold, broken down — with 14 real examples from the data (names changed). Subscribe to the <a href="/Blog.html" style="color: var(--b-gold-light);">mailing list</a> if you want it in your inbox.</p>
+    </div>
+
+  </div>
+</article>
+
+<!-- FOOTER -->
+<section class="post-footer">
+  <div class="container">
+    <div class="post-share">
+      <div style="font-size: var(--t-small); color: var(--b-ink-3);">Sharing this with your People team?</div>
+      <div class="share-buttons">
+        <a class="share-btn">Copy link</a>
+        <a class="share-btn">LinkedIn</a>
+        <a class="share-btn">Email</a>
+      </div>
+    </div>
+
+    <div class="author-card">
+      <div class="ava">N</div>
+      <div>
+        <h4>Nadia Okonkwo</h4>
+        <div class="role">CEO &amp; co-founder, Bryte Rewards</div>
+        <p>Former VP People at a Series C fintech in Toronto. Spent 10+ years running People teams of 12 to 80. Deploys and uninstalls recognition software for a living. Writes about HR, values, and the things managers accidentally optimize for.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RELATED -->
+<section class="related-sec">
+  <div class="container">
+    <div class="eyebrow">Keep reading</div>
+    <div class="related-grid">
+      <a href="/Blog-post-2.html" class="related-card">
+        <div class="related-thumb" style="background: var(--b-forest-pale); color: var(--b-forest);">QC</div>
+        <div>
+          <div class="body">Playbook · 8 min</div>
+          <h4>Running a values refresh without making everyone hate values.</h4>
+          <p>The six-week playbook we've seen work at Figment, Dialogue, and fourteen other Canadian teams.</p>
+        </div>
+      </a>
+      <a href="/Blog.html" class="related-card">
+        <div class="related-thumb" style="background: var(--b-gold-pale); color: var(--b-gold-deep);">FR</div>
+        <div>
+          <div class="body">Behind Bryte Rewards · 5 min</div>
+          <h4>Shipping bilingual software, the Québec way.</h4>
+          <p>Loi 25, Charter of the French Language, and why translation is not the same as bilingual product.</p>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="footer-grid">
+    <div>
+      <a class="logo" href="/Home.html" aria-label="Bryte Rewards home">
+        <span class="logo-mark" aria-hidden="true">B</span>Bryte Rewards
+      </a>
+      <p style="margin: 20px 0 0; font-size: var(--t-small); color: var(--b-ink-3); max-width: 280px;">Recognition software for Canadian teams. Say the things that matter, out loud.</p>
+      <div style="margin-top: 20px; font-size: var(--t-xs); color: var(--b-ink-3); display: inline-flex; align-items: center; gap: 8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#B8452E" aria-hidden="true"><path d="M12 2l1.5 4.5L18 4l-1.5 5L21 8l-3 4 3 4-4.5-1L18 20l-4.5-2.5L12 22l-1.5-4.5L6 20l1.5-5L3 16l3-4-3-4 4.5 1L6 4l4.5 2.5z"/></svg>
+        Made in Toronto
+      </div>
+    </div>
+    <div>
+      <h4>Product</h4>
+      <ul>
+        <li><a href="/Product.html">Features</a></li>
+        <li><a href="/Pricing.html">Pricing</a></li>
+        <li><a href="/Security.html">Security</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Company</h4>
+      <ul>
+        <li><a href="/About.html">About</a></li>
+        <li><a href="/Customers.html">Customers</a></li>
+        <li><a href="/Demo.html">Book a demo</a></li>
+        <li><a href="#">Careers</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Resources</h4>
+      <ul>
+        <li><a href="/Blog.html">Journal</a></li>
+        <li><a href="/ROI.html">ROI calculator</a></li>
+        <li><a href="#">Recognition playbook</a></li>
+        <li><a href="#">Help centre</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Legal</h4>
+      <ul>
+        <li><a href="#">Privacy</a></li>
+        <li><a href="#">Terms</a></li>
+        <li><a href="#">PIPEDA notice</a></li>
+        <li><a href="#">Accessibility</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2025 Bryte Rewards Inc. · Toronto, ON</span>
+    <span>EN · <a href="#" style="color: var(--b-ink-3);">FR</a></span>
+  </div>
+</footer>
+
+<script src="/site.js?v=6"></script>
+</body>
+</html>
