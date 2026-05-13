@@ -178,8 +178,8 @@ function injectHead(html, page) {
   }
 
   // 4. Update asset versions
-  html = html.replace(/site\.css\?v=\d+/, 'site.css?v=8');
-  html = html.replace(/site\.js\?v=\d+/, 'site.js?v=8');
+  html = html.replace(/site\.css\?v=\d+/, 'site.css?v=9');
+  html = html.replace(/site\.js\?v=\d+/, 'site.js?v=9');
 
   return html;
 }
