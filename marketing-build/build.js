@@ -17,84 +17,84 @@ const __dir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 // ── Page metadata ────────────────────────────────────────────────────────────
 const pages = [
   {
-    file: 'Home.html',
+    file: 'home.html',
     slug: 'home',
     title: 'Bryte Rewards — Recognition that feels Canadian.',
     description: 'Bryte Rewards helps Canadian teams say the things that matter, out loud. Employee recognition built on your values, your words, and your currency.',
     ogTitle: 'Bryte Rewards — Recognition that feels Canadian.',
   },
   {
-    file: 'Product.html',
+    file: 'product.html',
     slug: 'product',
     title: 'Product — Bryte Rewards',
     description: 'Recognition feeds, values editor, manager dashboards, peer-nominated badges, and rewards — all in one PIPEDA-ready platform built for Canadian teams.',
     ogTitle: 'Product Features — Bryte Rewards',
   },
   {
-    file: 'Pricing.html',
+    file: 'pricing.html',
     slug: 'pricing',
     title: 'Pricing — Bryte Rewards',
     description: 'Per person, per month, in Canadian dollars. Your rewards budget is yours — we take zero cut. Straightforward pricing for teams of 10 to 10,000.',
     ogTitle: 'Transparent Pricing in CAD — Bryte Rewards',
   },
   {
-    file: 'Customers.html',
+    file: 'customers.html',
     slug: 'customers',
     title: 'Customers — Bryte Rewards',
     description: 'See how Canadian hospitality, trades, healthcare, and retail teams use Bryte Rewards to build recognition cultures that stick.',
     ogTitle: 'Customer Stories — Bryte Rewards',
   },
   {
-    file: 'Security.html',
+    file: 'security.html',
     slug: 'security',
     title: 'Security & Privacy — Bryte Rewards',
     description: 'PIPEDA-compliant, Canadian data residency, SOC 2 Type II in progress. Your employee data stays in Canada.',
     ogTitle: 'Security & Privacy — Bryte Rewards',
   },
   {
-    file: 'About.html',
+    file: 'about.html',
     slug: 'about',
     title: 'About — Bryte Rewards',
     description: 'We\'re a small team in Toronto building recognition software that actually sounds like your company, not a Silicon Valley HR tool.',
     ogTitle: 'About Bryte Rewards',
   },
   {
-    file: 'Compare.html',
+    file: 'compare.html',
     slug: 'compare',
     title: 'Bryte Rewards vs Bonusly — an honest comparison',
     description: 'Switching from Bonusly, Kudos, or Achievers? Here\'s an honest side-by-side. Canadian pricing, Canadian data residency, no commissions on rewards.',
     ogTitle: 'Bryte Rewards vs Bonusly — Honest Comparison',
   },
   {
-    file: 'Blog.html',
+    file: 'blog.html',
     slug: 'blog',
     title: 'Journal — Bryte Rewards',
     description: 'Essays on recognition, company culture, and building workplaces where people feel seen. Written by the team at Bryte Rewards.',
     ogTitle: 'The Bryte Rewards Journal',
   },
   {
-    file: 'Blog-post-1.html',
+    file: 'blog-post-1.html',
     slug: 'blog-post-1',
     title: 'Recognition is not a points problem — Bryte Rewards Journal',
     description: 'Why the mechanics of your recognition programme matter less than whether your managers actually mean it when they click send.',
     ogTitle: 'Recognition is not a points problem',
   },
   {
-    file: 'Blog-post-2.html',
+    file: 'blog-post-2.html',
     slug: 'blog-post-2',
     title: 'Running a values refresh — Bryte Rewards Journal',
     description: 'A practical playbook for refreshing your company values without the off-site, the consultant, or the all-hands awkwardness.',
     ogTitle: 'Running a values refresh: a practical playbook',
   },
   {
-    file: 'Demo.html',
+    file: 'demo.html',
     slug: 'demo',
     title: 'Book a demo — Bryte Rewards',
     description: 'Thirty minutes with a real human, on your schedule. See Bryte Rewards on your own values and your own team. No sales deck, no hard pitch.',
     ogTitle: 'Book a Demo — Bryte Rewards',
   },
   {
-    file: 'ROI.html',
+    file: 'roi.html',
     slug: 'roi',
     title: 'ROI calculator — Bryte Rewards',
     description: 'Estimate the return on a recognition programme for your team. Based on retention savings, productivity uplift, and reduced absenteeism data from Canadian employers.',
@@ -117,17 +117,17 @@ const footerHtml = readFileSync(join(__dir, '_partials/footer.html'), 'utf8');
 
 const SLUG_TO_PATH = {
   home: '/',
-  product: '/Product.html',
-  pricing: '/Pricing.html',
-  customers: '/Customers.html',
-  security: '/Security.html',
-  about: '/About.html',
-  compare: '/Compare.html',
-  blog: '/Blog.html',
-  'blog-post-1': '/Blog-post-1.html',
-  'blog-post-2': '/Blog-post-2.html',
-  demo: '/Demo.html',
-  roi: '/ROI.html',
+  product: '/product.html',
+  pricing: '/pricing.html',
+  customers: '/customers.html',
+  security: '/security.html',
+  about: '/about.html',
+  compare: '/compare.html',
+  blog: '/blog.html',
+  'blog-post-1': '/blog-post-1.html',
+  'blog-post-2': '/blog-post-2.html',
+  demo: '/demo.html',
+  roi: '/roi.html',
   '404': '/404.html',
 };
 
@@ -178,8 +178,8 @@ function injectHead(html, page) {
   }
 
   // 4. Update asset versions
-  html = html.replace(/site\.css\?v=\d+/, 'site.css?v=6');
-  html = html.replace(/site\.js\?v=\d+/, 'site.js?v=6');
+  html = html.replace(/site\.css\?v=\d+/, 'site.css?v=7');
+  html = html.replace(/site\.js\?v=\d+/, 'site.js?v=7');
 
   return html;
 }

@@ -9,18 +9,18 @@ import path from 'node:path';
 // Map clean marketing URLs to the static HTML files now at the public/ root.
 // Mirrors the production _redirects rules so dev/preview behave identically.
 const marketingRoutes: Record<string, string> = {
-  '/': 'Home.html',
-  '/product': 'Product.html',
-  '/pricing': 'Pricing.html',
-  '/customers': 'Customers.html',
-  '/security': 'Security.html',
-  '/about': 'About.html',
-  '/compare': 'Compare.html',
-  '/blog': 'Blog.html',
-  '/blog/recognition-not-points': 'Blog-post-1.html',
-  '/blog/values-refresh': 'Blog-post-2.html',
-  '/demo': 'Demo.html',
-  '/roi': 'ROI.html',
+  '/': 'home.html',
+  '/product': 'product.html',
+  '/pricing': 'pricing.html',
+  '/customers': 'customers.html',
+  '/security': 'security.html',
+  '/about': 'about.html',
+  '/compare': 'compare.html',
+  '/blog': 'blog.html',
+  '/blog/recognition-not-points': 'blog-post-1.html',
+  '/blog/values-refresh': 'blog-post-2.html',
+  '/demo': 'demo.html',
+  '/roi': 'roi.html',
 };
 
 function marketingMiddleware(rootDir: string): Connect.NextHandleFunction {

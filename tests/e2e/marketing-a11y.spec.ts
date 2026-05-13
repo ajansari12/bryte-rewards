@@ -2,16 +2,16 @@ import { test } from '@playwright/test';
 import { checkA11y, injectAxe } from '@axe-core/playwright';
 
 const PAGES = [
-  { name: 'Home',         path: '/Home.html' },
-  { name: 'Product',      path: '/Product.html' },
-  { name: 'Pricing',      path: '/Pricing.html' },
-  { name: 'Customers',    path: '/Customers.html' },
-  { name: 'Security',     path: '/Security.html' },
-  { name: 'About',        path: '/About.html' },
-  { name: 'Compare',      path: '/Compare.html' },
-  { name: 'Blog',         path: '/Blog.html' },
-  { name: 'Demo',         path: '/Demo.html' },
-  { name: 'ROI',          path: '/ROI.html' },
+  { name: 'Home',         path: '/home.html' },
+  { name: 'Product',      path: '/product.html' },
+  { name: 'Pricing',      path: '/pricing.html' },
+  { name: 'Customers',    path: '/customers.html' },
+  { name: 'Security',     path: '/security.html' },
+  { name: 'About',        path: '/about.html' },
+  { name: 'Compare',      path: '/compare.html' },
+  { name: 'Blog',         path: '/blog.html' },
+  { name: 'Demo',         path: '/demo.html' },
+  { name: 'ROI',          path: '/roi.html' },
   { name: '404',          path: '/404.html' },
 ];
 
