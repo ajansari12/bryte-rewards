@@ -1,4 +1,4 @@
-import{j as e}from"./index-BwlKUB8S.js";import{I as p}from"./onboardingPresets-BVaY6dET.js";import{a as m,c as b}from"./AppShell-BznEGDt7.js";function f(){return e.jsx("style",{children:`
+import{j as e}from"./index-BDI2u7jx.js";import{I as p}from"./onboardingPresets-r5DbRmNl.js";import{a as m,c as b}from"./AppShell-BuqaD3Bt.js";function f(){return e.jsx("style",{children:`
     [data-theme="dark"] {
       --b-canvas: #14100D;
       --b-surface: #1C1612;
@@ -30,4 +30,4 @@ import{j as e}from"./index-BwlKUB8S.js";import{I as p}from"./onboardingPresets-B
           #print-sheet { box-shadow: none !important; margin: 0 !important; max-width: none !important; page-break-after: always; }
         }
       `})]})}export{f as DarkModeStyles,y as KudosPrintView};
-//# sourceMappingURL=Extras2-BbrSUWEk.js.map
+//# sourceMappingURL=Extras2-BNFogQyy.js.map
