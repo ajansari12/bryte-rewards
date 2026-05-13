@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Icon } from './Icon';
+import { BrandWordmark } from './BrandWordmark';
 import type { Recognition } from '@/lib/types';
 import { useFocusTrap } from './Extras';
 import { useCurrentUser, useCurrentOrg, useOrgUsers, type NotificationPrefs } from '@/lib/queries/users';
@@ -837,10 +838,7 @@ export function DigestPreview({ onClose, onToast }: { onClose: () => void; onToa
           <div style={{ maxWidth: 520, margin: '0 auto', background: 'var(--b-card)', borderRadius: 'var(--r-lg)', overflow: 'hidden', border: '1px solid var(--b-border-soft)' }}>
             {/* Dark header */}
             <div style={{ background: 'var(--b-ink)', padding: '28px 32px' }}>
-              <div className="serif" style={{ color: 'var(--b-canvas)', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
-                Bryte<span style={{ color: 'var(--b-gold)' }}>.</span>
-                <span style={{ fontStyle: 'italic', fontWeight: 300, fontSize: '1.1rem', color: 'rgba(250,246,239,0.6)', marginLeft: 4 }}>Weekly Digest</span>
-              </div>
+              <BrandWordmark size="md" tone="on-dark" suffix="Weekly Digest" />
               <div style={{ marginTop: 6, fontSize: 'var(--t-xs)', color: 'rgba(250,246,239,0.5)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 {orgName} · Past 7 days
               </div>

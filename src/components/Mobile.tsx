@@ -2,6 +2,7 @@
 
 import { Icon } from './Icon';
 import { IOSDevice } from './IosFrame';
+import { BrandWordmark } from './BrandWordmark';
 import { useRecognitions } from '@/lib/queries/recognitions';
 import { useCurrentOrg, useOrgUsers } from '@/lib/queries/users';
 import { useOrgValues } from '@/lib/queries/values';
@@ -41,9 +42,7 @@ export function MobilePreview() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
-            <div className="serif" style={{fontSize: 22, fontWeight: 700, color: 'var(--b-ink)', lineHeight: 1}}>
-              Bryte<span style={{color: 'var(--b-gold)'}}>.</span>
-            </div>
+            <BrandWordmark size="sm" />
             <div style={{fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', color: 'var(--b-ink-3)', textTransform: 'uppercase', marginTop: 2}}>
               {org?.name ?? 'Your org'}
             </div>

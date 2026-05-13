@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Icon } from './Icon';
+import { BrandWordmark } from './BrandWordmark';
 import { supabase } from '@/lib/supabase';
 import { useBadges } from '@/lib/queries/badges';
 import { useMyRecognitions } from '@/lib/queries/recognitions';
@@ -90,10 +91,7 @@ export function Sidebar({ route, setRoute, orgName: orgNameProp, orgTag: orgTagP
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <div className="wordmark">
-          Bryte<span className="dot">.</span>
-          <span className="suffix">Rewards</span>
-        </div>
+        <BrandWordmark size="md" />
         <div className="org" title={orgTag}>{orgName}</div>
       </div>
 

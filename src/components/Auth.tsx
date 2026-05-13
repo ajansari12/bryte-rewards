@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Icon } from './Icon';
+import { BrandWordmark } from './BrandWordmark';
 import { BRYTE_DATA } from '@/lib/data';
 import { supabase } from '@/lib/supabase';
 import { badgesForIndustry } from '@/lib/onboardingPresets';
@@ -133,10 +134,7 @@ export function AuthPage({ mode = 'login' }: { mode?: string }) {
         padding: 44,
       }}>
         <div>
-          <div className="serif" style={{ fontSize: '2.4rem', fontWeight: 700, color: 'var(--b-ink)', lineHeight: 1, letterSpacing: '-0.03em', fontVariationSettings: '"opsz" 72' }}>
-            Bryte<span style={{ color: 'var(--b-gold)' }}>.</span>
-            <span style={{ fontStyle: 'italic', fontWeight: 300, fontSize: '1.6rem', color: 'var(--b-ink-3)', marginLeft: 4 }}>Rewards</span>
-          </div>
+          <BrandWordmark size="lg" />
         </div>
         <div>
           <h2 style={{
