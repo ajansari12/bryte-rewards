@@ -101,13 +101,13 @@
 
   /* ═══ Sticky scroll CTA — only on long pages, not on Demo/auth ═══ */
   const path = location.pathname.split('/').pop() || '';
-  const suppressSticky = /Demo\.html|404/i.test(path) || sessionStorage.getItem('br-sticky-dismissed') === '1';
+  const suppressSticky = /demo\.html|404/i.test(path) || sessionStorage.getItem('br-sticky-dismissed') === '1';
   if (!suppressSticky && document.querySelector('.site-footer')) {
     const cta = document.createElement('div');
     cta.className = 'sticky-cta';
     cta.innerHTML = `
       <span class="sc-text">Ready to say the things that matter? <em>30-min demo, on your schedule.</em></span>
-      <a class="sc-btn" href="Demo.html">Book a demo</a>
+      <a class="sc-btn" href="/demo.html">Book a demo</a>
       <button class="sc-close" aria-label="Close">✕</button>
     `;
     document.body.appendChild(cta);
@@ -129,7 +129,7 @@
 
   /* ═══ Exit intent modal ═══ */
   const exitShown = sessionStorage.getItem('br-exit-shown');
-  if (!exitShown && !/Demo\.html/i.test(path)) {
+  if (!exitShown && !/demo\.html/i.test(path)) {
     const modal = document.createElement('div');
     modal.className = 'exit-modal-backdrop';
     modal.innerHTML = `
@@ -170,6 +170,24 @@
         setTimeout(close, 2500);
       }
     });
+  }
+
+  /* ═══ Hero typewriter (home page) ═══ */
+  const typedTarget = document.getElementById('typed-text');
+  if (typedTarget) {
+    const full = "Leena, you saved my week. When the Victoria order came in wrong, you called three suppliers, stayed past close, and made a customer feel like they mattered. That's the bar.";
+    const cursor = '<span class="cursor"></span>';
+    let i = 0;
+    typedTarget.innerHTML = cursor;
+    const speed = 22;
+    const tick = () => {
+      if (i <= full.length) {
+        typedTarget.innerHTML = full.slice(0, i) + cursor;
+        i++;
+        setTimeout(tick, speed + Math.random() * 40);
+      }
+    };
+    setTimeout(tick, 900);
   }
 
   /* Tweaks panel */

@@ -7,67 +7,67 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://bryte.app/Product.html</loc>
+    <loc>https://bryte.app/product.html</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://bryte.app/Pricing.html</loc>
+    <loc>https://bryte.app/pricing.html</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://bryte.app/Customers.html</loc>
+    <loc>https://bryte.app/customers.html</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://bryte.app/Security.html</loc>
+    <loc>https://bryte.app/security.html</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://bryte.app/About.html</loc>
+    <loc>https://bryte.app/about.html</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://bryte.app/Compare.html</loc>
+    <loc>https://bryte.app/compare.html</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://bryte.app/Blog.html</loc>
+    <loc>https://bryte.app/blog.html</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://bryte.app/Blog-post-1.html</loc>
+    <loc>https://bryte.app/blog-post-1.html</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://bryte.app/Blog-post-2.html</loc>
+    <loc>https://bryte.app/blog-post-2.html</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://bryte.app/Demo.html</loc>
+    <loc>https://bryte.app/demo.html</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://bryte.app/ROI.html</loc>
+    <loc>https://bryte.app/roi.html</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>

@@ -1,33 +1,47 @@
 # Marketing site at apex
-/                  /Home.html                   200
+/                  /home.html                   200
 
 # Clean URLs for marketing pages (Netlify-style hosts only)
-/product           /Product.html                200
-/pricing           /Pricing.html                200
-/customers         /Customers.html              200
-/integrations      /Product.html                301
-/security          /Security.html               200
-/about             /About.html                  200
-/compare           /Compare.html                200
-/blog              /Blog.html                   200
-/blog/recognition-not-points  /Blog-post-1.html 200
-/blog/values-refresh          /Blog-post-2.html 200
-/demo              /Demo.html                   200
-/roi               /ROI.html                    200
+/product           /product.html                200
+/pricing           /pricing.html                200
+/customers         /customers.html              200
+/integrations      /product.html                301
+/security          /security.html               200
+/about             /about.html                  200
+/compare           /compare.html                200
+/blog              /blog.html                   200
+/blog/recognition-not-points  /blog-post-1.html 200
+/blog/values-refresh          /blog-post-2.html 200
+/demo              /demo.html                   200
+/roi               /roi.html                    200
+
+# Legacy capitalized URLs redirect to canonical lowercase
+/Home.html                    /home.html        301
+/Product.html                 /product.html     301
+/Pricing.html                 /pricing.html     301
+/Customers.html               /customers.html   301
+/Security.html                /security.html    301
+/About.html                   /about.html       301
+/Compare.html                 /compare.html     301
+/Blog.html                    /blog.html        301
+/Blog-post-1.html             /blog-post-1.html 301
+/Blog-post-2.html             /blog-post-2.html 301
+/Demo.html                    /demo.html        301
+/ROI.html                     /roi.html         301
 
 # Legacy /marketing/* URLs redirect to canonical paths
-/marketing/Home.html          /Home.html        301
-/marketing/Product.html       /Product.html     301
-/marketing/Pricing.html       /Pricing.html     301
-/marketing/Customers.html     /Customers.html   301
-/marketing/Security.html      /Security.html    301
-/marketing/About.html         /About.html       301
-/marketing/Compare.html       /Compare.html     301
-/marketing/Blog.html          /Blog.html        301
-/marketing/Blog-post-1.html   /Blog-post-1.html 301
-/marketing/Blog-post-2.html   /Blog-post-2.html 301
-/marketing/Demo.html          /Demo.html        301
-/marketing/ROI.html           /ROI.html         301
+/marketing/Home.html          /home.html        301
+/marketing/Product.html       /product.html     301
+/marketing/Pricing.html       /pricing.html     301
+/marketing/Customers.html     /customers.html   301
+/marketing/Security.html      /security.html    301
+/marketing/About.html         /about.html       301
+/marketing/Compare.html       /compare.html     301
+/marketing/Blog.html          /blog.html        301
+/marketing/Blog-post-1.html   /blog-post-1.html 301
+/marketing/Blog-post-2.html   /blog-post-2.html 301
+/marketing/Demo.html          /demo.html        301
+/marketing/ROI.html           /roi.html         301
 /marketing/404.html           /404.html         301
 
 # React SPA — handled client-side
